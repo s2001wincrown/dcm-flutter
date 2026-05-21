@@ -1,0 +1,61 @@
+import 'dart:io';
+
+import 'package:file_picker/file_picker.dart';
+import 'package:flutter/material.dart';
+import 'package:dcm/backend/models/playlist_item.dart';
+import 'package:dcm/backend/app.dart';
+import 'package:dcm/backend/utils/l10n_utils.dart';
+import 'package:dcm/widgets/menu/menu_item.dart';
+
+List<Widget> buildCommonPlaylistMenuItems(
+  BuildContext context,
+  ColorScheme colorScheme,
+  PlaylistItem item,
+) {
+  return [
+    MMenuItem(
+      icon: Icons.play_circle_outline_rounded,
+      label: '播放'.l10n,
+      onPressed: () {
+        App().openPlaylist(item, false);
+      },
+    ),
+    MMenuItem(
+      icon: Icons.shuffle,
+      label: '随机播放'.l10n,
+      onPressed: () {
+        App().openPlaylist(
+          item,
+          true,
+        );
+      },
+    ),
+    MMenuItem(
+      icon: Icons.share,
+      label: '导出'.l10n,
+      onPressed: () async {
+        final originalFile = File(
+          '${App().dataPath}/playlists/${item.title}.json',
+        );
+        String? newFilePath = await FilePicker.platform.saveFile(
+          dialogTitle: '另存为',
+          fileName: '${item.title}.json',
+        );
+
+        if (newFilePath != null) {
+          final newFile = File(newFilePath);
+
+          await originalFile.copy(newFile.path);
+          if (!context.mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                '已经保存到: $newFilePath',
+              ),
+            ),
+          );
+        }
+      },
+    ),
+  ];
+}
