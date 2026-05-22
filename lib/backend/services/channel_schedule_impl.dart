@@ -12,12 +12,6 @@ import 'package:pair/pair.dart';
 import 'package:path/path.dart' as path;
 
 class ChannelScheduleImpl {
-  static const String _scheduleRoot = 'MonthlySchedule';
-  static const String _scheduleSettingSection = 'ScheduleSetting';
-  static const String _scheduleMonthTag = 'Month';
-  static const String _dayInfoListTag = 'DayInfoList';
-  static const String _dayInfoTag = 'DayInfo';
-
   String lastError = '';
 
   bool saveSchedule(List<DayInfoData> lstDayInfo, String channelName,

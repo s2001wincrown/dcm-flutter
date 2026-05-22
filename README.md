@@ -35,25 +35,6 @@
   </tr>
 </table>
 
-## 功能
-
-> 可以通过[键盘快捷键](https://github.com/mpv-player/random-stuff/blob/master/key_bindings_chart/mpbindings.png)访问所有 mpv 功能, 在播放界面按 `SHIFT+O` 可显示 mpv OSD
-
-- [X] 自定义主题 & 深色模式
-- [X] 播放本地和网络媒体
-- [X] 迷你播放器模式 (Windows & macOS)
-- [X] 设置为系统打开方式 (Windows)
-- [X] 播放列表功能 (随机播放, 单曲循环)
-- [X] 章节和 AB 循环 (命令行)
-- [X] 任意倍速调节
-- [X] 搜索媒体文件和播放列表
-- [X] 多语言支持
-- [X] 字幕 (libass)
-- [X] 着色器支持
-- [X] 自定义快捷键映射 (input.conf 支持)
-- [X] 兼容 mpv.conf 配置文件
-- [X] 自动生成字幕 (Whisper)
-- [ ] LLM增强的视频分析（部分功能未完成，可以切换到llm分支提前体验一部分功能）
 
 ### 使用 Anime4K 着色器
 

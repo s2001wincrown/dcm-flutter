@@ -246,7 +246,9 @@ class _DigitalSignageScreenState extends State<DigitalSignageScreen> {
   }
 
   // 双击退出功能
-  Future<bool> _onWillPop() async {
+  void _onPopInvokedWithResult(bool didPop, Object? result) {
+    if (didPop) return;
+
     DateTime now = DateTime.now();
     if (_lastTap == null ||
         now.difference(_lastTap!) > const Duration(seconds: 2)) {
@@ -254,16 +256,20 @@ class _DigitalSignageScreenState extends State<DigitalSignageScreen> {
       // 显示提示信息
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('双击屏幕退出应用'),
-            duration: const Duration(seconds: 1),
+          const SnackBar(
+            content: Text('双击屏幕退出应用'),
+            duration: Duration(seconds: 1),
           ),
         );
       }
-      return false; // 不退出应用
+      return; // 不退出应用
     }
     // 双击确认退出
-    return true;
+    // Since this is the root route, quit the app where possible by
+    // invoking the SystemNavigator. If this wasn't the root route,
+    // then Navigator.maybePop could be used instead.
+    // See https://github.com/flutter/flutter/issues/11490
+    SystemNavigator.pop();
   }
 
   @override
@@ -282,8 +288,9 @@ class _DigitalSignageScreenState extends State<DigitalSignageScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return WillPopScope(
-      onWillPop: _onWillPop,
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: _onPopInvokedWithResult,
       child: GestureDetector(
         onTap: () {
           // 单击重置系统UI隐藏计时器
@@ -291,11 +298,7 @@ class _DigitalSignageScreenState extends State<DigitalSignageScreen> {
         },
         onDoubleTap: () {
           // 双击退出应用
-          _onWillPop().then((shouldExit) {
-            if (shouldExit) {
-              SystemNavigator.pop(); // 退出应用
-            }
-          });
+          _onPopInvokedWithResult(false, null);
         },
         child: Scaffold(
           backgroundColor: Colors.black,
@@ -540,7 +543,7 @@ class _VideoPartitionState extends State<VideoPartition> {
   void initState() {
     super.initState();
     if (widget.url != null) {
-      _controller = VideoPlayerController.network(widget.url!);
+      _controller = VideoPlayerController.networkUrl(Uri.parse(widget.url!));
     } else if (widget.file != null) {
       _controller = VideoPlayerController.file(widget.file!);
     } else {

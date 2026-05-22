@@ -35,25 +35,6 @@ A `libmpv` based media player with Material 3 design.
   </tr>
 </table>
 
-## Features
-
-You can access all mpv functions using [keyboard shortcuts](https://github.com/mpv-player/random-stuff/blob/master/key_bindings_chart/mpbindings.png). Press `SHIFT+O` while playing to display the mpv OSD interface.
-
-- [X] Custom themes & dark mode
-- [X] Play local and online media
-- [X] Mini player mode (Windows & macOS)
-- [X] Set as system default media player (Windows)
-- [X] Playlist support (shuffle, repeat one)
-- [X] Chapters and AB loop (via command line)
-- [X] Adjustable playback speed
-- [X] Media file and playlist search
-- [X] Multi-language support
-- [X] Subtitles (libass)
-- [X] Shader support, such as [Anime4K](https://github.com/bloc97/Anime4K)
-- [X] Custom key mapping (input.conf support)
-- [X] Compatible with `mpv.conf` configuration files
-- [X] Subtitle generation using Whisper
-- [ ] LLM-enhanced video analysis (Switch to llm branch to have early access to some new features)
 
 ## For Developers
 
