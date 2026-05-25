@@ -558,11 +558,11 @@ class _HomePageState extends State<HomePage> {
         constraints: const BoxConstraints(),
         color: colorScheme.primaryContainer,
         onPressed: () {
-          var shuffle = App().player.isShuffleEnabled;
+          var shuffle = App().player.state.shuffle;
           App().player.setShuffle(!shuffle);
           setState(() {});
         },
-        icon: App().player.isShuffleEnabled
+        icon: App().player.state.shuffle
             ? const Icon(Icons.shuffle_on_rounded)
             : const Icon(Icons.shuffle_rounded),
         iconSize: 20,

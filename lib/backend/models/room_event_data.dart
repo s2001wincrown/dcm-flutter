@@ -1,6 +1,4 @@
 // Helper classes for the objects
-import 'dart:ui';
-
 import 'package:dcm/backend/constants.dart';
 import 'package:dcm/backend/utils/time_utils.dart';
 import 'package:dcm/backend/xmlfile/xmlfilepro.dart';
@@ -613,7 +611,7 @@ class RoomEventData {
     SectionContentData? pSection,
   ) {
     for (var content in sectionContent) {
-      if (pSection == null || (pSection != null && pSection != content)) {
+      if (pSection == null || (pSection != content)) {
         var dtTimeStart1 = DateTime.parse(content.startTime);
         var dtTimeEnd1 = DateTime.parse(content.endTime);
 

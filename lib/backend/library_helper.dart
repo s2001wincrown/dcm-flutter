@@ -29,9 +29,20 @@ class LibraryHelper {
   static Playlist convertToPlaylist(PlaylistItem playlistItem) {
     List<Media> res = [];
     for (var item in playlistItem.items) {
-      res.add(Media(item.source));
+      res.add(Media(normalizeMediaSource(item.source)));
     }
     return Playlist(res);
+  }
+
+  static String normalizeMediaSource(String source) {
+    if (source.isEmpty) {
+      return source;
+    }
+    final uri = Uri.tryParse(source);
+    if (uri != null && uri.hasScheme) {
+      return source;
+    }
+    return Uri.file(source).toString();
   }
 
   static Future<List<PlayItem>> getMediaFromPaths(List<String> paths) async {

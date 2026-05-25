@@ -4,12 +4,13 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:media_kit/media_kit.dart';
-import 'package:media_kit_video/basic/video_controller.dart';
+import 'package:media_kit_video/media_kit_video.dart';
 import 'package:path/path.dart';
 import 'package:path_provider/path_provider.dart';
 
 import 'package:dcm/backend/keymap_helper.dart';
 import 'package:dcm/backend/library_helper.dart';
+import 'package:dcm/backend/player_command_ext.dart';
 import 'package:dcm/backend/models/dcm_global.dart';
 import 'package:dcm/backend/models/playitem.dart';
 import 'package:dcm/backend/models/playlist_item.dart';
@@ -37,8 +38,8 @@ class App {
 
   Map<String, Function> actions = {};
 
-  late final NativePlayer player;
-  late final BasicVideoController controller;
+  late final Player player;
+  late final VideoController controller;
 
   bool playlistLoaded = false;
   bool mediaLibraryLoaded = false;
@@ -66,14 +67,15 @@ class App {
     if (needsUpdate) {
       await saveSettings();
     }
-    player = NativePlayer(
-      options: {
-        'config-dir':
-            settings.mpvConfigPath != '' ? settings.mpvConfigPath : dataPath,
-        'config': settings.enableMpvConfig ? 'yes' : 'no',
-        'input-default-bindings': settings.useDefaultKeyBinding ? 'yes' : 'no',
-        'osd-level': settings.mpvOsdLevel.toString(),
-      },
+    player = Player(
+      configuration: const PlayerConfiguration(
+        title: 'dcm',
+        osc: false,
+        muted: false,
+        async: true,
+        libass: false,
+        logLevel: MPVLogLevel.error,
+      ),
     );
     player.stream.playlist.listen(
       (event) {
@@ -87,7 +89,7 @@ class App {
         }
       },
     );
-    controller = await BasicVideoController.create(player);
+    controller = VideoController(player);
     player.setVolume(settings.volume);
     settings.tempPath = (await getTemporaryDirectory()).path;
   }
@@ -147,7 +149,7 @@ class App {
     if (!settings.rememberStatus) {
       _resetPlayerStatus();
     }
-    final video = Media(media.source);
+    final video = Media(LibraryHelper.normalizeMediaSource(media.source));
     player.open(video, play: settings.autoPlay);
   }
 

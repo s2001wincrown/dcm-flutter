@@ -1,5 +1,6 @@
 import 'package:flutter/services.dart';
 import 'package:dcm/backend/app.dart';
+import 'package:dcm/backend/player_command_ext.dart';
 
 class KeyMapHelper {
   static late final HardwareKeyboard _keyboard;

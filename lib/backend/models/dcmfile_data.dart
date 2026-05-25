@@ -120,14 +120,12 @@ class DCMFileData {
       int nIndex, List arrProdName, String strDesc, String strImage,
       [String? strProdEvent]) {
     ProductData? pData = getProductDataByIndex(nIndex);
-    int i;
     if (pData == null) {
       pData = ProductData();
 
       lstProduct!.add(pData);
     }
-    /*for(i=0; i<(int)arrProdName.size(); i++)
-		{
+    /*for(int i=0; i<arrProdName.length; i++) {
 			pData.AddProductName(arrProdName.get(i), i);
 		}*/
     pData.strProductDesc = strDesc;
@@ -286,7 +284,7 @@ class DCMFileData {
 
     ProductData? pProductData = getProductDataByIndex(nProduct);
     if (pProductData != null) {
-      ZoneData? pNewZoneData = pProductData!.getZoneData(pZoneData.nZoneID);
+      ZoneData? pNewZoneData = pProductData.getZoneData(pZoneData.nZoneID);
       if (pNewZoneData != null) {
         return (pNewZoneData.nZoneType == pZoneData.nZoneType &&
             pNewZoneData.strZoneFile == pZoneData.strZoneFile);

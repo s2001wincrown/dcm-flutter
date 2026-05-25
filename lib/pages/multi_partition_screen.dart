@@ -1,12 +1,14 @@
-import 'package:flutter/material.dart';
-import 'package:video_player/video_player.dart';
-import 'package:flutter/services.dart';
 import 'dart:async';
 import 'dart:io';
+import 'dart:math' as math;
 
-void main() {
-  runApp(const DigitalSignageApp());
-}
+import 'package:dcm/backend/app.dart';
+import 'package:dcm/widgets/basic_video.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:media_kit/media_kit.dart';
+import 'package:media_kit_video/media_kit_video.dart';
+import 'package:dcm/backend/library_helper.dart';
 
 class DigitalSignageApp extends StatelessWidget {
   const DigitalSignageApp({Key? key}) : super(key: key);
@@ -41,31 +43,30 @@ class _DigitalSignageScreenState extends State<DigitalSignageScreen> {
         PartitionConfig(
           id: 1,
           type: ContentType.video,
-          content:
-              'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
-          row: 0,
-          col: 0,
-          rowSpan: 2,
-          colSpan: 2,
+          content: 'D:/dc-data/data/P1920-1.mp4',
+          x: 0,
+          y: 0,
+          width: 1280,
+          height: 720,
         ),
         PartitionConfig(
           id: 2,
           type: ContentType.image,
           content:
               'https://workspace-zb-cdn.quark.cn/a4f3a529b8864f648dbd66882dd7c0f3%2Fo%2F1773978786572.png?auth_key=1805515380-0-0-5a17cd1b8a1c94658c52a06ea2a9f98a',
-          row: 0,
-          col: 2,
-          rowSpan: 1,
-          colSpan: 2,
+          x: 1280,
+          y: 0,
+          width: 640,
+          height: 360,
         ),
         PartitionConfig(
           id: 3,
           type: ContentType.text,
           content: 'Welcome to Digital Signage!',
-          row: 1,
-          col: 2,
-          rowSpan: 1,
-          colSpan: 2,
+          x: 1280,
+          y: 360,
+          width: 640,
+          height: 360,
         ),
       ],
     ),
@@ -77,20 +78,20 @@ class _DigitalSignageScreenState extends State<DigitalSignageScreen> {
           id: 1,
           type: ContentType.html,
           content: '<h1>Live News Feed</h1><p>Latest updates here...</p>',
-          row: 0,
-          col: 0,
-          rowSpan: 1,
-          colSpan: 4,
+          x: 0,
+          y: 0,
+          width: 1920,
+          height: 540,
         ),
         PartitionConfig(
           id: 2,
           type: ContentType.scrollText,
           content:
               'This is a scrolling text message that demonstrates the scroll text functionality in the digital signage system.',
-          row: 1,
-          col: 0,
-          rowSpan: 1,
-          colSpan: 4,
+          x: 0,
+          y: 540,
+          width: 1920,
+          height: 540,
         ),
       ],
     ),
@@ -103,19 +104,19 @@ class _DigitalSignageScreenState extends State<DigitalSignageScreen> {
           type: ContentType.slideshow,
           content:
               'https://picsum.photos/800/600,https://picsum.photos/800/601,https://picsum.photos/800/602',
-          row: 0,
-          col: 0,
-          rowSpan: 1,
-          colSpan: 4,
+          x: 0,
+          y: 0,
+          width: 1920,
+          height: 720,
         ),
         PartitionConfig(
           id: 2,
           type: ContentType.liveInfo,
           content: 'Current Time',
-          row: 1,
-          col: 0,
-          rowSpan: 1,
-          colSpan: 4,
+          x: 0,
+          y: 720,
+          width: 1920,
+          height: 360,
         ),
       ],
     ),
@@ -124,15 +125,22 @@ class _DigitalSignageScreenState extends State<DigitalSignageScreen> {
   int currentShowIndex = 0;
   int nextShowIndex = 0;
   Timer? _timer;
-  DateTime? _lastTap; // 用于双击检测
+  Timer? _exitHintTimer;
+  DateTime? _lastTap;
+  bool _exitHintShown = false;
+  bool _showExitHint = false;
   bool _isLoadingNext = false;
-  Map<int, List<PreloadedContent>> _preloadedContents = {};
+  final Map<int, List<PreloadedContent>> _preloadedContents = {};
 
   @override
   void initState() {
     super.initState();
     _hideSystemUI();
-    _preloadAllContents();
+    // Preload uses `context` (e.g. `precacheImage`), so run it after
+    // the first frame to avoid accessing InheritedWidgets during initState.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _preloadAllContents();
+    });
     _startPlaylist();
   }
 
@@ -160,18 +168,49 @@ class _DigitalSignageScreenState extends State<DigitalSignageScreen> {
     for (final partition in show.layout) {
       switch (partition.type) {
         case ContentType.video:
-          if (partition.content.startsWith('http')) {
-            final controller = VideoPlayerController.network(partition.content);
-            await controller.initialize();
+          final player = Player(
+            configuration: const PlayerConfiguration(
+              title: 'dcm',
+              osc: false,
+              muted: false,
+              async: true,
+              libass: false,
+              logLevel: MPVLogLevel.error,
+            ),
+          );
+
+          final video =
+              Media(LibraryHelper.normalizeMediaSource(partition.content));
+          player.open(video, play: App().settings.autoPlay);
+
+          final controller = VideoController(
+            player,
+            configuration: const VideoControllerConfiguration(
+              width: 800,
+              height: 600,
+            ),
+          );
+          player.setVolume(App().settings.volume);
+          preloaded.add(PreloadedContent(
+              type: ContentType.video, controller: controller));
+          /*if (partition.content.startsWith('http')) {
+            final controller = BasicVideoController.networkUrl(
+              Uri.parse(
+                'https://flutter.github.io/assets-for-api-docs/assets/videos/bee.mp4',
+              ),
+            )..initialize().then((_) {
+                // Ensure the first frame is shown after the video is initialized, even before the play button has been pressed.
+                setState(() {});
+              });
             preloaded.add(PreloadedContent(
                 type: ContentType.video, controller: controller));
           } else {
             final controller =
-                VideoPlayerController.file(File(partition.content));
+                BasicVideoController.file(File(partition.content));
             await controller.initialize();
             preloaded.add(PreloadedContent(
                 type: ContentType.video, controller: controller));
-          }
+          }*/
           break;
         case ContentType.image:
           if (partition.content.startsWith('http')) {
@@ -245,41 +284,52 @@ class _DigitalSignageScreenState extends State<DigitalSignageScreen> {
     });
   }
 
-  // 双击退出功能
-  void _onPopInvokedWithResult(bool didPop, Object? result) {
-    if (didPop) return;
+  void _exitApplication() {
+    if (Platform.isAndroid || Platform.isIOS) {
+      SystemNavigator.pop();
+    } else {
+      exit(0);
+    }
+  }
 
-    DateTime now = DateTime.now();
+  void _handleExitTapDown() {
+    final now = DateTime.now();
     if (_lastTap == null ||
         now.difference(_lastTap!) > const Duration(seconds: 2)) {
       _lastTap = now;
-      // 显示提示信息
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('双击屏幕退出应用'),
-            duration: Duration(seconds: 1),
-          ),
-        );
+      if (!_exitHintShown) {
+        _exitHintShown = true;
+        _showExitHint = true;
+        _exitHintTimer?.cancel();
+        _exitHintTimer = Timer(const Duration(seconds: 3), () {
+          if (mounted) {
+            setState(() {
+              _showExitHint = false;
+            });
+          }
+        });
+        if (mounted) {
+          setState(() {});
+        }
       }
-      return; // 不退出应用
     }
-    // 双击确认退出
-    // Since this is the root route, quit the app where possible by
-    // invoking the SystemNavigator. If this wasn't the root route,
-    // then Navigator.maybePop could be used instead.
-    // See https://github.com/flutter/flutter/issues/11490
-    SystemNavigator.pop();
+  }
+
+  // 双击退出功能
+  void _onPopInvokedWithResult(bool didPop, Object? result) {
+    if (didPop) return;
+    _exitApplication();
   }
 
   @override
   void dispose() {
     _timer?.cancel();
+    _exitHintTimer?.cancel();
     // 释放所有预加载的内容
     for (final entry in _preloadedContents.entries) {
       for (final content in entry.value) {
-        if (content.controller != null) {
-          content.controller!.dispose();
+        if (content.player != null) {
+          content.player!.dispose();
         }
       }
     }
@@ -288,108 +338,136 @@ class _DigitalSignageScreenState extends State<DigitalSignageScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // 获取当前屏幕尺寸并用于显式设置 DigitalSignageScreen 的宽高
+    final Size screenSize = MediaQuery.of(context).size;
+    final double screenWidth = screenSize.width;
+    final double screenHeight = screenSize.height;
+
+    // 设计分辨率（参考布局），用于将像素坐标缩放到当前屏幕
+    const double designWidth = 1920.0;
+    const double designHeight = 1080.0;
+
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: _onPopInvokedWithResult,
       child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
         onTap: () {
           // 单击重置系统UI隐藏计时器
           SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
         },
-        onDoubleTap: () {
-          // 双击退出应用
-          _onPopInvokedWithResult(false, null);
-        },
-        child: Scaffold(
-          backgroundColor: Colors.black,
-          body: SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.all(8.0),
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  if (playlist.isEmpty ||
-                      playlist[currentShowIndex].layout.isEmpty) {
-                    return const Center(
-                      child: Text(
-                        'No Content to Display',
-                        style: TextStyle(color: Colors.white, fontSize: 24),
-                      ),
-                    );
-                  }
+        onTapDown: (_) => _handleExitTapDown(),
+        onDoubleTap: _exitApplication,
+        child: Stack(
+          children: [
+            SizedBox(
+              width: screenWidth,
+              height: screenHeight,
+              child: Scaffold(
+                backgroundColor: Colors.black,
+                body: SafeArea(
+                  child: Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: Builder(
+                      builder: (context) {
+                        if (playlist.isEmpty ||
+                            playlist[currentShowIndex].layout.isEmpty) {
+                          return const Center(
+                            child: Text(
+                              'No Content to Display',
+                              style:
+                                  TextStyle(color: Colors.white, fontSize: 24),
+                            ),
+                          );
+                        }
 
-                  final currentLayout = playlist[currentShowIndex].layout;
+                        final currentLayout = playlist[currentShowIndex].layout;
 
-                  // 计算网格行数和列数
-                  int maxRow = 0;
-                  int maxCol = 0;
-                  for (var partition in currentLayout) {
-                    maxRow = (partition.row + partition.rowSpan) > maxRow
-                        ? partition.row + partition.rowSpan
-                        : maxRow;
-                    maxCol = (partition.col + partition.colSpan) > maxCol
-                        ? partition.col + partition.colSpan
-                        : maxCol;
-                  }
+                        final double scaleX = screenWidth / designWidth;
+                        final double scaleY = screenHeight / designHeight;
+                        final double scale = math.min(scaleX, scaleY);
 
-                  return GridView.builder(
-                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: maxCol,
-                      childAspectRatio: constraints.maxWidth /
-                          (constraints.maxHeight * maxRow / maxCol),
+                        final double offsetX =
+                            (screenWidth - designWidth * scale) / 2.0;
+                        final double offsetY =
+                            (screenHeight - designHeight * scale) / 2.0;
+
+                        return Stack(
+                          children: currentLayout.map((partition) {
+                            final left = offsetX + partition.x * scale;
+                            final top = offsetY + partition.y * scale;
+                            final w = partition.width * scale;
+                            final h = partition.height * scale;
+
+                            return Positioned(
+                              left: left,
+                              top: top,
+                              width: w,
+                              height: h,
+                              child: Container(
+                                margin: const EdgeInsets.all(2),
+                                decoration: BoxDecoration(
+                                  color: Colors.grey[800],
+                                  border:
+                                      Border.all(color: Colors.grey, width: 1),
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: _buildPartitionContent(partition),
+                              ),
+                            );
+                          }).toList(),
+                        );
+                      },
                     ),
-                    itemCount: maxRow * maxCol,
-                    itemBuilder: (context, index) {
-                      int row = index ~/ maxCol;
-                      int col = index % maxCol;
-
-                      // 查找对应位置的分区
-                      PartitionConfig? partition = currentLayout.firstWhere(
-                        (element) =>
-                            row >= element.row &&
-                            row < element.row + element.rowSpan &&
-                            col >= element.col &&
-                            col < element.col + element.colSpan,
-                        orElse: () => PartitionConfig(
-                            id: -1,
-                            type: ContentType.empty,
-                            content: '',
-                            row: -1,
-                            col: -1,
-                            rowSpan: 1,
-                            colSpan: 1),
-                      );
-
-                      // 检查这个位置是否已经被占用
-                      bool isOccupied = currentLayout.any((element) =>
-                          index >= element.row * maxCol + element.col &&
-                          index <
-                              (element.row + element.rowSpan) * maxCol +
-                                  element.col &&
-                          !(element.row == row && element.col == col));
-
-                      if (isOccupied) {
-                        return Container(); // 已被占用的位置返回空容器
-                      }
-
-                      if (partition.id == -1) {
-                        return Container(color: Colors.grey[900]); // 空分区
-                      }
-
-                      return Container(
-                        margin: const EdgeInsets.all(2),
-                        decoration: BoxDecoration(
-                          color: Colors.grey[800],
-                          border: Border.all(color: Colors.grey, width: 1),
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: _buildPartitionContent(partition),
-                      );
-                    },
-                  );
-                },
+                  ),
+                ),
               ),
             ),
-          ),
+            if (_showExitHint)
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: 32,
+                child: Center(
+                  child: AnimatedOpacity(
+                    opacity: _showExitHint ? 1.0 : 0.0,
+                    duration: const Duration(milliseconds: 300),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 12,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.92),
+                        borderRadius: BorderRadius.circular(30),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.25),
+                            blurRadius: 10,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.touch_app, color: Colors.black87),
+                          SizedBox(width: 10),
+                          Text(
+                            '双击屏幕退出应用',
+                            style: TextStyle(
+                              color: Colors.black87,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+          ],
         ),
       ),
     );
@@ -404,11 +482,11 @@ class _DigitalSignageScreenState extends State<DigitalSignageScreen> {
         orElse: () => PreloadedContent(type: ContentType.empty),
       );
 
-      if (preloaded.controller != null) {
+      if (preloaded.controller != null && preloaded.player != null) {
         // 视频内容使用预加载的控制器
         return ClipRRect(
           borderRadius: BorderRadius.circular(4),
-          child: VideoPlayer(preloaded.controller!),
+          child: BasicVideo(controller: preloaded.controller!),
         );
       }
     }
@@ -464,7 +542,8 @@ class _DigitalSignageScreenState extends State<DigitalSignageScreen> {
 // 预加载内容类
 class PreloadedContent {
   final ContentType type;
-  final VideoPlayerController? controller;
+  final VideoController? controller;
+  final Player? player;
   final String? imagePath;
   final String? text;
   final List<String>? images;
@@ -472,30 +551,31 @@ class PreloadedContent {
   PreloadedContent({
     required this.type,
     this.controller,
+    this.player,
     this.imagePath,
     this.text,
     this.images,
   });
 }
 
-// 分区配置类
+// 分区配置类，使用像素定义位置与大小
 class PartitionConfig {
   final int id;
   final ContentType type;
   final String content; // URL、文件路径或文本内容
-  final int row;
-  final int col;
-  final int rowSpan;
-  final int colSpan;
+  final int x;
+  final int y;
+  final int width;
+  final int height;
 
   PartitionConfig({
     required this.id,
     required this.type,
     required this.content,
-    required this.row,
-    required this.col,
-    required this.rowSpan,
-    required this.colSpan,
+    required this.x,
+    required this.y,
+    required this.width,
+    required this.height,
   });
 }
 
@@ -536,28 +616,76 @@ class VideoPartition extends StatefulWidget {
 }
 
 class _VideoPartitionState extends State<VideoPartition> {
-  late VideoPlayerController _controller;
+  late VideoController _controller;
+  late Player _player;
   bool _initialized = false;
 
   @override
   void initState() {
     super.initState();
-    if (widget.url != null) {
-      _controller = VideoPlayerController.networkUrl(Uri.parse(widget.url!));
+    /*if (widget.url != null) {
+      _controller = VideoController(
+        _player,
+      );
     } else if (widget.file != null) {
-      _controller = VideoPlayerController.file(widget.file!);
+      _controller = VideoController(
+        _player,
+      );
     } else {
       throw ArgumentError('Either url or file must be provided');
-    }
+    }*/
 
     _initializeController();
   }
 
+  Future<void> _initAndPlay() async {
+    _player = Player(
+      configuration: const PlayerConfiguration(
+        title: 'dcm',
+        osc: false,
+        muted: false,
+        async: true,
+        libass: false,
+        logLevel: MPVLogLevel.error,
+      ),
+    );
+
+    final source = widget.url != null ? widget.url! : widget.file!.path;
+    final video = Media(LibraryHelper.normalizeMediaSource(source));
+    _player.open(video, play: App().settings.autoPlay);
+
+    _controller = VideoController(_player);
+    _player.setVolume(App().settings.volume);
+  }
+
   void _initializeController() async {
     try {
-      await _controller.initialize();
+      /*await _controller.initialize();
       _controller.setLooping(true);
-      _controller.play();
+      _controller.play();*/
+      _player = Player(
+        configuration: const PlayerConfiguration(
+          title: 'dcm',
+          osc: false,
+          muted: false,
+          async: true,
+          libass: false,
+          logLevel: MPVLogLevel.error,
+        ),
+      );
+
+      final source = widget.url != null ? widget.url! : widget.file!.path;
+      final video = Media(LibraryHelper.normalizeMediaSource(source));
+      _player.open(video, play: App().settings.autoPlay);
+
+      _controller = VideoController(
+        _player,
+        configuration: const VideoControllerConfiguration(
+          width: 800,
+          height: 600,
+        ),
+      );
+      _player.setVolume(App().settings.volume);
       if (mounted) {
         setState(() {
           _initialized = true;
@@ -570,7 +698,7 @@ class _VideoPartitionState extends State<VideoPartition> {
 
   @override
   void dispose() {
-    _controller.dispose();
+    //_player.dispose();
     super.dispose();
   }
 
@@ -585,7 +713,7 @@ class _VideoPartitionState extends State<VideoPartition> {
 
     return ClipRRect(
       borderRadius: BorderRadius.circular(4),
-      child: VideoPlayer(_controller),
+      child: BasicVideo(controller: _controller),
     );
   }
 }
@@ -705,6 +833,7 @@ class LiveInfoPartition extends StatefulWidget {
 
 class _LiveInfoPartitionState extends State<LiveInfoPartition> {
   String _liveInfo = '';
+  late Timer _timer;
 
   @override
   void initState() {
@@ -713,8 +842,14 @@ class _LiveInfoPartitionState extends State<LiveInfoPartition> {
     _startUpdatingInfo();
   }
 
+  @override
+  void dispose() {
+    _timer.cancel();
+    super.dispose();
+  }
+
   void _startUpdatingInfo() {
-    Timer.periodic(const Duration(seconds: 10), (timer) {
+    _timer = Timer.periodic(const Duration(seconds: 10), (timer) {
       // 这里模拟实时更新数据
       setState(() {
         _liveInfo = '${widget.info} - Updated at ${DateTime.now().toString()}';

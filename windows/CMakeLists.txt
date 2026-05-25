@@ -57,6 +57,18 @@ add_subdirectory("runner")
 # them to the application.
 include(flutter/generated_plugins.cmake)
 
+# Pre-build: ensure ANGLE artifacts are copied into build folder
+set(ANGLE_SCRIPT "${CMAKE_CURRENT_SOURCE_DIR}/../tools/copy_angle_artifacts.ps1")
+if(EXISTS ${ANGLE_SCRIPT})
+  add_custom_target(copy_angle_artifacts ALL
+    COMMAND ${CMAKE_COMMAND} -E echo "Running ANGLE artifacts copy script"
+    COMMAND powershell -NoProfile -ExecutionPolicy Bypass -File "${ANGLE_SCRIPT}"
+    WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/.."
+  )
+else()
+  message(STATUS "ANGLE copy script not found at ${ANGLE_SCRIPT}; skipping")
+endif()
+
 
 # === Installation ===
 # Support files are copied into place next to the executable, so that it can

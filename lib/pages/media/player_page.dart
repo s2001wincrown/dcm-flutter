@@ -4,6 +4,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
 import 'package:media_kit/media_kit.dart';
+import 'package:dcm/backend/player_command_ext.dart';
 
 import 'package:dcm/backend/utils/l10n_utils.dart';
 import 'package:dcm/backend/utils/media_utils.dart';
@@ -217,12 +218,12 @@ class PlayerPageState extends State<PlayerPage> {
             onPressed: () {
               setState(() {
                 // App().shuffle = !App().shuffle;
-                var shuffle = App().player.isShuffleEnabled;
+                var shuffle = App().player.state.shuffle;
                 App().player.setShuffle(!shuffle);
                 setState(() {});
               });
             },
-            icon: App().player.isShuffleEnabled
+            icon: App().player.state.shuffle
                 ? const Icon(Icons.shuffle_on_rounded)
                 : const Icon(Icons.shuffle_rounded),
           ),
@@ -835,8 +836,15 @@ class PlayerPageState extends State<PlayerPage> {
                     child: InkWell(
                       borderRadius: BorderRadius.circular(8),
                       onTap: () {
-                        App().player.setProperty(
-                            _videoTrackConfig ? 'vid' : 'aid', info.id);
+                        if (_videoTrackConfig) {
+                          App().player.setVideoTrack(
+                                VideoTrack(info.id, null, null),
+                              );
+                        } else {
+                          App().player.setAudioTrack(
+                                AudioTrack(info.id, null, null),
+                              );
+                        }
                       },
                       child: Row(
                         children: [
@@ -907,244 +915,7 @@ class PlayerPageState extends State<PlayerPage> {
               );
             },
           ).toSliver(),
-          ValueListenableBuilder(
-            valueListenable: App().player.audioDelay,
-            builder: (context, audioDelay, _) {
-              return Row(
-                children: [
-                  IconButton(
-                    tooltip: '音频延迟'.l10n,
-                    onPressed: () {
-                      setState(() {
-                        App().player.setProperty('audio-delay', '0');
-                      });
-                    },
-                    icon: const Icon(Icons.music_note_outlined),
-                  ),
-                  Expanded(
-                    child: Slider(
-                      min: -30,
-                      max: 30,
-                      value: bounded(-30, audioDelay, 30),
-                      onChanged: (value) {
-                        App()
-                            .player
-                            .setProperty('audio-delay', value.toString());
-                      },
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Container(
-                    alignment: Alignment.center,
-                    width: 40,
-                    child: FittedBox(
-                      child: Text(
-                        '${(audioDelay >= 0 ? '+' : '')}${audioDelay.toStringAsFixed(2)}s',
-                      ),
-                    ),
-                  ),
-                ],
-              );
-            },
-          ).toSliver(),
-          Text(
-            '均衡器'.l10n,
-            style: TextStyle(
-              color: colorScheme.primary,
-              fontSize: 14,
-            ),
-          ).toSliver(),
-          ValueListenableBuilder(
-            valueListenable: App().player.brightness,
-            builder: (context, brightness, _) {
-              return Row(
-                children: [
-                  IconButton(
-                    tooltip: '亮度'.l10n,
-                    onPressed: () {
-                      setState(() {
-                        App().player.setProperty('brightness', '0');
-                      });
-                    },
-                    icon: const Icon(Icons.brightness_6_outlined),
-                  ),
-                  Expanded(
-                    child: Slider(
-                      min: -100,
-                      max: 100,
-                      value: bounded(-100, brightness * 1.0, 100),
-                      onChanged: (value) {
-                        App()
-                            .player
-                            .setProperty('brightness', value.toString());
-                      },
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Container(
-                    alignment: Alignment.center,
-                    width: 30,
-                    child: FittedBox(
-                      child: Text(
-                        (brightness >= 0 ? '+' : '') + brightness.toString(),
-                      ),
-                    ),
-                  ),
-                ],
-              );
-            },
-          ).toSliver(),
-          ValueListenableBuilder(
-            valueListenable: App().player.contrast,
-            builder: (context, contrast, _) {
-              return Row(
-                children: [
-                  IconButton(
-                    tooltip: '对比度'.l10n,
-                    onPressed: () {
-                      setState(() {
-                        App().player.setProperty('contrast', '0');
-                      });
-                    },
-                    icon: const Icon(Icons.contrast),
-                  ),
-                  Expanded(
-                    child: Slider(
-                      min: -100,
-                      max: 100,
-                      value: bounded(-100, contrast * 1.0, 100),
-                      onChanged: (value) {
-                        App().player.setProperty('contrast', value.toString());
-                      },
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Container(
-                    alignment: Alignment.center,
-                    width: 30,
-                    child: FittedBox(
-                      child: Text(
-                        (contrast >= 0 ? '+' : '') + contrast.toString(),
-                      ),
-                    ),
-                  ),
-                ],
-              );
-            },
-          ).toSliver(),
-          ValueListenableBuilder(
-            valueListenable: App().player.saturation,
-            builder: (context, saturation, _) {
-              return Row(
-                children: [
-                  IconButton(
-                    tooltip: '饱和度'.l10n,
-                    onPressed: () {
-                      setState(() {
-                        App().player.setProperty('saturation', '0');
-                      });
-                    },
-                    icon: const Icon(Icons.color_lens),
-                  ),
-                  Expanded(
-                    child: Slider(
-                      min: -100,
-                      max: 100,
-                      value: bounded(-100, saturation * 1.0, 100),
-                      onChanged: (value) {
-                        App().player.setProperty(
-                              'saturation',
-                              value.toString(),
-                            );
-                      },
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Container(
-                    alignment: Alignment.center,
-                    width: 30,
-                    child: FittedBox(
-                      child: Text(
-                        (saturation >= 0 ? '+' : '') + saturation.toString(),
-                      ),
-                    ),
-                  ),
-                ],
-              );
-            },
-          ).toSliver(),
-          ValueListenableBuilder(
-            valueListenable: App().player.gamma,
-            builder: (context, gamma, _) {
-              return Row(
-                children: [
-                  IconButton(
-                    tooltip: '伽马'.l10n,
-                    onPressed: () {
-                      setState(() {
-                        App().player.setProperty('gamma', '0');
-                      });
-                    },
-                    icon: const Icon(Icons.blur_circular_outlined),
-                  ),
-                  Expanded(
-                    child: Slider(
-                      min: -100,
-                      max: 100,
-                      value: bounded(-100, gamma * 1.0, 100),
-                      onChanged: (value) {
-                        App().player.setProperty('gamma', value.toString());
-                      },
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Container(
-                    alignment: Alignment.center,
-                    width: 30,
-                    child: FittedBox(
-                      child: Text((gamma >= 0 ? '+' : '') + gamma.toString()),
-                    ),
-                  ),
-                ],
-              );
-            },
-          ).toSliver(),
-          ValueListenableBuilder(
-            valueListenable: App().player.hue,
-            builder: (context, hue, _) {
-              return Row(
-                children: [
-                  IconButton(
-                    tooltip: '色调'.l10n,
-                    onPressed: () {
-                      setState(() {
-                        App().player.setProperty('hue', '0');
-                      });
-                    },
-                    icon: const Icon(Icons.invert_colors),
-                  ),
-                  Expanded(
-                    child: Slider(
-                      min: -100,
-                      max: 100,
-                      value: bounded(-100, hue * 1.0, 100),
-                      onChanged: (value) {
-                        App().player.setProperty('hue', value.toString());
-                      },
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Container(
-                    alignment: Alignment.center,
-                    width: 30,
-                    child: FittedBox(
-                      child: Text((hue >= 0 ? '+' : '') + hue.toString()),
-                    ),
-                  ),
-                ],
-              );
-            },
-          ).toSliver(),
+
           Text(
             '视频输出'.l10n,
             style: TextStyle(
@@ -1228,13 +999,6 @@ class PlayerPageState extends State<PlayerPage> {
       body: ListView(
         padding: const EdgeInsets.symmetric(horizontal: 16),
         children: [
-          OutlinedButton.icon(
-            icon: const Icon(Icons.info_outline),
-            label: Text('切换 mpv-stat 统计信息'.l10n),
-            onPressed: () {
-              App().player.command(['script-binding', 'display-stats-toggle']);
-            },
-          ),
           const SizedBox(height: 10),
           Text(
             '文件'.l10n,
@@ -1446,18 +1210,9 @@ class PlayerPageState extends State<PlayerPage> {
 
                               file.writeAsString(_subtitleNotifier.value);
 
-                              App().player.command(
-                                ['sub-remove'],
-                              );
-                              App().player.command(
-                                [
-                                  'sub-add',
-                                  tempSubtitlePath,
-                                  'select',
-                                  'external',
-                                  'auto',
-                                ],
-                              );
+                              await App().player.setSubtitleTrack(
+                                    SubtitleTrack.uri(tempSubtitlePath),
+                                  );
                             }
                           });
                         }
@@ -1579,7 +1334,6 @@ class PlayerPageState extends State<PlayerPage> {
     );
   }
 
-  bool _secondarySubConfig = false;
   Widget _buildSubtitlePanel(
     ColorScheme colorScheme,
     Color backgroundColor,
@@ -1617,105 +1371,6 @@ class PlayerPageState extends State<PlayerPage> {
       ),
       body: CustomScrollView(
         slivers: [
-          Container(
-            padding: const EdgeInsets.all(0),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(20),
-              color: colorScheme.primaryContainer.withValues(alpha: 0.4),
-            ),
-            child: Row(
-              // mainAxisSize: MainAxisSize.min,
-              children: [
-                Expanded(
-                  child: InkWell(
-                    borderRadius: BorderRadius.circular(30),
-                    onTap: () {
-                      setState(() {
-                        _secondarySubConfig = false;
-                      });
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: _secondarySubConfig
-                            ? null
-                            : colorScheme.primaryContainer,
-                        borderRadius: BorderRadius.circular(30),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            Icons.looks_one_outlined,
-                            size: 20,
-                            color: _secondarySubConfig
-                                ? null
-                                : colorScheme.onPrimaryContainer,
-                          ),
-                          const SizedBox(width: 6),
-                          Text(
-                            '字幕 1',
-                            style: TextStyle(
-                              color: _secondarySubConfig
-                                  ? null
-                                  : colorScheme.onPrimaryContainer,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 6),
-                Expanded(
-                  child: InkWell(
-                    borderRadius: BorderRadius.circular(30),
-                    onTap: () {
-                      setState(() {
-                        _secondarySubConfig = true;
-                      });
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: _secondarySubConfig
-                            ? colorScheme.primaryContainer
-                            : null,
-                        borderRadius: BorderRadius.circular(30),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            Icons.looks_two_outlined,
-                            size: 20,
-                            color: _secondarySubConfig
-                                ? colorScheme.onPrimaryContainer
-                                : null,
-                          ),
-                          const SizedBox(width: 6),
-                          Text(
-                            '字幕 2',
-                            style: TextStyle(
-                              color: _secondarySubConfig
-                                  ? colorScheme.onPrimaryContainer
-                                  : null,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ).toSliver(),
           const SizedBox(height: 10).toSliver(),
           Text(
             '轨道'.l10n,
@@ -1726,9 +1381,7 @@ class PlayerPageState extends State<PlayerPage> {
           ).toSliver(),
           const SizedBox(height: 10).toSliver(),
           ValueListenableBuilder(
-            valueListenable: _secondarySubConfig
-                ? App().player.secondarySid
-                : App().player.sid,
+            valueListenable: App().player.sid,
             builder: (context, id, _) {
               return SliverList.separated(
                 separatorBuilder: (context, index) => const SizedBox(height: 4),
@@ -1743,9 +1396,9 @@ class PlayerPageState extends State<PlayerPage> {
                     child: InkWell(
                       borderRadius: BorderRadius.circular(8),
                       onTap: () {
-                        App().player.setProperty(
-                            _secondarySubConfig ? 'secondary-sid' : 'sid',
-                            info.id);
+                        App().player.setSubtitleTrack(
+                              SubtitleTrack(info.id, null, null),
+                            );
                       },
                       child: Row(
                         children: [
@@ -1769,76 +1422,6 @@ class PlayerPageState extends State<PlayerPage> {
             },
           ),
           const SizedBox(height: 10).toSliver(),
-          Text(
-            '样式与延迟'.l10n,
-            style: TextStyle(
-              color: colorScheme.primary,
-              fontSize: 14,
-            ),
-          ).toSliver(),
-          const SizedBox(height: 10).toSliver(),
-          Row(
-            children: [
-              SizedBox(
-                width: 40,
-                child: ValueListenableBuilder(
-                  valueListenable: App().player.subVisibility,
-                  builder: (context, v, _) {
-                    return Checkbox(
-                      value: v,
-                      onChanged: (value) {
-                        if (value == null) return;
-                        if (value) {
-                          App().player.setProperty('sub-visibility', 'yes');
-                        } else {
-                          App().player.setProperty('sub-visibility', 'no');
-                        }
-                      },
-                    );
-                  },
-                ),
-              ),
-              Expanded(child: Text('显示字幕'.l10n)),
-            ],
-          ).toSliver(),
-          ValueListenableBuilder(
-            valueListenable: App().player.subDelay,
-            builder: (context, subDelay, _) {
-              return Row(
-                children: [
-                  IconButton(
-                    tooltip: '字幕延迟'.l10n,
-                    onPressed: () {
-                      setState(() {
-                        App().player.setProperty('sub-delay', '0');
-                      });
-                    },
-                    icon: const Icon(Icons.timer_outlined),
-                  ),
-                  Expanded(
-                    child: Slider(
-                      min: -30,
-                      max: 30,
-                      value: bounded(-30, subDelay, 30),
-                      onChanged: (value) {
-                        App().player.setProperty('sub-delay', value.toString());
-                      },
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Container(
-                    alignment: Alignment.center,
-                    width: 40,
-                    child: FittedBox(
-                      child: Text(
-                        '${(subDelay >= 0 ? '+' : '')}${subDelay.toStringAsFixed(2)}s',
-                      ),
-                    ),
-                  ),
-                ],
-              );
-            },
-          ).toSliver(),
           const SizedBox(height: 10).toSliver(),
           Text(
             '获取字幕'.l10n,
@@ -2019,13 +1602,6 @@ class PlayerPageState extends State<PlayerPage> {
       body: ListView(
         padding: const EdgeInsets.symmetric(horizontal: 16),
         children: [
-          OutlinedButton.icon(
-            icon: const Icon(Icons.info_outline),
-            label: Text('按钮 1'.l10n),
-            onPressed: () {
-              App().player.command(['show-text', 'hell world?']);
-            },
-          ),
           const SizedBox(height: 10),
         ],
       ),

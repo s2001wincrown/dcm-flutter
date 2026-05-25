@@ -1,7 +1,9 @@
 import 'dart:io';
 
+import 'package:dcm/pages/multi_partition_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:dcm/backend/keymap_helper.dart';
+import 'package:screen_retriever/screen_retriever.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 import 'package:window_manager/window_manager.dart';
 import 'package:media_kit/media_kit.dart';
@@ -19,10 +21,16 @@ void main(List<String> arguments) async {
   await App().init();
   await L10n.init();
 
+  var _primaryDisplay = await screenRetriever.getPrimaryDisplay();
+  var _displayList = await screenRetriever.getAllDisplays();
+  var windowSize = _primaryDisplay.size;
   if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
     await windowManager.ensureInitialized();
-    WindowOptions windowOptions = const WindowOptions(
-      minimumSize: Size(700, 500),
+    WindowOptions windowOptions = WindowOptions(
+      minimumSize: const Size(700, 500),
+      size: windowSize,
+      alwaysOnTop: true,
+      // fullScreen: true,
       backgroundColor: Colors.transparent,
       titleBarStyle: TitleBarStyle.hidden,
     );
@@ -41,4 +49,5 @@ void main(List<String> arguments) async {
   } else {
     runApp(const HomePage(playerView: false));
   }
+  //runApp(const DigitalSignageApp());
 }

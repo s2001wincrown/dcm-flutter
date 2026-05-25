@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
-import 'package:media_kit_video/basic/video_controller.dart';
+import 'package:media_kit_video/media_kit_video.dart';
 import 'package:dcm/backend/app.dart';
 import 'package:dcm/backend/models/playitem.dart';
 import 'package:dcm/backend/utils/l10n_utils.dart';
@@ -14,7 +14,7 @@ class BasicVideo extends StatefulWidget {
     required this.controller,
   });
 
-  final BasicVideoController controller;
+  final VideoController controller;
 
   @override
   State<BasicVideo> createState() => _BasicVideoState();

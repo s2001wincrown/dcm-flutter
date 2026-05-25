@@ -32,23 +32,11 @@ dependencies:
   whisper4dart: ^0.1.4
   # libmpv_dart: ^0.0.4
 
-  media_kit:
-    git:
-      url: https://github.com/Playboy-Player/media_cat.git
-      path: media_kit
-      ref: 445c94d0a6a8076fef8f424fabcfd53709bb2d5e
-  media_kit_video:
-    git:
-      url: https://github.com/Playboy-Player/media_cat.git
-      path: media_kit_video
-      ref: 445c94d0a6a8076fef8f424fabcfd53709bb2d5e
-  media_kit_libs_video:
-    git:
-      url: https://github.com/Playboy-Player/media_cat.git
-      path: libs/universal/media_kit_libs_video
-      ref: 445c94d0a6a8076fef8f424fabcfd53709bb2d5e
+  media_kit: ^1.2.6 # Primary package.
+  media_kit_video: ^2.0.1 # For video rendering.
+  media_kit_libs_video: ^1.0.7 # Native video dependencies.
 
-  video_player: ^2.8.2
+  video_player: ^2.11.1
   syncfusion_flutter_pdfviewer: ^33.1.44
   webview_flutter: ^4.2.2
   pointycastle: ^3.7.3
@@ -59,6 +47,7 @@ dependencies:
   isolate_handler: ^1.0.0
   shared_preferences: ^2.0.4
   pair: ^0.1.2
+  screen_retriever: ^0.2.0
 
 dev_dependencies:
   flutter_test:
@@ -69,6 +58,7 @@ dev_dependencies:
 
 flutter:
   assets:
+    - res/videos/
     - l10n/
   uses-material-design: true
   generate: true
