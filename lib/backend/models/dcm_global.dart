@@ -4,12 +4,13 @@ import 'dart:io';
 
 import 'package:dcm/backend/app.dart';
 import 'package:dcm/backend/constants.dart';
+import 'package:dcm/backend/utils/file_utils.dart';
 import 'package:dcm/backend/xmlfile/inifile.dart';
 import 'package:path/path.dart' as path;
-import 'package:path_provider/path_provider.dart';
 
 class DCMGlobal {
   // File Paths
+  static String configFile = '';
   static String cscPath = '';
   static String ddServerPath = '';
   static String openPath = '';
@@ -175,15 +176,18 @@ class DCMGlobal {
     'Global Setting.ProcessAHConflict': (v) => privateTypes = v,
   };
 
-  static Future<void> loadFromIni() async {
+  static Future<bool> loadFromIni() async {
     try {
-      final directory = await getApplicationDocumentsDirectory();
-      final filePath = path.join(directory.path, configFILENAME);
-      final file = File(filePath);
-      if (!await file.exists()) {
-        return;
+      if (configFile.isEmpty) {
+        configFile = path.join(App().dataPath, configFILENAME);
       }
-      var iniFile = IniFile(filePath);
+
+      final file = File(configFile);
+      if (!await file.exists()) {
+        return false;
+      }
+
+      var iniFile = IniFile(configFile);
       for (var entry in _setters.entries) {
         if ('Global Setting.CombSettings' == entry.key) {
           entry.value.call(loadCombSettings(iniFile));
@@ -200,6 +204,8 @@ class DCMGlobal {
     } catch (e) {
       // Handle error
     }
+
+    return validGlobalSetting(App().dataPath);
   }
 
   static String loadPlaybackSettings(IniFile iniFile) {
@@ -304,6 +310,136 @@ class DCMGlobal {
 
     messagePlayMode = 4;
     processAHConflict = 0;
+  }
+
+  static Future<bool> validGlobalSetting(String szAppPath) async {
+    szAppPath = FileUtils.removeBackslash(szAppPath);
+    if (cscPath.isEmpty) {
+      cscPath = szAppPath;
+    } else {
+      cscPath = cscPath.replaceAll('\$(AppPath)', szAppPath);
+    }
+    cscPath = FileUtils.removeBackslash(cscPath);
+
+    if (!await Directory(cscPath).exists()) {
+      cscPath = '';
+      return false;
+    }
+
+    String strSavePath = path.join(cscPath, defaultSAVEPATH); //cscPath;
+    String strOpenPath = path.join(cscPath, defaultOPENPATH);
+    //String strHtml = szAppPath;
+    String strImagePath = path.join(cscPath, defaultDataPath);
+    String strImageSettingPath = path.join(cscPath, 'data', 'image');
+    String strVCDPath = path.join(cscPath, defaultDataPath);
+    String strDVDPath = path.join(cscPath, defaultDataPath); //cscPath;
+    String strPPPath = path.join(cscPath, defaultDataPath);
+    String strFlashPath = path.join(cscPath, defaultDataPath);
+    String strWebPath = path.join(cscPath, defaultDataPath);
+    String strTextPath = path.join(cscPath, 'data', 'text');
+    String strClockPath = path.join(cscPath, 'data', 'clock');
+    String strWeatherPath = path.join(cscPath, 'data', 'weather');
+    String strLayoutImagePath = path.join(cscPath, layoutTemplatePath);
+    String strSkinsPath = path.join(cscPath, 'Skins');
+    String strGraphicsPath = path.join(cscPath, 'Graphics');
+    String strSiteContentPath = path.join(cscPath, 'data');
+
+    FileUtils.validFilePath(openPath, strOpenPath, false);
+    if (!Directory(openPath).existsSync()) {
+      FileUtils.makeSureDirectoryPathExists(openPath);
+    }
+
+    FileUtils.validFilePath(imagePath, strImagePath, false);
+    FileUtils.validFilePath(vcdPath, strVCDPath, false);
+    FileUtils.validFilePath(dvdPath, strDVDPath, false);
+    FileUtils.validFilePath(ppPath, strPPPath, false);
+    FileUtils.validFilePath(flashPath, strFlashPath, false);
+    FileUtils.validFilePath(webPath, strWebPath, false);
+    FileUtils.validFilePath(textPath, strTextPath, false);
+    FileUtils.validFilePath(imageSettingPath, strImageSettingPath, false);
+    FileUtils.validFilePath(clockPath, strClockPath, false);
+    FileUtils.validFilePath(weatherPath, strWeatherPath, false);
+    FileUtils.validFilePath(siteContentPath, strSiteContentPath, false);
+    String strSitePlaylistPath = path.join(siteContentPath, 'SitePlaylist');
+    FileUtils.makeSureDirectoryPathExists(strSitePlaylistPath);
+
+    FileUtils.validFilePath(layoutImagePath, strLayoutImagePath, false);
+    FileUtils.validFilePath(skinsPath, strSkinsPath, false);
+    if (rltContentPath.isNotEmpty) {
+      String strRLTContentPath = path.join(cscPath, 'RLTContent');
+      FileUtils.validFilePath(rltContentPath, strRLTContentPath, false);
+    }
+
+    if (rltContentFile.isNotEmpty) {
+      FileUtils.validFilePath(rltContentFile, '', true);
+    }
+
+    if (keyMappingFile.isNotEmpty) {
+      FileUtils.validFilePath(keyMappingFile, '', true);
+    }
+
+    skinFile = path.join(skinsPath, 'skin.dat');
+    if (!await File(skinFile).exists()) {
+      FileUtils.validFilePath(skinFile, configFile, true);
+    }
+
+    FileUtils.validFilePath(graphicsPath, strGraphicsPath, false);
+
+    copyFileQueueSize = 4 * copyFileBuffer * 1024 * 1024;
+    ppViewPath = FileUtils.replaceDCMWildcard(ppViewPath, appPath: szAppPath);
+
+    String strDayPath = path.join(cscPath, defaultSCHEDULEDAYPATH);
+    String strMonthPath = path.join(cscPath, defaultSCHEDULEMONTHPATH);
+    String strSettingPath = path.join(cscPath, defaultSCHEDULESETTINGPATH);
+    String strReportPath = path.join(cscPath, defaultREPORTPATH);
+    String strChannelPath = path.join(cscPath, defaultSCHEDULESETTINGPATH);
+    String strLogPath = path.join(cscPath, 'schedule', 'log');
+    String strContentListPath = path.join(cscPath, 'data', 'contentlist');
+    String strDDEOthersPath = path.join(cscPath, 'Data');
+    String strDDEDataPath = path.join(cscPath, defaultDataPath);
+    String strDDEXMLPath = path.join(cscPath, 'data', 'ddelist');
+    String strLinkagePath = path.join(cscPath, 'data', 'LTContent');
+    String strCalendarPath = path.join(cscPath, defaultCALENDARPATH);
+    String strTempPath = path.join(cscPath, 'Schedule', 'Temp');
+    String strFtpSettingPath = path.join(cscPath, 'ftpsetting');
+    String strAHPlaylistPath = path.join(cscPath, 'schedule', 'ahplaylist');
+
+    FileUtils.validFilePath(dayPath, strDayPath, false);
+    FileUtils.validFilePath(ahPlaylistPath, strAHPlaylistPath, false);
+    FileUtils.validFilePath(monthPath, strMonthPath, false);
+    FileUtils.validFilePath(calendarPath, strCalendarPath, false);
+    FileUtils.validFilePath(settingPath, strSettingPath, false);
+    FileUtils.validFilePath(ftpSettingPath, strFtpSettingPath, false);
+    FileUtils.validFilePath(reportPath, strReportPath, false);
+    FileUtils.validFilePath(tempPath, strTempPath, false);
+    FileUtils.validFilePath(logPath, strLogPath, false);
+    FileUtils.validFilePath(contentListPath, strContentListPath, false);
+    FileUtils.validFilePath(linkagePath, strLinkagePath, false);
+    FileUtils.validFilePath(ddeDataPath, strDDEDataPath, false);
+    FileUtils.validFilePath(ddeXmlPath, strDDEXMLPath, false);
+
+    String strMessagePath = path.join(cscPath, defaultAHMESSAGEPATH);
+    FileUtils.validFilePath(messagePath, strMessagePath, false);
+
+    String strRoomEventPath = path.join(cscPath, defaultROOMEVENTPATH);
+    FileUtils.validFilePath(roomEventPath, strRoomEventPath, false);
+
+    String strRoomPath = path.join(cscPath, defaultROOMPATH);
+    FileUtils.validFilePath(roomPath, strRoomPath, false);
+
+    String strLobbyPath = path.join(cscPath, defaultLOBBYPATH);
+    FileUtils.validFilePath(lobbyPath, strLobbyPath, false);
+
+    String strPlayerPath = path.join(cscPath, 'Schedule', 'Player');
+    FileUtils.validFilePath(playerPath, strPlayerPath, false);
+
+    String strPreDataPath = path.join(cscPath, 'Data', 'PreData');
+    FileUtils.validFilePath(preDataPath, strPreDataPath, false);
+
+    String strUpdateFilePath = path.join(cscPath, 'Schedule', 'Temp');
+    FileUtils.validFilePath(updateFilePath, strUpdateFilePath, false);
+
+    return true;
   }
 
   static void clear() {

@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
 
+import 'package:dcm/backend/xml_settings/contenttype_manager.dart';
 import 'package:flutter/material.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
@@ -54,6 +55,7 @@ class App {
   Future<void> init() async {
     dataPath = (await getApplicationSupportDirectory()).path;
     await DCMGlobal.loadFromIni();
+    ContentTypeManager.loadContentTypes();
     await loadSettings();
     bool needsUpdate = false;
     if (settings.screenshotPath == '') {

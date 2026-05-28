@@ -55,7 +55,9 @@ class ScheduleList {
 
   DateTime startDateTime = DateTime.now();
 
-  ScheduleList() {
+  static final ScheduleList _instance = ScheduleList._internal();
+  factory ScheduleList() => _instance;
+  ScheduleList._internal() {
     var now = DateTime.now();
     startDateTime = now;
     day = now.day;

@@ -21,20 +21,27 @@ void main(List<String> arguments) async {
   await App().init();
   await L10n.init();
 
-  var _primaryDisplay = await screenRetriever.getPrimaryDisplay();
-  var _displayList = await screenRetriever.getAllDisplays();
-  var windowSize = _primaryDisplay.size;
+  // On desktop, initialize window_manager and force fullscreen on primary display
   if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
     await windowManager.ensureInitialized();
+    final primaryDisplay = await screenRetriever.getPrimaryDisplay();
+    final windowSize = primaryDisplay.size;
     WindowOptions windowOptions = WindowOptions(
-      minimumSize: const Size(700, 500),
       size: windowSize,
-      alwaysOnTop: true,
-      // fullScreen: true,
-      backgroundColor: Colors.transparent,
+      center: false,
+      minimumSize: const Size(700, 500),
+      backgroundColor: Colors.black,
       titleBarStyle: TitleBarStyle.hidden,
+      fullScreen: true,
+      skipTaskbar: true,
+      alwaysOnTop: true,
     );
     windowManager.waitUntilReadyToShow(windowOptions, () async {
+      await windowManager.setBounds(
+        Rect.fromLTWH(0, 0, windowSize.width, windowSize.height),
+      );
+      await windowManager.setFullScreen(true);
+      await windowManager.setAlwaysOnTop(true);
       await windowManager.show();
       await windowManager.focus();
     });
@@ -42,12 +49,12 @@ void main(List<String> arguments) async {
 
   KeyMapHelper.init();
 
-  if (arguments.isNotEmpty) {
+  /*if (arguments.isNotEmpty) {
     String mediaToOpen = arguments[0];
     App().openMedia(await LibraryHelper.getItemFromFile(mediaToOpen));
     runApp(const HomePage(playerView: true));
   } else {
     runApp(const HomePage(playerView: false));
-  }
-  //runApp(const DigitalSignageApp());
+  }*/
+  runApp(const DigitalSignageApp());
 }

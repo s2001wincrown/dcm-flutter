@@ -3,6 +3,8 @@ import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:dcm/backend/app.dart';
+import 'package:dcm/backend/services/schedulelist_impl.dart';
+import 'package:dcm/pages/home.dart';
 import 'package:dcm/widgets/basic_video.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -16,6 +18,18 @@ class DigitalSignageApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      shortcuts: {
+        // override the default behavior of arrow and space key
+        LogicalKeySet(LogicalKeyboardKey.arrowLeft): const NoOpIntent(),
+        LogicalKeySet(LogicalKeyboardKey.arrowRight): const NoOpIntent(),
+        LogicalKeySet(LogicalKeyboardKey.arrowUp): const NoOpIntent(),
+        LogicalKeySet(LogicalKeyboardKey.arrowDown): const NoOpIntent(),
+        LogicalKeySet(LogicalKeyboardKey.space): const NoOpIntent(),
+      },
+      actions: {
+        // bind Intent to NoOpAction
+        NoOpIntent: NoOpAction(),
+      },
       title: 'Digital Signage Player',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
@@ -43,7 +57,9 @@ class _DigitalSignageScreenState extends State<DigitalSignageScreen> {
         PartitionConfig(
           id: 1,
           type: ContentType.video,
-          content: 'D:/dc-data/data/P1920-1.mp4',
+          content:
+              // 'https://flutter.github.io/assets-for-api-docs/assets/videos/bee.mp4',
+              'D:/dc-data/data/P1920-1.mp4',
           x: 0,
           y: 0,
           width: 1280,
@@ -136,6 +152,7 @@ class _DigitalSignageScreenState extends State<DigitalSignageScreen> {
   void initState() {
     super.initState();
     _hideSystemUI();
+    ScheduleList().loadSchedule();
     // Preload uses `context` (e.g. `precacheImage`), so run it after
     // the first frame to avoid accessing InheritedWidgets during initState.
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -305,6 +322,7 @@ class _DigitalSignageScreenState extends State<DigitalSignageScreen> {
           if (mounted) {
             setState(() {
               _showExitHint = false;
+              _exitHintShown = false;
             });
           }
         });
@@ -338,12 +356,6 @@ class _DigitalSignageScreenState extends State<DigitalSignageScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // 获取当前屏幕尺寸并用于显式设置 DigitalSignageScreen 的宽高
-    final Size screenSize = MediaQuery.of(context).size;
-    final double screenWidth = screenSize.width;
-    final double screenHeight = screenSize.height;
-
-    // 设计分辨率（参考布局），用于将像素坐标缩放到当前屏幕
     const double designWidth = 1920.0;
     const double designHeight = 1080.0;
 
@@ -358,17 +370,20 @@ class _DigitalSignageScreenState extends State<DigitalSignageScreen> {
         },
         onTapDown: (_) => _handleExitTapDown(),
         onDoubleTap: _exitApplication,
-        child: Stack(
-          children: [
-            SizedBox(
-              width: screenWidth,
-              height: screenHeight,
-              child: Scaffold(
-                backgroundColor: Colors.black,
-                body: SafeArea(
-                  child: Padding(
-                    padding: const EdgeInsets.all(8.0),
-                    child: Builder(
+        child: Scaffold(
+          backgroundColor: Colors.black,
+          body: LayoutBuilder(
+            builder: (context, constraints) {
+              final mq = MediaQuery.of(context);
+              final double screenWidth = mq.size.width;
+              final double screenHeight = mq.size.height;
+
+              return SizedBox(
+                width: screenWidth,
+                height: screenHeight,
+                child: Stack(
+                  children: <Widget>[
+                    Builder(
                       builder: (context) {
                         if (playlist.isEmpty ||
                             playlist[currentShowIndex].layout.isEmpty) {
@@ -405,12 +420,12 @@ class _DigitalSignageScreenState extends State<DigitalSignageScreen> {
                               width: w,
                               height: h,
                               child: Container(
-                                margin: const EdgeInsets.all(2),
+                                margin: const EdgeInsets.all(0.0),
                                 decoration: BoxDecoration(
                                   color: Colors.grey[800],
                                   border:
-                                      Border.all(color: Colors.grey, width: 1),
-                                  borderRadius: BorderRadius.circular(4),
+                                      Border.all(color: Colors.grey, width: 0),
+                                  borderRadius: BorderRadius.circular(0.0),
                                 ),
                                 child: _buildPartitionContent(partition),
                               ),
@@ -419,55 +434,55 @@ class _DigitalSignageScreenState extends State<DigitalSignageScreen> {
                         );
                       },
                     ),
-                  ),
-                ),
-              ),
-            ),
-            if (_showExitHint)
-              Positioned(
-                left: 0,
-                right: 0,
-                bottom: 32,
-                child: Center(
-                  child: AnimatedOpacity(
-                    opacity: _showExitHint ? 1.0 : 0.0,
-                    duration: const Duration(milliseconds: 300),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 20,
-                        vertical: 12,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.92),
-                        borderRadius: BorderRadius.circular(30),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.25),
-                            blurRadius: 10,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
-                      ),
-                      child: const Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.touch_app, color: Colors.black87),
-                          SizedBox(width: 10),
-                          Text(
-                            '双击屏幕退出应用',
-                            style: TextStyle(
-                              color: Colors.black87,
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
+                    if (_showExitHint)
+                      Positioned(
+                        left: 0,
+                        right: 0,
+                        bottom: 32,
+                        child: Center(
+                          child: AnimatedOpacity(
+                            opacity: _showExitHint ? 1.0 : 0.0,
+                            duration: const Duration(milliseconds: 300),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 20,
+                                vertical: 12,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withOpacity(0.92),
+                                borderRadius: BorderRadius.circular(30),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.25),
+                                    blurRadius: 10,
+                                    offset: const Offset(0, 4),
+                                  ),
+                                ],
+                              ),
+                              child: const Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.touch_app, color: Colors.black87),
+                                  SizedBox(width: 10),
+                                  Text(
+                                    '双击屏幕退出应用',
+                                    style: TextStyle(
+                                      color: Colors.black87,
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
                           ),
-                        ],
+                        ),
                       ),
-                    ),
-                  ),
+                  ],
                 ),
-              ),
-          ],
+              );
+            },
+          ),
         ),
       ),
     );

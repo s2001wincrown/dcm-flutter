@@ -8,9 +8,12 @@
 // Date  : 03/03/2004
 
 import 'package:dcm/backend/constants.dart';
+import 'package:dcm/backend/utils/extensions.dart';
+import 'package:dcm/backend/utils/string_utils.dart';
 import 'package:dcm/backend/xmlfile/xmlfile.dart';
 import 'package:dcm/backend/xmlfile/xmlitem.dart';
 import 'package:path/path.dart' as path;
+
 import '../models/contenttype_data.dart';
 import '../models/dcm_global.dart';
 
@@ -56,7 +59,7 @@ class ContentTypeManager {
       contentTypeData.dwFlags = contentTypeTable[i].dwFlags;
     }
     ContentTypeData contentTypeData =
-        ContentTypeData.fromContent(cDCMFILETYPE, 'Catalogue');
+        ContentTypeData.fromContent(cDCMFILETYPE, 'Catalogue', '|.DCM|');
     nContentTypes++;
     contentTypeList.add(contentTypeData);
     contentTypeData.uiID = nContentTypes;
@@ -65,8 +68,8 @@ class ContentTypeManager {
     contentTypeData.dwFlag = BigInt.zero;
     contentTypeData.dwFlags = BigInt.from(4194303);
 
-    contentTypeData =
-        ContentTypeData.fromContent(cDCMAHMESSAGETYPE, 'Emergency Message');
+    contentTypeData = ContentTypeData.fromContent(
+        cDCMAHMESSAGETYPE, 'Emergency Message', '|.XML|');
     nContentTypes++;
     contentTypeList.add(contentTypeData);
     contentTypeData.uiID = nContentTypes;
@@ -85,7 +88,16 @@ class ContentTypeManager {
     contentTypeData.dwFlag = BigInt.zero;
     contentTypeData.dwFlags = BigInt.zero;
     contentTypeData =
-        ContentTypeData.fromContent(cDCMMONTHTYPE, 'Calendar xml file');
+        ContentTypeData.fromContent(cDCMMONTHTYPE, 'Month xml file', '|.XML|');
+    nContentTypes++;
+    contentTypeList.add(contentTypeData);
+    contentTypeData.uiID = nContentTypes;
+    contentTypeData.uiLangID = 0;
+    contentTypeData.nSeq = -1;
+    contentTypeData.dwFlag = BigInt.zero;
+    contentTypeData.dwFlags = BigInt.zero;
+    contentTypeData = ContentTypeData.fromContent(
+        cDCMCALENDARTYPE, 'Calendar xml file', '|.XML|');
     nContentTypes++;
     contentTypeList.add(contentTypeData);
     contentTypeData.uiID = nContentTypes;
@@ -94,16 +106,7 @@ class ContentTypeManager {
     contentTypeData.dwFlag = BigInt.zero;
     contentTypeData.dwFlags = BigInt.zero;
     contentTypeData =
-        ContentTypeData.fromContent(cDCMCALENDARTYPE, 'Calendar xml file');
-    nContentTypes++;
-    contentTypeList.add(contentTypeData);
-    contentTypeData.uiID = nContentTypes;
-    contentTypeData.uiLangID = 0;
-    contentTypeData.nSeq = -1;
-    contentTypeData.dwFlag = BigInt.zero;
-    contentTypeData.dwFlags = BigInt.zero;
-    contentTypeData =
-        ContentTypeData.fromContent(cDCMDAYTYPE, 'Playlist xml file');
+        ContentTypeData.fromContent(cDCMDAYTYPE, 'Playlist xml file', '|.XML|');
     nContentTypes++;
     contentTypeList.add(contentTypeData);
     contentTypeData.uiID = nContentTypes;
@@ -174,10 +177,10 @@ class ContentTypeManager {
   }
 
   static int getContentTypeByFileName(String strFileName) {
-    String strExt = path.extension(strFileName).toUpperCase();
+    String strExt = path.extension(strFileName);
     for (var contentType in contentTypeList) {
-      String strFilter = contentType.strFilter.toUpperCase();
-      if (strFilter.contains(strExt)) {
+      if (isNotBlank(contentType.strFilter) &&
+          contentType.strFilter!.containsIgnoreCase(strExt)) {
         return contentType.uiContentType;
       }
     }
@@ -203,17 +206,17 @@ class ContentTypeManager {
   }
 
   static bool fixContentFileName(String strContentName, int nContentType) {
-    String strExt = path.extension(strContentName).toUpperCase();
+    String strExt = path.extension(strContentName);
     ContentTypeData? contentTypeData = findByType(nContentType);
-    if (contentTypeData != null && contentTypeData.strFilter.isNotEmpty) {
+    if (contentTypeData != null && isNotBlank(contentTypeData.strFilter)) {
       if (strExt.isNotEmpty) {
-        if (contentTypeData.strFilter.toUpperCase().contains(strExt)) {
+        if (contentTypeData.strFilter!.containsIgnoreCase(strExt)) {
           return true;
         }
       }
 
       strExt = '';
-      var arrFilter = contentTypeData.strFilter.split('|');
+      var arrFilter = contentTypeData.strFilter!.split('|');
       for (int i = 0; i < arrFilter.length; i++) {
         if (arrFilter[i].trim().isNotEmpty) {
           strExt = arrFilter[i];

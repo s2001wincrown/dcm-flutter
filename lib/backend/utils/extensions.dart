@@ -8,11 +8,19 @@ extension FilesExt on FileSystemEntity {
 
 extension CaseInsensitiveString on String {
   // Compare to another string case-insensitively
-  int compareToIgnoreCase(String other) {
+  int compareToIgnoreCase(String? other) {
+    if (other == null) return 1;
     return toLowerCase().compareTo(other.toLowerCase());
   }
 
-  bool equalsIgnoreCase(String other) {
+  bool equalsIgnoreCase(String? other) {
+    if (other == null) return false;
     return toLowerCase() == other.toLowerCase();
+  }
+
+  bool containsIgnoreCase(String? other) {
+    if (other == null) return false;
+
+    return toLowerCase().contains(other.toLowerCase());
   }
 }

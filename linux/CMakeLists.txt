@@ -89,7 +89,11 @@ set_target_properties(${BINARY_NAME}
 
 # Generated plugin build rules, which manage building the plugins and adding
 # them to the application.
-include(flutter/generated_plugins.cmake)
+if(NOT CMAKE_SCRIPT_MODE_FILE)
+  include(flutter/generated_plugins.cmake)
+else()
+  message(FATAL_ERROR "Flutter generated plugins cannot be included in CMake script mode. Configure the project with cmake -S . -B <build> instead of cmake -P.")
+endif()
 
 
 # === Installation ===

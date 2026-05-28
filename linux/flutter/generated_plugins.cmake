@@ -7,12 +7,12 @@ list(APPEND FLUTTER_PLUGIN_LIST
   media_kit_video
   open_file_linux
   screen_retriever_linux
-  syncfusion_pdfviewer_linux
   url_launcher_linux
   window_manager
 )
 
 list(APPEND FLUTTER_FFI_PLUGIN_LIST
+  jni
   libmpv_dart
   whisper4dart
 )

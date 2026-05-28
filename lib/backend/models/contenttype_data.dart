@@ -9,26 +9,27 @@
 
 class ContentTypeData {
   ContentTypeData();
-  ContentTypeData.fromContent(int nType, String strContent) {
+  ContentTypeData.fromContent(int nType, String strContent, [String? filter]) {
     uiID = nType;
     uiContentType = nType;
     strContentType = strContent;
     strContentName = strContent;
+    strFilter = filter;
     uiLangID = nType;
     nSeq = nType;
     dwFlag = BigInt.zero;
     dwFlags = BigInt.zero;
-    strSettingsKey = "";
+    strSettingsKey = '';
   }
 
   int uiID = 0;
   int uiContentType = 0;
-  String strContentType = "";
-  String strContentName = "";
-  String strFilter = "";
+  String strContentType = '';
+  String strContentName = '';
+  String? strFilter;
   int uiLangID = 0;
   int nSeq = 0;
   BigInt dwFlag = BigInt.zero;
   BigInt dwFlags = BigInt.zero;
-  String strSettingsKey = "";
+  String strSettingsKey = '';
 }

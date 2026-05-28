@@ -32,6 +32,11 @@ set(CMAKE_CXX_FLAGS_PROFILE "${CMAKE_CXX_FLAGS_RELEASE}")
 # Use Unicode for all projects.
 add_definitions(-DUNICODE -D_UNICODE)
 
+# Silence experimental coroutine deprecation error on MSVC builds
+if(MSVC)
+  add_compile_definitions(_SILENCE_EXPERIMENTAL_COROUTINE_DEPRECATION_WARNINGS)
+endif()
+
 # Compilation settings that should be applied to most targets.
 #
 # Be cautious about adding new options here, as plugins use this function by
@@ -65,6 +70,11 @@ if(EXISTS ${ANGLE_SCRIPT})
     COMMAND powershell -NoProfile -ExecutionPolicy Bypass -File "${ANGLE_SCRIPT}"
     WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/.."
   )
+
+  # Ensure ANGLE copy runs after media_kit's ANGLE extraction target (if present).
+  if(TARGET media_kit_libs_windows_video_ANGLE_EXTRACT)
+    add_dependencies(copy_angle_artifacts media_kit_libs_windows_video_ANGLE_EXTRACT)
+  endif()
 else()
   message(STATUS "ANGLE copy script not found at ${ANGLE_SCRIPT}; skipping")
 endif()

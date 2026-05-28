@@ -15,8 +15,9 @@ dependencies:
   path_provider: ^2.1.1
   file_picker: ^8.3.1
   mime_type: ^1.0.0
-  device_info: ^2.0.2
-  permission_handler: ^9.2.0
+  device_info_plus: ^9.0.3
+  permission_handler: ^12.0.1
+  package_info_plus: ^8.3.0
   intl: ^0.20.2
   open_file: ^3.2.1
   json_annotation: ^4.8.1
@@ -37,7 +38,6 @@ dependencies:
   media_kit_libs_video: ^1.0.7 # Native video dependencies.
 
   video_player: ^2.11.1
-  syncfusion_flutter_pdfviewer: ^33.1.44
   webview_flutter: ^4.2.2
   pointycastle: ^3.7.3
   xml: ^6.3.0
@@ -45,7 +45,7 @@ dependencies:
   logger: ^2.7.0
   uuid: ^4.1.0
   isolate_handler: ^1.0.0
-  shared_preferences: ^2.0.4
+  shared_preferences: 2.5.2
   pair: ^0.1.2
   screen_retriever: ^0.2.0
 

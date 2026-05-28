@@ -1,7 +1,10 @@
 import 'dart:io';
 import 'dart:math';
 
+import 'package:dcm/backend/app.dart';
+import 'package:dcm/backend/models/dcm_global.dart';
 import 'package:dcm/backend/utils/extensions.dart';
+import 'package:dcm/backend/utils/string_utils.dart';
 import 'package:intl/intl.dart';
 import 'package:mime_type/mime_type.dart';
 import 'package:path_provider/path_provider.dart';
@@ -301,44 +304,52 @@ class FileUtils {
     }
   }
 
-  static Future<void> replaceDCMWildcard(String str,
-      [String? lpszAppPath]) async {
-    String? szAppPath = lpszAppPath;
-    if (szAppPath == null || szAppPath.isEmpty) {
-      szAppPath = (await getApplicationSupportDirectory()).path;
+  static String removeBackslash(String p) {
+    if (p.endsWith(path.separator)) p = p.substring(0, p.length - 1);
+    return p;
+  }
+
+  static String replaceDCMWildcard(String str,
+      {String? appPath, String? cscPath}) {
+    String? szAppPath = appPath;
+    if (isBlank(szAppPath)) {
+      szAppPath = App().dataPath;
+    } else {
+      szAppPath = FileUtils.removeBackslash(szAppPath!);
     }
-    if (str.contains('\$(AppPath)\\')) {
-      str.replaceAll('\$(AppPath)\\', szAppPath);
+    if (isBlank(cscPath)) {
+      cscPath = DCMGlobal.cscPath;
+    } else {
+      cscPath = FileUtils.removeBackslash(cscPath!);
     }
-    if (str.contains('\$(CSCPath)\\')) {
-      str.replaceAll('\$(CSCPath)\\', szAppPath);
+    if (str.contains('\$(AppPath)')) {
+      str = str.replaceAll('\$(AppPath)', szAppPath);
+    }
+    if (str.contains('\$(CSCPath)')) {
+      str = str.replaceAll('\$(CSCPath)', cscPath);
     }
     /*if (str.contains('\$(PFPath)\\')){
-      str.replaceAll('\$(PFPath)\\', FileMisc::GetPFPath());
+      str = str.replaceAll('\$(PFPath)\\', FileMisc::GetPFPath());
     }
     if (str.contains('\$(PFx86Path)\\')){
-      str.replaceAll('\$(PFx86Path)\\', FileMisc::GetPFx86Path());
+      str = str.replaceAll('\$(PFx86Path)\\', FileMisc::GetPFx86Path());
     }*/
 
-    if (str.contains('\$(AppPath)/')) {
-      str.replaceAll('\$(AppPath)/', szAppPath);
-    }
-    if (str.contains('\$(CSCPath)/')) {
-      str.replaceAll('\$(CSCPath)/', szAppPath);
-    }
     /*if (str.contains('\$(PFPath)/')){
-      str.replaceAll('\$(PFPath)/', FileMisc::GetPFPath());
+      str = str.replaceAll('\$(PFPath)/', FileMisc::GetPFPath());
     }
     if (str.contains('\$(PFx86Path)/')){
-      str.replaceAll('\$(PFx86Path)/', FileMisc::GetPFx86Path());
+      str = str.replaceAll('\$(PFx86Path)/', FileMisc::GetPFx86Path());
     }
 
     if (str.contains('\$(UserName)')) {
       static String szUserName = '';
       if (szUserName.IsEmpty())
         GetSystemDomainUserName(szUserName);
-      str.replaceAll('\$(UserName)', szUserName);
+      str = str.replaceAll('\$(UserName)', szUserName);
     }*/
+
+    return str;
   }
 
   static Future<bool> validFilePath(
@@ -348,7 +359,7 @@ class FileUtils {
       strFile = strDefault;
     }
 
-    await replaceDCMWildcard(strFile, strAppPath);
+    strFile = replaceDCMWildcard(strFile, appPath: strAppPath);
     if (bFile) {
       return await File(strFile).exists();
     } else {
