@@ -352,7 +352,7 @@ class FileUtils {
     return str;
   }
 
-  static Future<bool> validFilePath(
+  static Future<String> validFilePath(
       String strFile, String strDefault, bool bFile,
       [String? strAppPath]) async {
     if (strFile.isEmpty) {
@@ -361,13 +361,13 @@ class FileUtils {
 
     strFile = replaceDCMWildcard(strFile, appPath: strAppPath);
     if (bFile) {
-      return await File(strFile).exists();
+      return await File(strFile).exists() ? strFile : strDefault;
     } else {
       if (!await makeSureDirectoryPathExists(strFile)) {
         strFile = strDefault;
         await makeSureDirectoryPathExists(strDefault);
       }
-      return true;
+      return strFile;
     }
   }
 

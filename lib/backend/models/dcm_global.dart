@@ -89,6 +89,10 @@ class DCMGlobal {
   // DataCenter
   static String sPassword = '';
 
+  static late String cmsUrl; //CMS url
+  static late String cmsToken; //CMS Token
+  static late String organization;
+
   // Other
   static int copyFileQueueSize = 8 * 1024 * 1024;
   static int maxApprovalLevel = 0;
@@ -170,6 +174,10 @@ class DCMGlobal {
     'TVCard.Installed': (v) => tvInstalled = int.parse(v),
     // DataCenter
     'DataCenter.sPassword': (v) => sPassword = v,
+    // CMS backend
+    'Global Setting.CMSUrl': (v) => cmsUrl = v,
+    'Global Setting.CMSToken': (v) => cmsToken = v,
+    'Global Setting.Organization': (v) => organization = v,
     // Other
     'Global Setting.PrivateTypes': (v) => privateTypes = v,
     'Global Setting.MessagePlayMode': (v) => privateTypes = v,
@@ -344,46 +352,52 @@ class DCMGlobal {
     String strGraphicsPath = path.join(cscPath, 'Graphics');
     String strSiteContentPath = path.join(cscPath, 'data');
 
-    FileUtils.validFilePath(openPath, strOpenPath, false);
+    openPath = await FileUtils.validFilePath(openPath, strOpenPath, false);
     if (!Directory(openPath).existsSync()) {
       FileUtils.makeSureDirectoryPathExists(openPath);
     }
 
-    FileUtils.validFilePath(imagePath, strImagePath, false);
-    FileUtils.validFilePath(vcdPath, strVCDPath, false);
-    FileUtils.validFilePath(dvdPath, strDVDPath, false);
-    FileUtils.validFilePath(ppPath, strPPPath, false);
-    FileUtils.validFilePath(flashPath, strFlashPath, false);
-    FileUtils.validFilePath(webPath, strWebPath, false);
-    FileUtils.validFilePath(textPath, strTextPath, false);
-    FileUtils.validFilePath(imageSettingPath, strImageSettingPath, false);
-    FileUtils.validFilePath(clockPath, strClockPath, false);
-    FileUtils.validFilePath(weatherPath, strWeatherPath, false);
-    FileUtils.validFilePath(siteContentPath, strSiteContentPath, false);
+    imagePath = await FileUtils.validFilePath(imagePath, strImagePath, false);
+    vcdPath = await FileUtils.validFilePath(vcdPath, strVCDPath, false);
+    dvdPath = await FileUtils.validFilePath(dvdPath, strDVDPath, false);
+    ppPath = await FileUtils.validFilePath(ppPath, strPPPath, false);
+    flashPath = await FileUtils.validFilePath(flashPath, strFlashPath, false);
+    webPath = await FileUtils.validFilePath(webPath, strWebPath, false);
+    textPath = await FileUtils.validFilePath(textPath, strTextPath, false);
+    imageSettingPath = await FileUtils.validFilePath(
+        imageSettingPath, strImageSettingPath, false);
+    clockPath = await FileUtils.validFilePath(clockPath, strClockPath, false);
+    weatherPath =
+        await FileUtils.validFilePath(weatherPath, strWeatherPath, false);
+    siteContentPath = await FileUtils.validFilePath(
+        siteContentPath, strSiteContentPath, false);
     String strSitePlaylistPath = path.join(siteContentPath, 'SitePlaylist');
     FileUtils.makeSureDirectoryPathExists(strSitePlaylistPath);
 
-    FileUtils.validFilePath(layoutImagePath, strLayoutImagePath, false);
-    FileUtils.validFilePath(skinsPath, strSkinsPath, false);
+    layoutImagePath = await FileUtils.validFilePath(
+        layoutImagePath, strLayoutImagePath, false);
+    skinsPath = await FileUtils.validFilePath(skinsPath, strSkinsPath, false);
     if (rltContentPath.isNotEmpty) {
       String strRLTContentPath = path.join(cscPath, 'RLTContent');
-      FileUtils.validFilePath(rltContentPath, strRLTContentPath, false);
+      rltContentPath = await FileUtils.validFilePath(
+          rltContentPath, strRLTContentPath, false);
     }
 
     if (rltContentFile.isNotEmpty) {
-      FileUtils.validFilePath(rltContentFile, '', true);
+      rltContentFile = await FileUtils.validFilePath(rltContentFile, '', true);
     }
 
     if (keyMappingFile.isNotEmpty) {
-      FileUtils.validFilePath(keyMappingFile, '', true);
+      keyMappingFile = await FileUtils.validFilePath(keyMappingFile, '', true);
     }
 
     skinFile = path.join(skinsPath, 'skin.dat');
     if (!await File(skinFile).exists()) {
-      FileUtils.validFilePath(skinFile, configFile, true);
+      skinFile = await FileUtils.validFilePath(skinFile, configFile, true);
     }
 
-    FileUtils.validFilePath(graphicsPath, strGraphicsPath, false);
+    graphicsPath =
+        await FileUtils.validFilePath(graphicsPath, strGraphicsPath, false);
 
     copyFileQueueSize = 4 * copyFileBuffer * 1024 * 1024;
     ppViewPath = FileUtils.replaceDCMWildcard(ppViewPath, appPath: szAppPath);
@@ -404,40 +418,54 @@ class DCMGlobal {
     String strFtpSettingPath = path.join(cscPath, 'ftpsetting');
     String strAHPlaylistPath = path.join(cscPath, 'schedule', 'ahplaylist');
 
-    FileUtils.validFilePath(dayPath, strDayPath, false);
-    FileUtils.validFilePath(ahPlaylistPath, strAHPlaylistPath, false);
-    FileUtils.validFilePath(monthPath, strMonthPath, false);
-    FileUtils.validFilePath(calendarPath, strCalendarPath, false);
-    FileUtils.validFilePath(settingPath, strSettingPath, false);
-    FileUtils.validFilePath(ftpSettingPath, strFtpSettingPath, false);
-    FileUtils.validFilePath(reportPath, strReportPath, false);
-    FileUtils.validFilePath(tempPath, strTempPath, false);
-    FileUtils.validFilePath(logPath, strLogPath, false);
-    FileUtils.validFilePath(contentListPath, strContentListPath, false);
-    FileUtils.validFilePath(linkagePath, strLinkagePath, false);
-    FileUtils.validFilePath(ddeDataPath, strDDEDataPath, false);
-    FileUtils.validFilePath(ddeXmlPath, strDDEXMLPath, false);
+    dayPath = await FileUtils.validFilePath(dayPath, strDayPath, false);
+    ahPlaylistPath =
+        await FileUtils.validFilePath(ahPlaylistPath, strAHPlaylistPath, false);
+    monthPath = await FileUtils.validFilePath(monthPath, strMonthPath, false);
+    calendarPath =
+        await FileUtils.validFilePath(calendarPath, strCalendarPath, false);
+    settingPath =
+        await FileUtils.validFilePath(settingPath, strSettingPath, false);
+    ftpSettingPath =
+        await FileUtils.validFilePath(ftpSettingPath, strFtpSettingPath, false);
+    reportPath =
+        await FileUtils.validFilePath(reportPath, strReportPath, false);
+    tempPath = await FileUtils.validFilePath(tempPath, strTempPath, false);
+    logPath = await FileUtils.validFilePath(logPath, strLogPath, false);
+    contentListPath = await FileUtils.validFilePath(
+        contentListPath, strContentListPath, false);
+    linkagePath =
+        await FileUtils.validFilePath(linkagePath, strLinkagePath, false);
+    ddeDataPath =
+        await FileUtils.validFilePath(ddeDataPath, strDDEDataPath, false);
+    ddeXmlPath =
+        await FileUtils.validFilePath(ddeXmlPath, strDDEXMLPath, false);
 
     String strMessagePath = path.join(cscPath, defaultAHMESSAGEPATH);
-    FileUtils.validFilePath(messagePath, strMessagePath, false);
+    messagePath =
+        await FileUtils.validFilePath(messagePath, strMessagePath, false);
 
     String strRoomEventPath = path.join(cscPath, defaultROOMEVENTPATH);
-    FileUtils.validFilePath(roomEventPath, strRoomEventPath, false);
+    roomEventPath =
+        await FileUtils.validFilePath(roomEventPath, strRoomEventPath, false);
 
     String strRoomPath = path.join(cscPath, defaultROOMPATH);
-    FileUtils.validFilePath(roomPath, strRoomPath, false);
+    roomPath = await FileUtils.validFilePath(roomPath, strRoomPath, false);
 
     String strLobbyPath = path.join(cscPath, defaultLOBBYPATH);
-    FileUtils.validFilePath(lobbyPath, strLobbyPath, false);
+    lobbyPath = await FileUtils.validFilePath(lobbyPath, strLobbyPath, false);
 
     String strPlayerPath = path.join(cscPath, 'Schedule', 'Player');
-    FileUtils.validFilePath(playerPath, strPlayerPath, false);
+    playerPath =
+        await FileUtils.validFilePath(playerPath, strPlayerPath, false);
 
     String strPreDataPath = path.join(cscPath, 'Data', 'PreData');
-    FileUtils.validFilePath(preDataPath, strPreDataPath, false);
+    preDataPath =
+        await FileUtils.validFilePath(preDataPath, strPreDataPath, false);
 
     String strUpdateFilePath = path.join(cscPath, 'Schedule', 'Temp');
-    FileUtils.validFilePath(updateFilePath, strUpdateFilePath, false);
+    updateFilePath =
+        await FileUtils.validFilePath(updateFilePath, strUpdateFilePath, false);
 
     return true;
   }

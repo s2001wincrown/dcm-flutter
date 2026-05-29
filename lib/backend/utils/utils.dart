@@ -203,7 +203,7 @@ class Utils {
           return getLatestFile(strFilePath);
         }
       default:
-        ContentTypeManager.fixContentFileName(strName, type);
+        strName = ContentTypeManager.fixContentFileName(strName, type);
         break;
       //return strFileName;
     }

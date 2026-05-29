@@ -152,7 +152,6 @@ class _DigitalSignageScreenState extends State<DigitalSignageScreen> {
   void initState() {
     super.initState();
     _hideSystemUI();
-    ScheduleList().loadSchedule();
     // Preload uses `context` (e.g. `precacheImage`), so run it after
     // the first frame to avoid accessing InheritedWidgets during initState.
     WidgetsBinding.instance.addPostFrameCallback((_) {

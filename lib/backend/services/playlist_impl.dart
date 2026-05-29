@@ -622,16 +622,21 @@ class PlayList {
   }
 
   bool loadPlayList(
-      {String dcmFile = 'dcmplay', String? uniqueName, String? company}) {
+      {String plName = 'dcmplay', String? uniqueName, String? company}) {
     this.company = company ?? '';
-    strEvent = dcmFile;
-    this.uniqueName = uniqueName ?? '';
+    strEvent = plName;
+    this.uniqueName = uniqueName ?? plName;
 
-    // 加载播放列表数据
-    // 这里需要根据实际的数据加载逻辑实现
+    bool bLoad = true;
+    EventFileImpl fileImpl = EventFileImpl();
+    if (!fileImpl.loadFromXML(plName, eventFile)) {
+      bLoad = fileImpl.loadPlayList(eventFile, plName);
+    }
+    if (bLoad) {
+      genEventDisplayAH();
+    }
 
-    genEventDisplayAH();
-    return true;
+    return bLoad;
   }
 
   bool playFileList(StringBuffer dcmFile) {

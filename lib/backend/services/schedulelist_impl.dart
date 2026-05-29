@@ -355,28 +355,6 @@ class ScheduleList {
     }
   }
 
-  bool loadScheduleDynamic(bool bFromDisplayChanged, [bool bStart = false]) {
-    if ((currEvent.isNotEmpty && currEvent != 'StartupWallpaper') ||
-        (bFromDisplayChanged && currEvent == 'StartupWallpaper')) {
-      return loadSchedule(playList: currEvent);
-    }
-
-    currEvent = '';
-
-    var strCurrEvent = '';
-    if (arrEvent.isNotEmpty) {
-      strCurrEvent = arrEvent[playListIndex].value;
-    }
-
-    removeScheduleList();
-
-    bool bLoad = false;
-    // 实现动态加载逻辑
-
-    getPlayRange();
-    return bLoad;
-  }
-
   String getDefaPlaylistIntegrityCheck(IntegrityCheck integrityCheck) {
     String strDefaultEvent = '';
     for (int j = 0; j < cMaxDefaEventForPlay; j++) {
@@ -398,10 +376,10 @@ class ScheduleList {
     pList.uniqueName = szUniqueName ?? '';
 
     if (!pList.loadPlayList(
-        dcmFile: szPlayList, uniqueName: szUniqueName, company: szCompany)) {
+        plName: szPlayList, uniqueName: szUniqueName, company: szCompany)) {
       return null;
     } else {
-      arrEvent.add(Pair(szUniqueName ?? '', szPlayList));
+      arrEvent.add(Pair(szUniqueName ?? szPlayList, szPlayList));
       pList.startDateTime = startDateTime;
       lstScheduleList.add(pList);
     }

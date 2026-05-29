@@ -2,21 +2,20 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
 
+import 'package:dcm/backend/keymap_helper.dart';
+import 'package:dcm/backend/library_helper.dart';
+import 'package:dcm/backend/models/dcm_global.dart';
+import 'package:dcm/backend/models/playitem.dart';
+import 'package:dcm/backend/models/playlist_item.dart';
+import 'package:dcm/backend/models/settings.dart';
+import 'package:dcm/backend/player_command_ext.dart';
 import 'package:dcm/backend/xml_settings/contenttype_manager.dart';
+import 'package:dcm/pages/home.dart';
 import 'package:flutter/material.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
 import 'package:path/path.dart';
 import 'package:path_provider/path_provider.dart';
-
-import 'package:dcm/backend/keymap_helper.dart';
-import 'package:dcm/backend/library_helper.dart';
-import 'package:dcm/backend/player_command_ext.dart';
-import 'package:dcm/backend/models/dcm_global.dart';
-import 'package:dcm/backend/models/playitem.dart';
-import 'package:dcm/backend/models/playlist_item.dart';
-import 'package:dcm/backend/models/settings.dart';
-import 'package:dcm/pages/home.dart';
 
 class App {
   late final String dataPath;

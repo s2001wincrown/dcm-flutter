@@ -69,7 +69,7 @@ class ContentTypeManager {
     contentTypeData.dwFlags = BigInt.from(4194303);
 
     contentTypeData = ContentTypeData.fromContent(
-        cDCMAHMESSAGETYPE, 'Emergency Message', '|.XML|');
+        cDCMAHMESSAGETYPE, 'Emergency Message', '|.xml|');
     nContentTypes++;
     contentTypeList.add(contentTypeData);
     contentTypeData.uiID = nContentTypes;
@@ -88,7 +88,7 @@ class ContentTypeManager {
     contentTypeData.dwFlag = BigInt.zero;
     contentTypeData.dwFlags = BigInt.zero;
     contentTypeData =
-        ContentTypeData.fromContent(cDCMMONTHTYPE, 'Month xml file', '|.XML|');
+        ContentTypeData.fromContent(cDCMMONTHTYPE, 'Month xml file', '|.xml|');
     nContentTypes++;
     contentTypeList.add(contentTypeData);
     contentTypeData.uiID = nContentTypes;
@@ -97,7 +97,7 @@ class ContentTypeManager {
     contentTypeData.dwFlag = BigInt.zero;
     contentTypeData.dwFlags = BigInt.zero;
     contentTypeData = ContentTypeData.fromContent(
-        cDCMCALENDARTYPE, 'Calendar xml file', '|.XML|');
+        cDCMCALENDARTYPE, 'Calendar xml file', '|.xml|');
     nContentTypes++;
     contentTypeList.add(contentTypeData);
     contentTypeData.uiID = nContentTypes;
@@ -106,7 +106,7 @@ class ContentTypeManager {
     contentTypeData.dwFlag = BigInt.zero;
     contentTypeData.dwFlags = BigInt.zero;
     contentTypeData =
-        ContentTypeData.fromContent(cDCMDAYTYPE, 'Playlist xml file', '|.XML|');
+        ContentTypeData.fromContent(cDCMDAYTYPE, 'Playlist xml file', '|.xml|');
     nContentTypes++;
     contentTypeList.add(contentTypeData);
     contentTypeData.uiID = nContentTypes;
@@ -205,13 +205,13 @@ class ContentTypeManager {
     return contentTypeData;
   }
 
-  static bool fixContentFileName(String strContentName, int nContentType) {
+  static String fixContentFileName(String strContentName, int nContentType) {
     String strExt = path.extension(strContentName);
     ContentTypeData? contentTypeData = findByType(nContentType);
     if (contentTypeData != null && isNotBlank(contentTypeData.strFilter)) {
       if (strExt.isNotEmpty) {
         if (contentTypeData.strFilter!.containsIgnoreCase(strExt)) {
-          return true;
+          return strContentName;
         }
       }
 
@@ -225,11 +225,9 @@ class ContentTypeManager {
       }
       if (strExt.isNotEmpty) {
         strContentName += strExt;
-
-        return true;
       }
     }
 
-    return false;
+    return strContentName;
   }
 }

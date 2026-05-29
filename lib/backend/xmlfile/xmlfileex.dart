@@ -150,14 +150,14 @@ class XmlFileEx extends XmlFile {
   @override
   bool load(String szFilePath, [String? szRootItemName, bool bDecrypt = true]) {
     needDecrypt = bDecrypt;
-    return load(szFilePath, szRootItemName);
+    return super.load(szFilePath, szRootItemName);
   }
 
   // --- 打开方法 ---
   @override
   bool open(String szFilePath, XfOpen nOpenFlag, [bool bDecrypt = true]) {
     needDecrypt = bDecrypt;
-    return open(szFilePath, nOpenFlag);
+    return super.open(szFilePath, nOpenFlag);
   }
 
   // --- 加载扩展方法 ---
