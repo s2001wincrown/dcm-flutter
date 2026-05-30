@@ -199,6 +199,32 @@ const int settingAPIBACKEND = 0x04000000;
 const int settingRETURNBRKPTS = 0x00000001;
 const int settingLATESTPLAYLIST = 0x00010000;
 
+const String cmsPLAYERLOGURL =
+    'api/pm/players/log'; //'services/api/players/log';
+const String cmsPLAYERLOG2URL = 'api/log/playerLog2s/create';
+const String cmsPLAYLISTLOGURL =
+    'api/pm/players/playlistlog'; //'services/api/players/playlistlog';
+const String cmsEVENTDISPLAYURL =
+    'api/book/myCalendars/eventdisplay'; //'services/api/myCalendars/eventdisplay';
+const String cmsDAILYLISTURL =
+    'api/cm/dailyLists/xmlfilelist'; //services/api/dailyLists/xmlfilelist
+const String cmsCONTENTLISTURL =
+    'api/cm/contentLists/xmlfilelist'; //services/api/contentLists/xmlfilelist
+const String cmsFTPSTATUSURL =
+    'api/pm/ftpStatuses/create'; //services/api/ftpStatuses/create
+const String cmsPLAYERTASKURL =
+    'api/pm/players/tasks'; //services/api/players/tasks
+const String cmsPLAYERTASKUPDATEURL = 'api/pm/players/tasks/update';
+const String cmsPLAYERREGISTERURL =
+    'api/pm/players/register'; //services/api/players/register
+const String cmsPLAYERSITEURL = 'api/pm/players/site';
+const String cmsPLAYERIPURL = 'api/pm/players/ip';
+const String cmsPLAYLOGURL = 'api/log/playLogs/create';
+const String cmsGETPLAYLISTURL = 'api/pm/players/playlists';
+const String cmsGETFILELISTURL = 'api/pm/players/filelist';
+const String cmsGETSETTINGSURL = 'api/pm/settings';
+const String cmsCONTENTLOGURL = 'api/log/contentLogs/create';
+
 //builtin Content Type
 //Content Type Name
 class ContentTypeEntry {

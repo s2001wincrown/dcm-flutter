@@ -464,13 +464,76 @@ class ScheduleList {
     return false;
   }
 
+  bool playNextGroup(StringBuffer strDCMFile) {
+    if (arrEvent.isEmpty) {
+      strDCMFile.write(dcmFile);
+      return true;
+    }
+
+    PlayList? pPlayList = getCurrPlaylist();
+    if (pPlayList != null && pPlayList.playNextFile(strDCMFile)) {
+      return true;
+    }
+
+    return false;
+  }
+
+  bool playCurrFile(StringBuffer strDCMFile) {
+    if (arrEvent.isEmpty) {
+      strDCMFile.write(dcmFile);
+      return true;
+    }
+
+    if (arrEvent.length <= playListIndex) {
+      playListIndex = 0;
+    } else {
+      if (arrEvent.length == 1) {
+        PlayList? pPlayList = getPlayList(arrEvent[0].key);
+        if (pPlayList != null && pPlayList.playCurrFile(strDCMFile)) {
+          pPlayList.adjustAHTime(DateTime.now());
+          playListIndex = 0;
+
+          return true;
+        }
+      }
+
+      int nPlaylist = getPlaylistForPlay();
+      if (nPlaylist != -1) {
+        PlayList? pPlayList = getPlayList(arrEvent[nPlaylist].key);
+        if (pPlayList != null && pPlayList.playCurrFile(strDCMFile)) {
+          pPlayList.adjustAHTime(DateTime.now());
+          playListIndex = nPlaylist;
+          return true;
+        }
+      }
+    }
+
+    if (strDCMFile.isEmpty && !validPlayFileList(playListIndex, strDCMFile)) {
+      return false;
+    }
+
+    return true;
+  }
+
   String getPlayFile() {
     var strDCMFile = StringBuffer();
     validPlayFileList(0, strDCMFile, true);
     return strDCMFile.toString();
   }
 
-  bool validPlayFileList(int nStart, StringBuffer strDCMFile, bool bSeq) {
+  bool getFirstAHFile(StringBuffer strDCMFile) {
+    if (playListIndex < arrEvent.length) {
+      PlayList? pPlayList = getPlayList(arrEvent[playListIndex].key);
+      if (pPlayList != null && pPlayList.getFirstAHFile(strDCMFile)) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  bool validPlayFileList(int nStart, StringBuffer strDCMFile,
+      [bool bSeq = true]) {
     if (arrEvent.length == 1) {
       var pPlayList = getPlayList(arrEvent[0].key);
       if (pPlayList != null && pPlayList.playNextFile(strDCMFile)) {
@@ -522,6 +585,26 @@ class ScheduleList {
   int getPlayMeth() => playMeth;
 
   int get count => arrEvent.length;
+
+  void setPlayTimes() {
+    if (playListIndex < arrEvent.length) {
+      PlayList? pPlayList = getPlayList(arrEvent[playListIndex].key);
+      if (pPlayList != null) {
+        pPlayList.setPlayTimes();
+      }
+    }
+  }
+
+  bool getPlayTimes() {
+    if (playListIndex < arrEvent.length) {
+      PlayList? pPlayList = getPlayList(arrEvent[playListIndex].key);
+      if (pPlayList != null && pPlayList.getPlayTimes()) {
+        return true;
+      }
+    }
+
+    return false;
+  }
 
   int getPlayProduct([bool? bIsAH]) {
     if (arrEvent.isEmpty) {
@@ -934,4 +1017,21 @@ class ScheduleList {
   int getTotalZones() => catalogue.getZoneNumber();
   bool hasBGMusic() => catalogue.bBGMusic;
   String getBGMusicFile() => catalogue.strMusicFile;
+  DCMFileData getCatalogue() => catalogue;
+
+  bool hasContentType([int nContentType = cPLUGINTYPE]) {
+    return catalogue.hasContentType(nContentType);
+  }
+
+  bool isCatalogueCanPlay() {
+    return catalogue.canPlay();
+  }
+
+  bool hasPowerPoint(int nCurrProduct) {
+    return catalogue.hasPowerPoint(nCurrProduct);
+  }
+  //bool isLastProduct() { return (m_Catalogue.m_nQuantity <= m_nCurrProduct + 1);}
+
+  bool loadState() => true;
+  bool saveState() => true;
 }

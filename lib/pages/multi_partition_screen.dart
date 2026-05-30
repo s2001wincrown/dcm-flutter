@@ -3,6 +3,7 @@ import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:dcm/backend/app.dart';
+import 'package:dcm/backend/models/dcm_global.dart';
 import 'package:dcm/backend/services/schedulelist_impl.dart';
 import 'package:dcm/pages/home.dart';
 import 'package:dcm/widgets/basic_video.dart';
@@ -147,6 +148,13 @@ class _DigitalSignageScreenState extends State<DigitalSignageScreen> {
   bool _showExitHint = false;
   bool _isLoadingNext = false;
   final Map<int, List<PreloadedContent>> _preloadedContents = {};
+
+  String? _strDCMFile;
+  bool _bValidForPlay = false;
+  bool _bScreenLayoutChanged = false;
+  bool _bDisplayChanged = false;
+  bool _bIsTouchScreen = false;
+  bool _bIsSameSkin = false;
 
   @override
   void initState() {
@@ -298,6 +306,123 @@ class _DigitalSignageScreenState extends State<DigitalSignageScreen> {
       _playCurrentShow();
       _preloadNextShow(); // 预加载新的下一个节目
     });
+  }
+
+  void readyForPlay() {
+    bool bCanPlay = loadPlayerState();
+    if (!bCanPlay) {
+      StringBuffer strDCMFile = StringBuffer();
+      if (ScheduleList().playFileList(strDCMFile)) {
+        _strDCMFile = strDCMFile.toString();
+        if (loadCatalogue(_strDCMFile!, true)) {
+          bCanPlay = ScheduleList().isCatalogueCanPlay();
+        }
+
+        if (!bCanPlay) {
+          if (ScheduleList().count>1) {
+            while (true) {
+               if (ScheduleList().playNextFile(strDCMFile)){
+                //if (ScheduleList().LoadCatalogue(strDCMFile))
+                if (loadCatalogue(strDCMFile.toString(), true)) {
+                  if (ScheduleList().isCatalogueCanPlay()) {
+                    bCanPlay = true;
+                    _strDCMFile = strDCMFile.toString();
+                    break;
+                  }
+                }
+              }
+
+              if (!bCanPlay) {
+                sleep(const Duration(seconds: 1));
+              }
+            }
+          }
+        }
+        ScheduleList().setPlayTimes();
+      }
+    }
+    _bValidForPlay = bCanPlay;
+  }
+
+  bool loadPlayerState() {
+    if (DCMGlobal.playStartPoint != 0) {
+      if (ScheduleList().loadState()) {
+        StringBuffer strDCMFile = StringBuffer();
+        if (ScheduleList().playCurrFile(strDCMFile)) {
+          _strDCMFile = strDCMFile.toString();
+          if (loadCatalogue(_strDCMFile!)) {
+            if (ScheduleList().isCatalogueCanPlay()) {
+              return true;
+            }
+          }
+        }
+      }
+    }
+
+    return false;
+  }
+
+  bool loadCatalogue(String strDCMFile, [bool bStart = false]) {
+    String strOldLayout = '';
+    String strCurrSkin = '';
+    int nOldScreen = 0;
+    int nTotalZone1 = 0;
+    if (!bStart) {
+      strCurrSkin = ScheduleList().getCatalogue().strSkinCode;
+      strOldLayout = ScheduleList().getCatalogue().strLayoutName;
+      nOldScreen = ScheduleList().getCatalogue().nScreenType;
+      nTotalZone1 = ScheduleList().getTotalZones();
+    }
+
+    if (ScheduleList().loadCatalogue(strDCMFile)) {
+      int nTotalZone = ScheduleList().getTotalZones();
+      if (nTotalZone <= 0 || nTotalZone > 10000) {
+        return false;
+      }
+
+      if (ScheduleList().hasContentType()) {
+        sendSerialMSG('2!\r\n');
+      }
+      _bIsSameSkin = (strCurrSkin == ScheduleList().getCatalogue().strSkinCode && !_bDisplayChanged);
+      String strOldTouch = PlaySkin._strDCMFile;
+      if (!_bIsSameSkin)
+        PlaySkin.LoadSkins(&ScheduleList().getCatalogue());
+      
+      //WriteMessage(MSG_INFO, 'CPlayerScreenDlg::LoadCatalogue Step: %d, DCMFile:'%s'; last Zone Number:'%d'; Now Zone Number:'%d'; Current TID: %d!!!', 
+      //	0, strDCMFile, nTotalZone1, nTotalZone, GetCurrentThreadId());
+      bool bIsTwoWindows = PlaySkin.m_bIsTwoWindows;
+      bool bIsAutoHide = PlaySkin.m_bIsAutoHidePopWindow;
+      if (!bIsTwoWindows || !bIsAutoHide
+        || (bIsTwoWindows && bIsAutoHide && strOldTouch.CompareNoCase(PlaySkin._strDCMFile) != 0))
+      {
+        DeleteTouchScreen();
+      }
+      
+      if (_bIsTouchScreen) {
+        CRect rect(0, 0, GetSystemMetrics(SM_CXSCREEN), GetSystemMetrics(SM_CYSCREEN));
+        PlaySkin.SetTouchScreen(true);
+        PlaySkin.SetTouchScreenRect(rect);
+      }
+      if (!_bIsSameSkin) {
+        LoadSkinSetting();
+        //UpdateFrame();
+        ReCalcPlayerRect();
+      }
+      String strCompany = ScheduleList().getCurrCompany();
+      PlayMusic(strCompany);
+      ResetZoneRect(nTotalZone);
+
+      _bScreenLayoutChanged = (_bDisplayChanged || ScheduleList().getCatalogue().strLayoutName != strOldLayout 
+        || ScheduleList().getCatalogue().nScreenType != nOldScreen);
+      _bDisplayChanged = false;
+      //WriteMessage(MSG_INFO, 'CPlayerScreenDlg::LoadCatalogue Step: %d, Current TID: %d!!!', 3, GetCurrentThreadId());
+      ScheduleList().setPlayTimes();
+      _strDCMFile = strDCMFile;
+      //WriteMessage(MSG_INFO, 'CPlayerScreenDlg::LoadCatalogue Step: %d, Current TID: %d!!!', 4, GetCurrentThreadId());
+      return true;
+    }
+
+    return false;
   }
 
   void _exitApplication() {

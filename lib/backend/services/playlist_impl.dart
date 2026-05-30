@@ -639,6 +639,10 @@ class PlayList {
     return bLoad;
   }
 
+  bool getFirstAHFile(StringBuffer strDCMFile) {
+    return validPlayFileList(playlistZone.getPlayFile, strDCMFile);
+  }
+
   bool playFileList(StringBuffer dcmFile) {
     playlistZone.resetPlaylistZone();
     ahPlaylistZone.resetPlaylistZone();
@@ -816,6 +820,57 @@ class PlayList {
     }
 
     return true;
+  }
+
+  bool playNextGroup(StringBuffer strDCMFile) {
+    int nPlayFile = getPlaylistZone(false).getPlayFile;
+    if (eventFile.getCount() <= nPlayFile) {
+      if (playFileList(strDCMFile)) {
+        return true;
+      }
+    } else {
+      if (!validPlayFileList(nPlayFile, strDCMFile)) {
+        nPlayFile = 0;
+        getPlaylistZone(false).resetPlaylistZone();
+      }
+    }
+    if (validPlayFileList(nPlayFile, strDCMFile)) {
+      getPlaylistZone(false).setDCMFile(strDCMFile.toString());
+
+      return true;
+    }
+
+    return false;
+  }
+
+  bool playCurrFile(StringBuffer strDCMFile) {
+    logD(
+        'CPlayList::PlayCurrFile first: ${getPlaylistZone(true).getCurrPlay} - ${getPlaylistZone(false).getCurrPlay}');
+    int nPlayFile = getPlaylistZone(isPlayEpisode).getPlayFile;
+    if (eventFile.getCount() <= nPlayFile) {
+      if (playFileList(strDCMFile)) return true;
+    } else {
+      if ((DCMGlobal.loopMethod & settingRETURNBRKPTS) == 0) {
+        getPlaylistZone(isPlayEpisode).resetPlaylistZone();
+        nPlayFile = 0;
+      }
+
+      if (!validPlayFileList(nPlayFile, strDCMFile)) {
+        getPlaylistZone(isPlayEpisode).resetPlaylistZone();
+        nPlayFile = 0;
+      }
+    }
+
+    logD(
+        'CPlayList::PlayCurrFile second: ${getPlaylistZone(true).getCurrPlay} - ${getPlaylistZone(false).getCurrPlay}');
+    if (validPlayFileList(nPlayFile, strDCMFile)) {
+      getPlaylistZone(isPlayEpisode).setDCMFile(strDCMFile.toString());
+      isAHPlaying = isPlayEpisode;
+
+      return true;
+    }
+
+    return false;
   }
 
   String getPlayFile() {

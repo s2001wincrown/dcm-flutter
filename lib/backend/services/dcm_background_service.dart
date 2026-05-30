@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:dcm/backend/app.dart';
+import 'package:dcm/backend/constants.dart';
 import 'package:dcm/backend/models/dcm_global.dart';
 import 'package:dcm/backend/services/dcm_downloader.dart';
 import 'package:dcm/backend/xmlfile/xmlfile.dart';
@@ -26,7 +27,7 @@ class DcmBackgroundService {
 
     final queuePath = path.join(App().dataPath, 'download_queue.json');
     _downloader = DcmDownloader(
-      apiUrl: DCMGlobal.cmsUrl,
+      apiUrl: DCMGlobal.cmsUrl + cmsGETFILELISTURL,
       queue: DcmDownloadQueue(persistencePath: queuePath),
       pollingInterval: const Duration(minutes: 5),
       buildRequestBody: _buildRequestBody,
