@@ -9,6 +9,7 @@ import 'package:dcm/backend/constants.dart';
 import 'package:dcm/backend/models/layout_data.dart';
 import 'package:dcm/backend/models/product_data.dart';
 import 'package:dcm/backend/models/zone_data.dart';
+import 'package:dcm/backend/utils/utils.dart';
 
 /////////////////////////////////////////////////////////////////////////////
 // CDCMFileData construction/destruction
@@ -165,12 +166,12 @@ class DCMFileData {
     return 0;
   }
 
-  Rect getLayoutSize() {
+  Size getLayoutSize() {
     if (pLayoutDataObj == null) {
-      return Rect.zero;
+      return Size.zero;
     }
 
-    return Rect.fromLTWH(0, 0, pLayoutDataObj!.iScreenWidth.toDouble(),
+    return Size(pLayoutDataObj!.iScreenWidth.toDouble(),
         pLayoutDataObj!.iScreenHeight.toDouble());
   }
 
@@ -414,4 +415,33 @@ class DCMFileData {
 
     return true;
   }
+
+  void productFromFile(String strUrl, int nContentType, [double? dbDuration]) {
+    clearDataObj();
+    strCatalogueName = '';
+    nQuantity = 1;
+    strLayoutName = 'H01';
+
+    ProductData pProduct = ProductData();
+    pProduct.uiID = 0;
+    ZoneData pZoneData = ZoneData();
+    pZoneData.nZoneID = 0;
+    pZoneData.strZoneFile = Utils.getShortPath(strUrl, nContentType);
+    //FormatDataPath(pZoneData->m_strZoneFile, nContentType);
+    pZoneData.nZoneType = nContentType;
+    pZoneData.nZoneDuration = (dbDuration ?? 86400);
+    pProduct.lstZone.add(pZoneData);
+    lstProduct ??= [];
+    lstProduct!.add(pProduct);
+  }
+
+  String getBtnLng() => strBtnLng; //Product button default language
+  int getBtnAlign() => nBtnAlign; //Product button align(bottom or right)
+  int getBtnStyle() =>
+      nBtnStyle; //Product button style(Image+text, image, text)
+  int getScreenType() => nScreenType; //Screen type(16:9 or 4:3)
+  int getFontSize() =>
+      nFontSize; //Product button text font size(if button style is image+text or text)
+  int getQuantity() => nQuantity; //Product quantity
+  int getBGType() => nBGType;
 }

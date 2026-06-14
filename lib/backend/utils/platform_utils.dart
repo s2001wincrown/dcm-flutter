@@ -30,6 +30,10 @@ class PlatformUtils {
     return _isWeb() ? false : Platform.isLinux;
   }
 
+  static bool _isDesktop() {
+    return Platform.isLinux || Platform.isWindows || Platform.isMacOS;
+  }
+
   static bool get isWeb => _isWeb();
 
   static bool get isAndroid => _isAndroid();
@@ -43,4 +47,6 @@ class PlatformUtils {
   static bool get isFuchsia => _isFuchsia();
 
   static bool get isLinux => _isLinux();
+
+  static bool get isDesktop => _isDesktop();
 }

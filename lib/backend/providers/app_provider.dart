@@ -1,5 +1,4 @@
 import 'package:dcm/backend/utils/theme_config.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -48,8 +47,7 @@ class AppProvider extends ChangeNotifier {
   Future<ThemeData> checkTheme() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     ThemeData t;
-    String? r =
-        prefs.getString('theme') == null ? 'light' : prefs.getString('theme');
+    String? r = prefs.getString('theme') ?? 'light';
 
     if (r == 'light') {
       t = ThemeConfig.lightTheme;

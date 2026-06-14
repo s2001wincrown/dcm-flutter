@@ -3,6 +3,7 @@
 #
 
 list(APPEND FLUTTER_PLUGIN_LIST
+  flutter_libserialport
   media_kit_libs_linux
   media_kit_video
   open_file_linux
@@ -12,6 +13,7 @@ list(APPEND FLUTTER_PLUGIN_LIST
 )
 
 list(APPEND FLUTTER_FFI_PLUGIN_LIST
+  cnativeapi
   jni
   libmpv_dart
   whisper4dart

@@ -7,16 +7,21 @@ import 'dart:io';
 import 'dart:ui';
 
 import 'package:dcm/backend/constants.dart';
+import 'package:dcm/backend/models/dcm_global.dart';
 import 'package:dcm/backend/models/dcmfile_data.dart';
 import 'package:dcm/backend/models/layout_data.dart';
 import 'package:dcm/backend/models/product_data.dart';
 import 'package:dcm/backend/models/zone_data.dart';
+import 'package:dcm/backend/services/player_zone_impl.dart';
 import 'package:dcm/backend/utils/encoder_utils.dart';
+import 'package:dcm/backend/utils/string_utils.dart';
 import 'package:dcm/backend/utils/utils.dart';
 import 'package:dcm/backend/xml_settings/contentlist_impl.dart';
+import 'package:dcm/backend/xml_settings/contenttype_manager.dart';
 import 'package:dcm/backend/xmlfile/xmlfile.dart';
 import 'package:dcm/backend/xmlfile/xmlfilepro.dart';
 import 'package:dcm/backend/xmlfile/xmlitem.dart';
+import 'package:path/path.dart' as path;
 
 class DCMFileImpl {
   static const String lpszSignature = "dcCatalogue Version 4.0 Document";
@@ -127,10 +132,6 @@ class DCMFileImpl {
     }
 
     if (file.loadEx()) {
-      if (!file.decrypt()) {
-        return null;
-      }
-
       // file header info
       String sXmlHeader = file.getSignature();
       if (sXmlHeader == lpszSignature) {
@@ -332,17 +333,16 @@ class DCMFileImpl {
     return false;
   }
 
-  static String? getDCMPath(
-      String szCatalogueName, String szCompany, String szFolder) {
+  static String? getDCMPath(String szCatalogueName, String szFolder,
+      [String? szCompany]) {
+    String strPlayFile;
     if (szFolder.isEmpty) {
-      return Utils.getFilePath(szCatalogueName, cDCMFILETYPE, -1, szCompany);
+      strPlayFile =
+          Utils.getFilePath(szCatalogueName, cDCMFILETYPE, -1, szCompany);
     } else {
-      String strFolder = szFolder;
-      String strCompany = szCompany;
-      String strDCMFile = szCatalogueName;
-      String strPlayFile = "$strFolder/$strDCMFile.DCM";
-      if (strCompany.isNotEmpty) {
-        strPlayFile = "$strFolder/$strCompany/$strDCMFile.DCM";
+      strPlayFile = path.join(szFolder, '$szCatalogueName.DCM');
+      if (isNotBlank(szCompany)) {
+        strPlayFile = path.join(szFolder, szCompany, '$szCatalogueName.DCM');
       }
 
       if (File(strPlayFile).existsSync()) {
@@ -381,58 +381,6 @@ class DCMFileImpl {
         return true;
       }
     }
-
-    return false;
-  }
-
-  static bool addContent(
-      DCMFileData pDCMFile, String strContent, double dbDuration /* = 0.00*/) {
-    /*int nContentType = GetContentTypeByFileName(strContent);
-		if (nContentType != -1)
-		{
-			int pType = -1;
-			if (nContentType == IMAGE_TYPE)
-				pType = DCM_SINGLEIMAGE_TYPE;
-
-			String strFileName = strContent;
-			String strFilePath = GetFilePath(strFileName, (ContentType)nContentType, pType);
-			if (FileMisc::FileExists(strFilePath))
-			{
-				ProductData pProduct = new ProductData();
-				if (pProduct != null)
-				{
-					pProduct.uiID = 0;
-					pDCMFile.lstProduct.push_back(pProduct);
-					ZoneData pZoneData = new ZoneData;
-					if (pZoneData != null)
-					{
-						pZoneData.uiID = 0;
-						pProduct.lstZone.push_back(pZoneData);
-						pZoneData.strZoneFile = strFileName;
-						pZoneData.nZoneType = nContentType;
-						if (dbDuration <= EPSINON)
-						{
-							pZoneData.nZoneDuration = DEFAULT_DURATION;
-							if (CPlayerZoneImpl::IsVideoType(nContentType))
-							{
-								CPlayerZoneImpl Player(null);
-								wxRect rectPreview(0, 0, 0, 0);
-								Player.SetPlayerRect(rectPreview);
-								Player.RenderFile(strFilePath, nContentType);
-								pZoneData.nZoneDuration = Player.getActualDuration();
-								pZoneData.bZoneRatio = false;
-							}
-						}
-						else
-						{
-							pZoneData.nZoneDuration = dbDuration;
-						}
-
-						return true;
-					}
-				}
-			}
-		}*/
 
     return false;
   }
@@ -834,5 +782,98 @@ class DCMFileImpl {
       }
     }
     return null;
+  }
+
+  static List<ZoneData> getContents(String szCatalogue, int nType) {
+    List<ZoneData> arrContents = [];
+    DCMFileData? dcmFileData =
+        DCMFileImpl.openCatalogue(catalogueName: szCatalogue, bShort: true);
+    if (dcmFileData != null && dcmFileData.lstProduct != null) {
+      for (var pData in dcmFileData.lstProduct!) {
+        if (nType != cDIRECTPLAYTYPE) {
+          var lstZone = pData.getContents(cDIRECTPLAYTYPE);
+          for (var pZoneData in lstZone) {
+            ContentListImpl contentList = ContentListImpl(cDIRECTPLAYTYPE);
+            String strFilePath =
+                Utils.getFilePath(pZoneData.strZoneFile, cDIRECTPLAYTYPE);
+            contentList.loadContentList(strFilePath);
+            for (int i = 0; i < contentList.lstProduct.length; i++) {
+              ProductData? pProduct =
+                  contentList.getProductData(nProduct: i + 1);
+
+              if (pProduct != null) {
+                if (!contentList.isOutdated(pProduct)) {
+                  var lstZoneData = pProduct.getContents(nType);
+                  if (lstZoneData.isNotEmpty) {
+                    for (var pZoneData1 in lstZoneData) {
+                      /*if (nType == cWEBPAGETYPE &&
+                          DCMGlobal.webView2Path.IsEmpty() &&
+                          pZoneData1.strAudioDevice != "Google Chrome") {
+                        continue;
+                      }*/
+
+                      arrContents.add(pZoneData1);
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+
+        var lstZoneData = pData.getContents(nType);
+        if (lstZoneData.isNotEmpty) {
+          for (var pZoneData in lstZoneData) {
+            /*if (nType == cWEBPAGETYPE &&
+                DCMGlobal.webView2Path.IsEmpty() &&
+                pZoneData.strAudioDevice == "Google Chrome") {
+              continue;
+            }*/
+
+            arrContents.add(pZoneData);
+          }
+        }
+      }
+    }
+
+    return arrContents;
+  }
+
+  static bool addContent(DCMFileData pDCMFile, String strContent,
+      [double? dbDuration]) {
+    int nContentType = ContentTypeManager.getContentTypeByFileName(strContent);
+    if (nContentType != -1) {
+      int pType = -1;
+      if (nContentType == cIMAGETYPE) {
+        pType = cDCMSINGLEIMAGETYPE;
+      }
+
+      String strFileName = strContent;
+      String strFilePath = Utils.getFilePath(strFileName, nContentType, pType);
+      if (File(strFilePath).existsSync()) {
+        ProductData pProduct = ProductData();
+        pProduct.uiID = 0;
+        pDCMFile.lstProduct!.add(pProduct);
+        ZoneData pZoneData = ZoneData();
+        pZoneData.uiID = 0;
+        pProduct.lstZone.add(pZoneData);
+        pZoneData.strZoneFile = strFileName;
+        pZoneData.nZoneType = nContentType;
+        if (dbDuration == null) {
+          pZoneData.nZoneDuration = cDEFAULTDURATION;
+          if (nContentType == cVIDEOTYPE) {
+            pZoneData.nZoneDuration =
+                PlayerZoneImpl.getVideoDuration(strFilePath);
+            pZoneData.bZoneRatio = false;
+          }
+        } else {
+          pZoneData.nZoneDuration = dbDuration;
+        }
+
+        return true;
+      }
+    }
+
+    return false;
   }
 }

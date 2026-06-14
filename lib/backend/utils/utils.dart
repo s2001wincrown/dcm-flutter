@@ -1,3 +1,5 @@
+import 'dart:ui';
+
 import 'package:dcm/backend/constants.dart';
 import 'package:dcm/backend/models/dcm_global.dart';
 import 'package:dcm/backend/models/eventitem_data.dart';
@@ -403,5 +405,85 @@ class Utils {
     }
 
     return dbTotal;
+  }
+
+  /// Win32 SubtractRect 函数的 Dart 实现
+  ///
+  /// 此函数仅在矩形在x方向或y方向完全相交时从 lprcSrc1 中减去 lprcSrc2。
+  /// 它返回的是几何差集的边界框，而不是真正的差集。
+  ///
+  /// 参数:
+  ///   lprcDst - 输出参数，接收结果矩形
+  ///   lprcSrc1 - 第一个矩形（被减数）
+  ///   lprcSrc2 - 第二个矩形（减数）
+  ///
+  /// 返回:
+  ///   如果结果矩形非空则返回 true，否则返回 false
+  static bool subtractRect(Rect lprcDst, Rect lprcSrc1, Rect lprcSrc2) {
+    // 如果两个矩形不相交，则结果是 lprcSrc1
+    if (!lprcSrc1.overlaps(lprcSrc2)) {
+      lprcDst = Rect.fromLTRB(
+          lprcSrc1.left, lprcSrc1.top, lprcSrc1.right, lprcSrc1.bottom);
+      return !lprcDst.isEmpty;
+    }
+
+    // 检查是否在x方向完全相交
+    bool xIntersectComplete =
+        lprcSrc1.left <= lprcSrc2.left && lprcSrc2.right <= lprcSrc1.right;
+    // 检查是否在y方向完全相交
+    bool yIntersectComplete =
+        lprcSrc1.top <= lprcSrc2.top && lprcSrc2.bottom <= lprcSrc1.bottom;
+
+    // 如果两个矩形相交但不是在x或y方向完全相交，则结果是 lprcSrc1
+    if (!xIntersectComplete && !yIntersectComplete) {
+      lprcDst = Rect.fromLTRB(
+          lprcSrc1.left, lprcSrc1.top, lprcSrc1.right, lprcSrc1.bottom);
+      return !lprcDst.isEmpty;
+    }
+
+    // 如果在x方向完全相交，计算y方向的差集
+    if (xIntersectComplete) {
+      // 如果 lprcSrc2 在 lprcSrc1 的上方
+      if (lprcSrc2.top <= lprcSrc1.top && lprcSrc2.bottom >= lprcSrc1.bottom) {
+        // lprcSrc2 完全覆盖 lprcSrc1，结果为空
+        lprcDst = Rect.zero;
+        return false;
+      } else if (lprcSrc2.top <= lprcSrc1.top) {
+        // lprcSrc2 在 lprcSrc1 的上方部分重叠，结果是下方部分
+        lprcDst = Rect.fromLTRB(
+            lprcSrc1.left, lprcSrc2.bottom, lprcSrc1.right, lprcSrc1.bottom);
+      } else if (lprcSrc2.bottom >= lprcSrc1.bottom) {
+        // lprcSrc2 在 lprcSrc1 的下方部分重叠，结果是上方部分
+        lprcDst = Rect.fromLTRB(
+            lprcSrc1.left, lprcSrc1.top, lprcSrc1.right, lprcSrc2.top);
+      } else {
+        // lprcSrc2 在 lprcSrc1 内部，结果是上方部分
+        lprcDst = Rect.fromLTRB(
+            lprcSrc1.left, lprcSrc1.top, lprcSrc1.right, lprcSrc2.top);
+      }
+    }
+    // 如果在y方向完全相交，计算x方向的差集
+    else if (yIntersectComplete) {
+      // 如果 lprcSrc2 在 lprcSrc1 的左侧
+      if (lprcSrc2.left <= lprcSrc1.left && lprcSrc2.right >= lprcSrc1.right) {
+        // lprcSrc2 完全覆盖 lprcSrc1，结果为空
+        lprcDst = Rect.zero;
+        return false;
+      } else if (lprcSrc2.left <= lprcSrc1.left) {
+        // lprcSrc2 在 lprcSrc1 的左侧部分重叠，结果是右侧部分
+        lprcDst = Rect.fromLTRB(
+            lprcSrc2.right, lprcSrc1.top, lprcSrc1.right, lprcSrc1.bottom);
+      } else if (lprcSrc2.right >= lprcSrc1.right) {
+        // lprcSrc2 在 lprcSrc1 的右侧部分重叠，结果是左侧部分
+        lprcDst = Rect.fromLTRB(
+            lprcSrc1.left, lprcSrc1.top, lprcSrc2.left, lprcSrc1.bottom);
+      } else {
+        // lprcSrc2 在 lprcSrc1 内部，结果是左侧部分
+        lprcDst = Rect.fromLTRB(
+            lprcSrc1.left, lprcSrc1.top, lprcSrc2.left, lprcSrc1.bottom);
+      }
+    }
+
+    return !lprcDst.isEmpty;
   }
 }

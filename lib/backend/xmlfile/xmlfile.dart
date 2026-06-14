@@ -24,7 +24,7 @@ enum XflError {
 class XmlFile {
   String strDocVersion = '7.0.0.1';
 
-  XmlItem? _xiRoot;
+  late XmlItem _xiRoot;
   String _sHeader = '';
   String _sStylesheet = '';
   String _sFilePath = '';
@@ -41,8 +41,8 @@ class XmlFile {
     close();
 
     String strRootItemName = szRootItemName ?? '';
-    if (strRootItemName.isEmpty && _xiRoot!.getName().isNotEmpty) {
-      strRootItemName = _xiRoot!.getName();
+    if (strRootItemName.isEmpty && _xiRoot.getName().isNotEmpty) {
+      strRootItemName = _xiRoot.getName();
     }
 
     if (open(szFilePath, XfOpen.read)) {
@@ -62,8 +62,8 @@ class XmlFile {
     }
 
     String strRootItemName = szRootItemName ?? '';
-    if (strRootItemName.isEmpty && _xiRoot!.getName().isNotEmpty) {
-      strRootItemName = _xiRoot!.getName();
+    if (strRootItemName.isEmpty && _xiRoot.getName().isNotEmpty) {
+      strRootItemName = _xiRoot.getName();
     }
 
     bool bRes = false;
@@ -96,8 +96,8 @@ class XmlFile {
 
   bool loadXml(String szXML, [String? szRootItemName]) {
     String strRootItemName = szRootItemName ?? '';
-    if (strRootItemName.isEmpty && (_xiRoot!.getName().isNotEmpty)) {
-      strRootItemName = _xiRoot!.getName();
+    if (strRootItemName.isEmpty && (_xiRoot.getName().isNotEmpty)) {
+      strRootItemName = _xiRoot.getName();
     }
 
     XmlDocumentWrapper doc = XmlDocumentWrapper();
@@ -183,27 +183,23 @@ class XmlFile {
       return false;
     }
 
-    _xiRoot!.reset();
+    _xiRoot.reset();
 
     String sRootItem = szRootItemName.trim();
 
-    xml.XmlNode? pNode = pDoc.root;
+    xml.XmlElement pNode = pDoc.rootElement;
     if (sRootItem.isNotEmpty) {
-      if (pNode.nodeType == xml.XmlNodeType.ELEMENT) {
-        xml.XmlElement element = pNode as xml.XmlElement;
-        if (element.name.local != sRootItem) {
-          return false;
-        }
+      if (pNode.name.local != sRootItem) {
+        return false;
       }
     } else {
-      _xiRoot!.setName(pNode.nodeType == xml.XmlNodeType.ELEMENT
-          ? (pNode as xml.XmlElement).name.local
-          : '');
+      _xiRoot.setName(
+          pNode.nodeType == xml.XmlNodeType.ELEMENT ? pNode.name.local : '');
     }
 
     _sHeader = '<?xml version="1.0" encoding="utf-8"?>';
 
-    parseItem(_xiRoot!, pNode);
+    parseItem(_xiRoot, pNode);
 
     return true;
   }
@@ -217,17 +213,32 @@ class XmlFile {
     }
 
     for (var child in pNode.children) {
+      if (child.nodeType == xml.XmlNodeType.COMMENT ||
+          child.nodeType == xml.XmlNodeType.TEXT) {
+        logD('child: ${child.toXmlString()}');
+        continue;
+      }
+
       if (child.nodeType == xml.XmlNodeType.ELEMENT) {
         xml.XmlElement element = child as xml.XmlElement;
         XiType nType = XiType.element;
-        if (element.childElements
-            .any((e) => e.name.local == '#cdata-section')) {
+        var cdata = element.children
+            .where((e) => e.nodeType == xml.XmlNodeType.CDATA)
+            .firstOrNull;
+        /*if (element.children.any((e) => e.nodeType == xml.XmlNodeType.CDATA)) {
           nType = XiType.cdata;
+        }*/
+        if (cdata == null) {
+          XmlItem? xiAdd =
+              xi.addItem(element.name.local, element.innerText, nType);
+          parseItem(xiAdd!, element);
+        } else {
+          nType = XiType.cdata;
+          xi.addItem(element.name.local, cdata.value, nType);
         }
-        XmlItem? xiAdd =
-            xi.addItem(element.name.local, element.innerText, nType);
-        parseItem(xiAdd!, element);
-      } else if (child.nodeType == xml.XmlNodeType.TEXT) {
+      } else {
+        // if (child.nodeType == xml.XmlNodeType.TEXT)
+        logD('child attrib: ${child.toXmlString()}');
         xi.setValue(child.toXmlString());
         xi.setType(XiType.attrib);
       }
@@ -241,8 +252,8 @@ class XmlFile {
 
     var builder = xml.XmlBuilder();
     builder.processing('xml', 'version="1.0" encoding="utf-8"');
-    builder.element(_xiRoot!.getName(), nest: () {
-      exportItem(_xiRoot!, builder);
+    builder.element(_xiRoot.getName(), nest: () {
+      exportItem(_xiRoot, builder);
     });
 
     var doc = builder.buildDocument();
@@ -270,75 +281,75 @@ class XmlFile {
   }
 
   void reset() {
-    _xiRoot!.reset();
+    _xiRoot.reset();
   }
 
-  XmlItem? root() {
+  XmlItem root() {
     return _xiRoot;
   }
 
   XmlItem? getItem(String szItemName) {
-    return _xiRoot!.getItem(szItemName);
+    return _xiRoot.getItem(szItemName);
   }
 
   XmlItem? findItem(String szItemName, dynamic itemValue,
       [bool bSearchChildren = true]) {
-    return _xiRoot!.findItem(szItemName, itemValue, bSearchChildren);
+    return _xiRoot.findItem(szItemName, itemValue, bSearchChildren);
   }
 
   XmlItem? addItem(String szName,
       [dynamic value, XiType nType = XiType.attrib]) {
-    return _xiRoot!.addItem(szName, value, nType);
+    return _xiRoot.addItem(szName, value, nType);
   }
 
   XmlItem? setItemValue(String szName, dynamic value,
       [XiType nType = XiType.attrib]) {
-    return _xiRoot!.setItemValue(szName, value, nType);
+    return _xiRoot.setItemValue(szName, value, nType);
   }
 
   bool deleteItem(String szItemName) {
-    return _xiRoot!.deleteItem(szItemName: szItemName);
+    return _xiRoot.deleteItem(szItemName: szItemName);
   }
 
   String getItemValue(String szItemName, [String szSubItemName = '']) {
-    return _xiRoot!.getItemValue(szItemName, szSubItemName);
+    return _xiRoot.getItemValue(szItemName, szSubItemName);
   }
 
   int getItemValueI(String szItemName, [String szSubItemName = '']) {
-    String value = _xiRoot!.getItemValue(szItemName, szSubItemName);
+    String value = _xiRoot.getItemValue(szItemName, szSubItemName);
     return int.tryParse(value) ?? 0;
   }
 
   BigInt getItemValueI64(String szItemName, [String szSubItemName = '']) {
-    String value = _xiRoot!.getItemValue(szItemName, szSubItemName);
+    String value = _xiRoot.getItemValue(szItemName, szSubItemName);
     return BigInt.tryParse(value) ?? BigInt.from(0);
   }
 
   double getItemValueF(String szItemName, [String szSubItemName = '']) {
-    String value = _xiRoot!.getItemValue(szItemName, szSubItemName);
+    String value = _xiRoot.getItemValue(szItemName, szSubItemName);
     return double.tryParse(value) ?? 0.0;
   }
 
   bool getItemValueB(String szItemName, [String szSubItemName = '']) {
-    String value = _xiRoot!.getItemValue(szItemName, szSubItemName);
+    String value = _xiRoot.getItemValue(szItemName, szSubItemName);
     return (int.tryParse(value) ?? 0) > 0;
   }
 
   int? getItemValueR(String szItemName, [String szSubItemName = '']) {
-    return _xiRoot!.getItemValueR(szItemName, szSubItemName);
+    return _xiRoot.getItemValueR(szItemName, szSubItemName);
   }
 
   DateTime? getItemValueD(String szItemName, [String szSubItemName = '']) {
-    return _xiRoot!.getItemValueD(szItemName, szSubItemName);
+    return _xiRoot.getItemValueD(szItemName, szSubItemName);
   }
 
   Rect? getItemValueRect(String szItemName, [String szSubItemName = '']) {
-    return _xiRoot!.getItemValueRect(szItemName, szSubItemName);
+    return _xiRoot.getItemValueRect(szItemName, szSubItemName);
   }
 
   List<String>? getItemValueArray(String szItemName,
       [String szSubItemName = '']) {
-    return _xiRoot!.getItemValueArray(szItemName, szSubItemName);
+    return _xiRoot.getItemValueArray(szItemName, szSubItemName);
   }
 
   void close() {}
@@ -387,7 +398,7 @@ class XmlFile {
 
   void sortItems(String szItemName, String szKeyName,
       [bool bAscending = true]) {
-    _xiRoot!.sortItems(szItemName, szKeyName, bAscending);
+    _xiRoot.sortItems(szItemName, szKeyName, bAscending);
   }
 
   XmlItem newItem(String szName) {

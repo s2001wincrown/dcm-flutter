@@ -59,6 +59,7 @@ class DCMGlobal {
   static String rltContentFile = '';
   static String keyMappingFile = '';
   static String dcmConnectString = '';
+  static int playMode = 0;
   static int globalSetting = 0;
   static int autoReloadDuration = 0;
   static int playStartPoint = 0;
@@ -85,6 +86,12 @@ class DCMGlobal {
 
   static int messagePlayMode = 4;
   static int processAHConflict = 0;
+  static int eventTimeout = 0;
+  static int maxZoneThread = 2;
+
+  static int clrBGColor = 0;
+  static String bgImageFile = '';
+  static String? startupWallpaper;
 
   // DataCenter
   static String sPassword = '';
@@ -180,8 +187,14 @@ class DCMGlobal {
     'Global Setting.Organization': (v) => organization = v,
     // Other
     'Global Setting.PrivateTypes': (v) => privateTypes = v,
-    'Global Setting.MessagePlayMode': (v) => privateTypes = v,
-    'Global Setting.ProcessAHConflict': (v) => privateTypes = v,
+    'Global Setting.MessagePlayMode': (v) => messagePlayMode = int.parse(v),
+    'Global Setting.ProcessAHConflict': (v) => processAHConflict = int.parse(v),
+    'Global Setting.PlayMode': (v) => playMode = int.parse(v),
+    'Global Setting.EventTimeout': (v) => eventTimeout = int.parse(v),
+    'Global Setting.ZoneThread': (v) => maxZoneThread = int.parse(v),
+    'Global Setting.Background Color': (v) => clrBGColor = int.parse(v),
+    'Global Setting.BackgroundImage': (v) => bgImageFile = v,
+    'Global Setting.StartupWallpaper': (v) => startupWallpaper = v,
   };
 
   static Future<bool> loadFromIni() async {
@@ -476,5 +489,11 @@ class DCMGlobal {
 
   static String getAppPath() {
     return App().dataPath;
+  }
+
+  static double videoVolume(bool bMute, double nVolume) {
+    return (((DCMGlobal.globalSetting & settingMUTEALL) > 0)
+        ? cVOLUMESILENCE
+        : (bMute ? cVOLUMESILENCE : nVolume));
   }
 }

@@ -1,10 +1,13 @@
 // schedule_list.dart
 import 'dart:io';
+import 'dart:ui';
 
 import 'package:dcm/backend/constants.dart';
 import 'package:dcm/backend/models/day_info_data.dart';
 import 'package:dcm/backend/models/dcm_global.dart';
 import 'package:dcm/backend/models/dcmfile_data.dart';
+import 'package:dcm/backend/models/eventitem_data.dart';
+import 'package:dcm/backend/models/layout_data.dart';
 import 'package:dcm/backend/models/product_data.dart';
 import 'package:dcm/backend/models/zone_data.dart';
 import 'package:dcm/backend/services/ah_playlist_impl.dart';
@@ -15,6 +18,7 @@ import 'package:dcm/backend/services/playlist_impl.dart';
 import 'package:dcm/backend/utils/extensions.dart';
 import 'package:dcm/backend/utils/log_utils.dart';
 import 'package:dcm/backend/utils/time_utils.dart';
+import 'package:dcm/backend/xml_settings/dcmfile_Impl.dart';
 import 'package:dcm/backend/xml_settings/eventfile_impl.dart';
 import 'package:dcm/backend/xmlfile/inifile.dart';
 import 'package:intl/intl.dart';
@@ -70,14 +74,58 @@ class ScheduleList {
   }
 
   bool loadCatalogue(String? fileName, [DCMFileData? pDCMFileData]) {
-    var target = pDCMFileData ?? catalogue;
+    if (currEvent.equalsIgnoreCase('StartupWallpaper') &&
+        DCMGlobal.startupWallpaper != null &&
+        DCMGlobal.startupWallpaper!.isNotEmpty) {
+      catalogue.strCatalogueName = 'StartupWallpaper';
+      catalogue.nQuantity = 1;
+      catalogue.strLayoutName = 'H01';
+      catalogue.nSkin = 1;
+      catalogue.strSkinCode = 'No Frame and No Button';
 
-    if (fileName != null) {
-      // 实现加载catalogue逻辑
+      catalogue.productFromFile(DCMGlobal.startupWallpaper!, cIMAGETYPE, 86400);
+      catalogue.pLayoutDataObj = LayoutData();
+      catalogue.pLayoutDataObj!.strLayoutName = 'H01';
+      catalogue.pLayoutDataObj!.initFullScreen(1920, 1080);
+
       return true;
     }
 
-    return false;
+    String strDCMFile = '';
+    if (fileName == null && arrEvent.isNotEmpty) {
+      PlayList? pPlaylist = getCurrPlaylist();
+      if (pPlaylist != null) {
+        strDCMFile = pPlaylist.getPlaylistZone().getDCMFile;
+      }
+    } else {
+      strDCMFile = fileName ?? '';
+    }
+
+    String strCompany = getCurrCompany();
+    try {
+      getCatalogue().initDocument();
+      var filePath =
+          DCMFileImpl.getDCMPath(strDCMFile, DCMGlobal.openPath, strCompany);
+      if (filePath != null) {
+        var catalogueData =
+            DCMFileImpl.openCatalogue(szEdit: filePath, bShort: false);
+        if (catalogueData != null) {
+          catalogue = catalogueData;
+          return true;
+        }
+      }
+    } catch (e) {
+      logE('loadCatalogue error: $e');
+    }
+
+    catalogue.strCatalogueName = '';
+    catalogue.nQuantity = 1;
+    catalogue.strLayoutName = 'H01';
+    catalogue.nSkin = 1;
+    catalogue.strSkinCode = 'No Frame and No Button';
+    DCMFileImpl.getLayoutData(catalogue);
+
+    return (DCMFileImpl.addContent(catalogue, strDCMFile) == true);
   }
 
   bool loadCatalogueDirect(String? fileName) {
@@ -176,7 +224,7 @@ class ScheduleList {
       removeScheduleList();
 
       if (currEvent == 'StartupWallpaper') {
-        var pList = PlayList();
+        var pList = PlayList(this);
         if (pList.loadPlayList(uniqueName: 'StartupWallpaper')) {
           arrEvent.add(const Pair('StartupWallpaper', 'StartupWallpaper'));
           pList.startDateTime = startDateTime;
@@ -355,6 +403,85 @@ class ScheduleList {
     }
   }
 
+  List<ZoneData> getContents(int nType) {
+    List<ZoneData> arrContents = [];
+    for (int i = 0; i < arrEvent.length; i++) {
+      PlayList? pPlaylist = getPlayList(arrEvent[i].key);
+      if (pPlaylist != null) {
+        EventFileImpl fileImpl = EventFileImpl();
+        EventFileData objList = EventFileData();
+        if (!fileImpl.loadFromXML(pPlaylist.strEvent, objList)) {
+          fileImpl.loadPlayList(objList, pPlaylist.strEvent);
+        }
+        for (var pPlayListData in objList.lstPlayList!) {
+          if (pPlayListData.arrDCMFile != null &&
+              pPlayListData.arrDCMFile!.isNotEmpty) {
+            for (int i = 0; i < pPlayListData.arrDCMFile!.length; i++) {
+              if (pPlayListData.isDCMFileExist(i)) {
+                arrContents.addAll(DCMFileImpl.getContents(
+                    pPlayListData.arrDCMFile![i], nType));
+              }
+            }
+          } else {
+            if (pPlayListData.isDCMFileExist()) {
+              arrContents.addAll(
+                  DCMFileImpl.getContents(pPlayListData.strDCMFile, nType));
+            }
+          }
+        }
+      }
+    }
+
+    return arrContents;
+  }
+
+  bool integrityCheck([bool bOleviaPlayer = false]) {
+    if (playMeth == SchedulePlayMeth.eAHPLAYLIST.index) {
+      return true;
+    }
+
+    bool bLoad = true;
+    if (bOleviaPlayer) {
+      bool bReimport = false;
+      IntegrityCheck integrityCheck = IntegrityCheck();
+      //bool bValid = true;
+      //if (bLoadSchedule)
+      {
+        for (int i = 0; i < arrEvent.length; i++) {
+          //if (!CEventFileImpl::IsEventValid(m_arrEvent[i].Value, m_arrEvent[i].Name))
+          PlayList? pPlaylist = getPlayList(arrEvent[i].key);
+          if (pPlaylist != null) {
+            if (!integrityCheck.integrityCheckPlaylist(pPlaylist.strEvent,
+                company: pPlaylist.company)) {
+              bReimport = true;
+              bLoad = false;
+              break;
+            }
+          }
+        }
+      }
+
+      if (!bLoad) {
+        for (int j = 0; j < cMaxDefaEventForPlay; j++) {
+          String strEvent = 'Default${j + 1}';
+          if (integrityCheck.integrityCheckPlaylist(strEvent)) {
+            bLoad = loadSchedule(playList: strEvent);
+            break;
+          }
+        }
+      }
+      if (!bLoad) {
+        loadSchedule();
+      }
+
+      if (bReimport) {
+        ContentImpInstance.reimportTaskCheck();
+      }
+    }
+
+    return bLoad;
+  }
+
   String getDefaPlaylistIntegrityCheck(IntegrityCheck integrityCheck) {
     String strDefaultEvent = '';
     for (int j = 0; j < cMaxDefaEventForPlay; j++) {
@@ -370,7 +497,7 @@ class ScheduleList {
 
   PlayList? createPlayList(String szPlayList,
       [String? szUniqueName, String? szCompany]) {
-    var pList = PlayList();
+    var pList = PlayList(this);
     pList.company = szCompany ?? '';
     pList.strEvent = szPlayList;
     pList.uniqueName = szUniqueName ?? '';
@@ -403,9 +530,49 @@ class ScheduleList {
     return null;
   }
 
-  bool playFileList(StringBuffer dcmFile) {
+  bool isAHPlaylist() {
+    bool bAHPlaylist = false;
+
+    PlayList? pPlaylist = getCurrPlaylist();
+    if (pPlaylist != null) {
+      bAHPlaylist = pPlaylist.ahPlaylist;
+    }
+
+    return bAHPlaylist;
+  }
+
+  bool startPlayAHItem(StringBuffer strDCMFile) {
     if (arrEvent.isEmpty) {
-      dcmFile.write(this.dcmFile);
+      strDCMFile.write(dcmFile);
+
+      return true;
+    }
+
+    PlayList? pPlayList = getCurrPlaylist();
+    if (pPlayList != null && pPlayList.startPlayAHItem(strDCMFile)) {
+      return true;
+    }
+
+    return false;
+  }
+
+  bool returnPlayNormalItem(StringBuffer strDCMFile) {
+    if (arrEvent.isEmpty) {
+      strDCMFile.write(dcmFile);
+      return true;
+    }
+
+    PlayList? pPlayList = getCurrPlaylist();
+    if (pPlayList != null && pPlayList.returnPlayNormalItem(strDCMFile)) {
+      return true;
+    }
+
+    return false;
+  }
+
+  bool playFileList(StringBuffer outFile) {
+    if (arrEvent.isEmpty) {
+      outFile.write(dcmFile);
       return true;
     }
 
@@ -415,7 +582,35 @@ class ScheduleList {
       if (pPlayList != null) {
         var dtCurr = DateTime.now();
         pPlayList.adjustAHTime(dtCurr);
-        if (pPlayList.playFileList(dcmFile)) {
+        if (pPlayList.playFileList(outFile)) {
+          playListIndex = nPlaylist;
+          return true;
+        }
+      }
+    }
+
+    return false;
+  }
+
+  bool playNextPlaylist(StringBuffer strDCMFile) {
+    if (arrEvent.isEmpty) {
+      strDCMFile.write(dcmFile);
+
+      return true;
+    }
+
+    DateTime dtCurr = DateTime.now();
+    PlayList? pCurrPlaylist = getCurrPlaylist();
+    if (pCurrPlaylist != null && pCurrPlaylist.ahPlaylist) {
+      pCurrPlaylist.savePlayedDuration(dtCurr);
+    }
+
+    int nPlaylist = getPlaylistForPlay();
+    if (nPlaylist != -1) {
+      PlayList? pPlayList = getPlayList(arrEvent[nPlaylist].key);
+      if (pPlayList != null) {
+        pPlayList.adjustAHTime(dtCurr);
+        if (pPlayList.playNextPlaylist(strDCMFile)) {
           playListIndex = nPlaylist;
           return true;
         }
@@ -448,6 +643,20 @@ class ScheduleList {
     }
 
     return nPlaylist;
+  }
+
+  String getCurrCompany() {
+    String strCompany = '';
+    if (playMeth != SchedulePlayMeth.ePEROUTPUTPLAYLIST.index) {
+      if (playListIndex < arrEvent.length) {
+        PlayList? pPlayList = getPlayList(arrEvent[playListIndex].key);
+        if (pPlayList != null) {
+          strCompany = pPlayList.company;
+        }
+      }
+    }
+
+    return strCompany;
   }
 
   bool playNextFile(StringBuffer outDCMFile) {
@@ -736,7 +945,22 @@ class ScheduleList {
     }
   }
 
-  int getZoneCount(int nProduct, [int nZoneEffect = 0]) {
+  Rect scaleToVW(int nZone, Rect rectPlayer) {
+    Rect rectVW = Rect.fromLTWH(0, 0, rectPlayer.width, rectPlayer.height);
+
+    Rect? rcVW = catalogue.getZoneRect(nZone, rectVW);
+    if (rcVW != null) {
+      rcVW = Rect.fromLTWH(
+          rectPlayer.left, rectPlayer.top, rcVW.width, rcVW.height);
+    } else {
+      rcVW = rectPlayer;
+    }
+
+    return rcVW;
+  }
+
+  int getZoneCount(int nProduct,
+      [ZoneEffectType nZoneEffect = ZoneEffectType.noEffect]) {
     var pProduct = catalogue.getProductDataByIndex(nProduct);
     if (pProduct != null) {
       return pProduct.getZoneCount(nZoneEffect);
@@ -1018,6 +1242,14 @@ class ScheduleList {
   bool hasBGMusic() => catalogue.bBGMusic;
   String getBGMusicFile() => catalogue.strMusicFile;
   DCMFileData getCatalogue() => catalogue;
+  bool isDCMFilePlay() => lstScheduleList.isEmpty;
+  ProductData? getProductData(int nProduct) =>
+      catalogue.getProductDataByIndex(nProduct);
+  void setShowMessage(bool bShow) {
+    messageList.showAHMessage(bShow);
+  }
+
+  bool isMessagePlaying() => messageList.isPlaying();
 
   bool hasContentType([int nContentType = cPLUGINTYPE]) {
     return catalogue.hasContentType(nContentType);
@@ -1030,8 +1262,181 @@ class ScheduleList {
   bool hasPowerPoint(int nCurrProduct) {
     return catalogue.hasPowerPoint(nCurrProduct);
   }
-  //bool isLastProduct() { return (m_Catalogue.m_nQuantity <= m_nCurrProduct + 1);}
+  //bool isLastProduct() { return (catalogue.m_nQuantity <= m_nCurrProduct + 1);}
 
   bool loadState() => true;
   bool saveState() => true;
+
+  void resetStartDateTime() {
+    startDateTime = DateTime.now();
+  }
+
+  bool isTimeForPlay(DateTime dtStart) {
+    DateTime dtStartTime;
+    DateTime dtEnd;
+
+    dtStartTime = DateTime(
+        startDateTime.year,
+        startDateTime.month,
+        startDateTime.day,
+        scheduleStart!.hour,
+        scheduleStart!.minute,
+        scheduleStart!.second);
+
+    //String strStartTime3 = scheduleStart.Format('%Y%m%d%H%M%S');
+    //String strStartTime4 = scheduleEnd.Format('%Y%m%d%H%M%S');
+
+    //String strStartTime = dtStartTime.Format('%Y%m%d%H%M%S');
+    Duration dts = differenceTime(
+        scheduleStart, scheduleEnd); //scheduleEnd - scheduleStart;
+    if (dtStartTime
+        .subtract(const Duration(days: 1))
+        .add(dts)
+        .isAfter(startDateTime)) {
+      dtStartTime = dtStartTime.subtract(const Duration(days: 1));
+    }
+    //String strStartTime1 = dtStartTime.Format('%Y%m%d%H%M%S');
+
+    dtEnd = dtStartTime.add(dts);
+    //String strStartTime2 = dtEnd.Format('%Y%m%d%H%M%S');
+    if (dtEnd.compareTo(startDateTime) <= 0) {
+      dtStartTime = dtStartTime.add(const Duration(days: 1));
+      dtEnd = dtEnd.add(const Duration(days: 1));
+    }
+
+    if (dtStart.compareTo(dtStartTime) >= 0 && dtStart.isBefore(dtEnd)) {
+      return true;
+    }
+
+    return false;
+  }
+
+  int isTimeForMessage(DateTime dtCurr) {
+    return messageList.isTimeForMessage(dtCurr);
+  }
+
+  int isTimeForStopMessage(DateTime dtCurr, int nOutput) {
+    return messageList.isTimeForStop(dtCurr, nOutput);
+  }
+
+  int isTimeForLoadMessage(DateTime dtCurr) {
+    return messageList.isTimeForLoad(dtCurr);
+  }
+
+  ({bool status, int? nFlag}) isTimeForLoad(DateTime dtStart, int nFlag) {
+    if (swapEvent) {
+      swapEvent = false;
+      return (status: true, nFlag: nFlag);
+    }
+
+    logD(
+        'IsTimeForLoad m_dtSTartDateTime: ${DateFormat('yyyy-MM-dd HH:mm:ss').format(startDateTime)}');
+    DateTime dtEnd;
+    DateTime dtStart1;
+    DateTime dtStartTime;
+    Duration dts = differenceTime(
+        scheduleStart, scheduleEnd); //scheduleEnd - scheduleStart;
+    dtStart1 = DateTime(
+        startDateTime.year,
+        startDateTime.month,
+        startDateTime.day,
+        scheduleStart!.hour,
+        scheduleStart!.minute,
+        scheduleStart!.second);
+
+    logD(
+        'IsTimeForLoad dtStart1: ${DateFormat('yyyy-MM-dd HH:mm:ss').format(dtStart1)}');
+    /*if (dtStart1 - Duration(1, 0, 0, 0) + dts > startDateTime)
+    {
+      //DateTime dtDay = startDateTime - Duration(1, 0, 0, 0);
+      dtStart1 -= Duration(1, 0, 0, 0);
+    }*/
+
+    DateTime dtTime = dtStart1.subtract(const Duration(days: 1)).add(dts);
+    if (dtTime.isAfter(startDateTime)) {
+      if (dtStart.compareTo(dtTime) <= 0) {
+        dtStart1 = dtStart1.subtract(const Duration(days: 1));
+      }
+    }
+
+    logD(
+        'IsTimeForLoad dtStart1: ${DateFormat('yyyy-MM-dd HH:mm:ss').format(dtStart1)}');
+
+    day = dtStart1.day;
+
+    //Duration dts1 = startDateTime - dtStart1;
+    dtEnd = dtStart1.add(dts); //startDateTime + (dts - dts1);
+    logD(
+        'IsTimeForLoad dtStart: ${DateFormat('yyyy-MM-dd HH:mm:ss').format(dtStart)}');
+    logD(
+        'IsTimeForLoad dtEnd: ${DateFormat('yyyy-MM-dd HH:mm:ss').format(dtEnd)}');
+
+    if (dtStart.compareTo(dtEnd) >= 0) {
+      //if Prev playback End
+      DateTime dtStart2 =
+          dtStart.add(const Duration(days: 1)); //Next Playback time
+      dtStartTime = DateTime(
+          dtStart2.year,
+          dtStart2.month,
+          dtStart2.day,
+          scheduleStart!.hour,
+          scheduleStart!.minute,
+          scheduleStart!.second); //Next Playback time
+      //String strTime2 = dtStartTime.Format('%Y%m%d%H%M%S');
+      //String strTime3 = dtEnd.Format('%Y%m%d%H%M%S');
+      /*if (dtStartTime < dtEnd)//Next playtime must more than prev playtime
+      {
+        dtStartTime += Duration(1, 0, 0, 0);
+      }*/
+
+      logD(
+          'IsTimeForLoad dtStart2: ${DateFormat('yyyy-MM-dd HH:mm:ss').format(dtStart2)}');
+      logD(
+          'IsTimeForLoad dtStartTime: ${DateFormat('yyyy-MM-dd HH:mm:ss').format(dtStartTime)}');
+
+      if (dtStartTime.compareTo(dtStart2) <= 0) {
+        //Start Next Playback
+        if (dtStartTime.isBefore(dtEnd)) {
+          //Next playtime must more than prev playtime
+          startDateTime = dtEnd;
+        } else {
+          startDateTime = dtStartTime;
+        }
+
+        logD(
+            'IsTimeForLoad After m_dtSTartDateTime: ${DateFormat('yyyy-MM-dd HH:mm:ss').format(startDateTime)}');
+        day = dtStartTime.day;
+        month = DateFormat('yyyyMM').format(dtStartTime);
+
+        if (loadSchedule()) {
+          return (status: true, nFlag: nFlag);
+        }
+      }
+    }
+
+    //bool bReload = false;
+    if (DCMGlobal.processAHConflict == 1) {
+      for (var pPlayList in lstScheduleList) {
+        pPlayList.checkAHSchedule(dtStart);
+      }
+    }
+
+    if (playListIndex < arrEvent.length) {
+      PlayList? pPlayList = getPlayList(arrEvent[playListIndex].key);
+      if (pPlayList != null) {
+        var result = pPlayList.isTimeForLoadEpisode(dtStart);
+        if (result.status) {
+          return (status: true, nFlag: result.nFlag);
+        }
+      }
+    }
+
+    return (status: false, nFlag: nFlag);
+  }
+
+  void changeTVChannel(int nNewChannel) {
+    for (var pPlayList in lstScheduleList) {
+      pPlayList.changeTVChannel(nNewChannel);
+    }
+  }
 }

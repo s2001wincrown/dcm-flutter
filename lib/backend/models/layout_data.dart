@@ -44,14 +44,20 @@ class LayoutData {
     return pZoneRect;
   }
 
+  List<Rect?> initFullScreen(int nWidth, int nHeight) {
+    freeZoneRect();
+    iNoOfParition = 1;
+    iScreenWidth = nWidth;
+    iScreenHeight = nHeight;
+    pZoneRect = [];
+    pZoneRect.add(Rect.fromLTWH(0, 0, nWidth.toDouble(), nHeight.toDouble()));
+
+    return pZoneRect;
+  }
+
   /// Free zone rect array
   void freeZoneRect() {
-    if (pZoneRect.isNotEmpty) {
-      for (int nZone = 0; nZone < pZoneRect.length; nZone++) {
-        pZoneRect[nZone] = null;
-      }
-    }
-    pZoneRect = [];
+    pZoneRect.clear();
   }
 
   /// Create a copy of this LayoutData

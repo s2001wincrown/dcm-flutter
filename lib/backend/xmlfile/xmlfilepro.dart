@@ -34,7 +34,6 @@ class XmlFilePro extends XmlFileEx {
 
   bool newNode(String szTitle, XmlItem? pParent) {
     XmlItem? pXIParent = pParent ?? root();
-    if (pXIParent == null) return false;
 
     pXIParent.addItemObj(newItem(szTitle));
 
@@ -43,7 +42,6 @@ class XmlFilePro extends XmlFileEx {
 
   XmlItem? addDataNode(String szTitle, XmlItem? pParent) {
     XmlItem? pXIParent = pParent ?? root();
-    if (pXIParent == null) return null;
 
     XmlItem pXINew = newItem(szTitle);
     pXIParent.addItemObj(pXINew);
@@ -55,7 +53,7 @@ class XmlFilePro extends XmlFileEx {
 
   bool setDataNode(XmlItem? pXINode, String nodeName, dynamic nodeValue,
       [bool bIncTime = true]) {
-    XmlItem? pXITask = pXINode ?? root();
+    XmlItem pXITask = pXINode ?? root();
     String? sValue;
     if (nodeValue is DateTime) {
       sValue = DateFormat(bIncTime ? 'dd/MM/yyyy HH:mm:ss' : 'dd/MM/yyyy')
@@ -66,7 +64,7 @@ class XmlFilePro extends XmlFileEx {
       sValue = nodeValue.toString();
     }
 
-    XmlItem? pXItem = pXITask?.getItem(nodeName);
+    XmlItem? pXItem = pXITask.getItem(nodeName);
     if (pXItem != null) {
       pXItem.setValue(sValue);
       return true;
@@ -74,15 +72,15 @@ class XmlFilePro extends XmlFileEx {
 
     // else
     pXItem = newItem(nodeName);
-    pXITask?.addItemObj(pXItem);
+    pXITask.addItemObj(pXItem);
     pXItem.setValue(sValue);
 
     return true;
   }
 
   bool setDataNodeR(XmlItem? pXINode, String colorNode, int crVal) {
-    XmlItem? pXITask = pXINode ?? root();
-    XmlItem? pXItem = pXITask?.getItem(colorNode);
+    XmlItem pXITask = pXINode ?? root();
+    XmlItem? pXItem = pXITask.getItem(colorNode);
 
     String attrText = toRGBString(crVal);
     if (pXItem != null) {
@@ -92,7 +90,7 @@ class XmlFilePro extends XmlFileEx {
 
     // else
     pXItem = newItem(colorNode);
-    pXITask?.addItemObj(pXItem);
+    pXITask.addItemObj(pXItem);
     pXItem.setValue(attrText);
 
     return true;

@@ -31,6 +31,12 @@ const String cDCMARRAYITEM = 'ArrayItem';
 const String cDCMITEMVALUE = 'ItemValue';
 
 int fMAKEWORD(int low, int high) => (low & 0xFF) | ((high & 0xFF) << 8);
+int fMAKEDWORD(int low, int high) => (low & 0xFFFF) | ((high & 0xFFFF) << 16);
+int fLOWORD(int dw) => (dw & 0xffff);
+int fHIWORD(int dw) => (dw >> 16) & 0xffff;
+int fLOBYTE(int w) => (w & 0xff);
+int fHIBYTE(int w) => ((w >> 8) & 0xff);
+bool hasFlag(int dwFlags, int dwFlag) => ((dwFlags & dwFlag) == dwFlag);
 
 const String configFILENAME = 'dcm.dat';
 final String defaultBTNIMAGEPATH = 'Graphics${Platform.pathSeparator}btnImage';
@@ -91,6 +97,11 @@ const int cDCMCLOCKZONE = cDCMMAXZONE + 3;
 const int cDCMWEATHERZONE = cDCMMAXZONE + 4;
 const double cEPSILON = 0.00001;
 const int cBYTEMAX = 255;
+
+const int cINTMIN = -2147483648; /* minimum (signed) int value */
+const int cINTMAX = 2147483647; /* maximum (signed) int value */
+
+const int cWORDMAX = 0xffff;
 
 const int cPLAYINGDURATION = 200;
 const double cPLAYINGINTERVAL = 0.05; //interval
@@ -159,6 +170,9 @@ const int cDCMOTHERTYPE = 302;
 const int cDCMRLTCONTENTTYPE = 303;
 const int cDCMUPDATETYPE = 304;
 
+const int cTRANSPARENTZONETYPE = 1200;
+const int cPOPUPWINDOWTYPE = 1110;
+
 //Global Setting define
 const int settingHIDECURSOR = 0x00000001;
 const int settingLANGBTN = 0x00000002;
@@ -224,6 +238,27 @@ const String cmsGETPLAYLISTURL = 'api/pm/players/playlists';
 const String cmsGETFILELISTURL = 'api/pm/players/filelist';
 const String cmsGETSETTINGSURL = 'api/pm/settings';
 const String cmsCONTENTLOGURL = 'api/log/contentLogs/create';
+
+//volume for MediaKit
+const double cVOLUMEFULL = 100.0;
+const double cVOLUMESILENCE = 0.0;
+
+//Play mode
+const int cPLAYNORMAL = 0x0001; //Normal mode
+const int cPLAYPREVIEW = 0x0002; //Preview mode
+const int cPLAYTEST = 0x0004; //Test Mode
+const int cPLAYOTHER = 0x0008; //Other Mode
+const int cPLAYEVENT = 0x0010; //Event Mode
+
+const int cPLAYAPTKM = 0x0100; //accecpt keydown event
+const int cPLAYSYNC = 0x0200; //Synchronous playback
+
+//Muti Monitor define
+const int cSINGLEMONITOR = 0x0000; //0-single monitor;
+const int cMULTIMONITORLD = 0x0001; //1-use multi monitor as one large display;
+const int cMULTIMONITORDV = 0x0002; //2-independently multi monitor(Dualview);
+const int cMULTIMONITOREP = 0x0010; //16-(editor + player) mode
+const int cMULTIMONITORP2P = 0x0020; //32-(editor to player) mode
 
 //builtin Content Type
 //Content Type Name
@@ -502,3 +537,13 @@ enum SchedulePlayMeth {
   ePEROUTPUTPLAYLIST,
   eAHPLAYLIST,
 }
+
+enum PlayFinish {
+  eNOTSPECIFIED,
+  eNOTFINISH,
+  eCONTENTFINISH,
+  eZONEFINISH,
+  ePRODUCTFINISH,
+}
+
+enum ButtonPosition { eBOTTOM, eRIGHT, eTOP, eLEFT, eTHUMBVIEW }

@@ -150,10 +150,10 @@ class ProductData {
     return null;
   }
 
-  int getZoneCount(int nZoneEffect) {
+  int getZoneCount([ZoneEffectType nZoneEffect = ZoneEffectType.noEffect]) {
     int nZone = 0;
     for (var zoneData in lstZone) {
-      if (zoneData.getZoneEffect() == nZoneEffect) {
+      if (zoneData.getZoneEffect() == nZoneEffect.value) {
         nZone++;
       }
     }
@@ -171,7 +171,7 @@ class ProductData {
     return nZone;
   }
 
-  List<ZoneData> getContents(List<ZoneData> lstZone, int nType) {
+  List<ZoneData> getContents(int nType) {
     List<ZoneData> results = [];
     for (var zoneData in lstZone) {
       if (zoneData.nZoneType == nType) {

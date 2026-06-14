@@ -293,6 +293,21 @@ class FileUtils {
     return true;
   }
 
+  static bool makeSureDirectoryPathExistsSync(String path) {
+    var dir = Directory(path);
+    if (dir.existsSync()) {
+      return true;
+    }
+
+    dir
+        .create(recursive: true)
+        .then((Directory directory) =>
+            print('Directory created: ${directory.path}'))
+        .catchError((e) => print('Error creating directory: $e'));
+
+    return true;
+  }
+
   /// Return file extension as String.
   ///
   /// ie:- `File("/../image.png")` to `"png"`
@@ -366,6 +381,24 @@ class FileUtils {
       if (!await makeSureDirectoryPathExists(strFile)) {
         strFile = strDefault;
         await makeSureDirectoryPathExists(strDefault);
+      }
+      return strFile;
+    }
+  }
+
+  static String validFilePathSync(String strFile, String strDefault, bool bFile,
+      [String? strAppPath]) {
+    if (strFile.isEmpty) {
+      strFile = strDefault;
+    }
+
+    strFile = replaceDCMWildcard(strFile, appPath: strAppPath);
+    if (bFile) {
+      return File(strFile).existsSync() ? strFile : strDefault;
+    } else {
+      if (!makeSureDirectoryPathExistsSync(strFile)) {
+        strFile = strDefault;
+        makeSureDirectoryPathExistsSync(strDefault);
       }
       return strFile;
     }

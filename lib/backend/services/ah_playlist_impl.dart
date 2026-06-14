@@ -1,10 +1,14 @@
 // ah_playlist.dart
+import 'dart:io';
 import 'dart:math';
 
 import 'package:dcm/backend/constants.dart';
+import 'package:dcm/backend/models/dcm_global.dart';
 import 'package:dcm/backend/models/layout_data.dart';
 import 'package:dcm/backend/models/message_data.dart';
 import 'package:dcm/backend/models/product_data.dart';
+import 'package:dcm/backend/xmlfile/xmlprofile.dart';
+import 'package:path/path.dart' as path;
 
 class AHMessageItem {
   String ahName;
@@ -147,7 +151,7 @@ class AHMessageList {
         arrAHList.removeAt(i);
         removeZoneData(message);
         removeLayoutData(message);
-        resetDefaultMessage();
+        AHPlayList.resetDefaultMessage();
         return true;
       }
     }
@@ -214,7 +218,7 @@ class AHMessageList {
     return true;
   }
 
-  bool isTimeForMessage(DateTime dateTime, String message) {
+  bool isTimeForMessage(DateTime dateTime) {
     if (!isPlayMessage) {
       int nItem = 0;
       if (highestLevelItem(nItem, dateTime)) {
@@ -451,10 +455,6 @@ class AHMessageList {
     // 实际应用中应保存到持久存储
   }
 
-  void resetDefaultMessage() {
-    // 实际应用中应重置默认消息
-  }
-
   bool loadMessage(String message) {
     // 实际应用中应加载消息数据
     return true;
@@ -588,7 +588,7 @@ class AHPlayList {
     int endType = -1,
     int delay = 20,
   }) {
-    int needRefresh = -2147483648; // INT_MIN
+    int needRefresh = cINTMIN; // INT_MIN
     if (!arrAHList.containsKey(nOutput)) {
       int nOverlay = (nOutput >> 8) & 0xFF;
       int nRealOutput = nOutput & 0xFF;
@@ -614,8 +614,8 @@ class AHPlayList {
       delay: delay,
     );
 
-    return (needRefresh == -2147483648)
-        ? (bNeedRefresh ? nOutput : -2147483648)
+    return (needRefresh == cINTMIN)
+        ? (bNeedRefresh ? nOutput : cINTMIN)
         : needRefresh;
   }
 
@@ -632,13 +632,13 @@ class AHPlayList {
     return false;
   }
 
-  int isTimeForMessage(DateTime dtDateTime, String strMessage) {
+  int isTimeForMessage(DateTime dtDateTime) {
     for (int key in arrAHList.keys) {
-      if (arrAHList[key]!.isTimeForMessage(dtDateTime, strMessage)) {
+      if (arrAHList[key]!.isTimeForMessage(dtDateTime)) {
         return arrAHList[key]!.output;
       }
     }
-    return -2147483648; // INT_MIN
+    return cINTMIN;
   }
 
   int isTimeForStop(DateTime dtDateTime, int nOutput) {
@@ -658,7 +658,7 @@ class AHPlayList {
         return arrAHList[key]!.output;
       }
     }
-    return -2147483648; // INT_MIN
+    return cINTMIN;
   }
 
   bool isAHWaiting([int nOutput = -1]) {
@@ -784,5 +784,136 @@ class AHPlayList {
       nZoneType = arrAHList[nOutput]!.getMessageZoneType();
     }
     return nZoneType;
+  }
+
+  int stopAllAndAddAHMessage(String strMessage, DateTime dtStartTime,
+      DateTime dtEndTime, DateTime dtCreateTime,
+      [int nLevel = 0,
+      bool bEndManual = false,
+      int nOutput = -1,
+      int nEndType = -1,
+      int nDelay = 20]) {
+    int nNeedRefresh = cINTMIN;
+    if (!find(nOutput)) {
+      int nOverlay = fHIBYTE(nOutput);
+      int nRealOutput = fLOBYTE(nOutput);
+      if ((nRealOutput == cBYTEMAX && countByLayer(nOverlay) > 0) ||
+          find(fMAKEWORD(cBYTEMAX, nOverlay))) {
+        stop(nOverlay);
+        nNeedRefresh = fMAKEDWORD(cWORDMAX, nOverlay); //MAKEWORD
+      }
+
+      if (count(nOutput) < 0) {
+        arrAHList[nOutput] = AHMessageList(nOutput);
+      }
+    } else {
+      arrAHList[nOutput]!.stopAll();
+    }
+
+    bool bNeedRefresh = arrAHList[nOutput]!.addAHMessage(
+        message: strMessage,
+        startTime: dtStartTime,
+        endTime: dtEndTime,
+        createTime: dtCreateTime,
+        level: nLevel,
+        endManual: bEndManual,
+        endType: nEndType,
+        delay: nDelay);
+
+    return ((nNeedRefresh == cINTMIN)
+        ? (bNeedRefresh ? nOutput : cINTMIN)
+        : nNeedRefresh);
+  }
+
+  List<String> getDefaultMessages(List<int> arrOutputs) {
+    final List<String> arrMessages = [];
+    final settingsPath = DCMGlobal.settingPath;
+    if (settingsPath.isEmpty) return arrMessages;
+
+    final directory = Directory(settingsPath);
+    if (!directory.existsSync()) return arrMessages;
+
+    final regex = RegExp(r'^DefaultMessage.*\.xml\$', caseSensitive: false);
+    final files = directory
+        .listSync(followLinks: false)
+        .whereType<File>()
+        .where((file) => regex.hasMatch(path.basename(file.path)))
+        .toList()
+      ..sort((a, b) => path.basename(a.path).compareTo(path.basename(b.path)));
+
+    for (final file in files) {
+      final xmlProfile = XmlProfile();
+      if (loadDefaultMessage(xmlProfile, file.path)) {
+        final nOutput =
+            xmlProfile.getProfileInt('DefaultMessage', 'Output', cINTMIN);
+        if (nOutput != cINTMIN) {
+          arrOutputs.add(nOutput);
+          arrMessages.add(
+              xmlProfile.getProfileString('DefaultMessage', 'Message', ''));
+        }
+      }
+    }
+
+    return arrMessages;
+  }
+
+  String getDefaultMessage(int nOutput) {
+    final settingsPath = DCMGlobal.settingPath;
+    if (settingsPath.isEmpty) return '';
+
+    final strDefaEvent = path.join(settingsPath, 'DefaultMessage$nOutput.xml');
+    final file = File(strDefaEvent);
+    if (!file.existsSync()) return '';
+
+    final xmlProfile = XmlProfile();
+    if (loadDefaultMessage(xmlProfile, strDefaEvent)) {
+      return xmlProfile.getProfileString('DefaultMessage', 'Message', '');
+    }
+    return '';
+  }
+
+  bool loadDefaultMessage(XmlProfile xmlProfile, String strDefaultMessage) {
+    if (xmlProfile.loadProfile(
+        lpszFileName: strDefaultMessage, szRootItemName: 'DefaultMessage')) {
+      return true;
+    }
+
+    final backupFile = File('$strDefaultMessage.bak');
+    if (backupFile.existsSync()) {
+      try {
+        backupFile.copySync(strDefaultMessage);
+      } catch (_) {
+        return false;
+      }
+      return xmlProfile.loadProfile(
+          lpszFileName: strDefaultMessage, szRootItemName: 'DefaultMessage');
+    }
+
+    return false;
+  }
+
+  static void resetDefaultMessage() {
+    final settingsPath = DCMGlobal.settingPath;
+    if (settingsPath.isEmpty) return;
+
+    final directory = Directory(settingsPath);
+    if (!directory.existsSync()) return;
+
+    final xmlRegex = RegExp(r'^DefaultMessage.*\.xml\$', caseSensitive: false);
+    final bakRegex =
+        RegExp(r'^DefaultMessage.*\.xml\.bak\$', caseSensitive: false);
+
+    for (final entity in directory.listSync(followLinks: false)) {
+      if (entity is File) {
+        final name = path.basename(entity.path);
+        if (xmlRegex.hasMatch(name) || bakRegex.hasMatch(name)) {
+          try {
+            entity.deleteSync();
+          } catch (_) {
+            // ignore delete errors
+          }
+        }
+      }
+    }
   }
 }

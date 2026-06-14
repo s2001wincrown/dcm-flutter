@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:dcm/backend/utils/log_utils.dart';
 import 'package:flutter/foundation.dart';
 import 'package:dcm/backend/utils/encoder_utils.dart';
 import 'package:dcm/backend/xmlfile/xmlfile.dart';
@@ -54,10 +55,10 @@ class XmlFileEx extends XmlFile {
     var results = Encodes.encrypt(sXmlA, szPassword);
     if (results.isNotEmpty) {
       // 3. 用单个CDATA项替换文件内容
-      root()!.deleteAllItems();
-      root()!.addItem(ENCODEDDATA, results, XiType.cdata);
-      root()!.addItem(ENCODEDDATALEN, results.length.toString(), XiType.attrib);
-      root()!.addItem('m_strDocVersion', getDocVersion(), XiType.attrib);
+      root().deleteAllItems();
+      root().addItem(ENCODEDDATA, results, XiType.cdata);
+      root().addItem(ENCODEDDATALEN, results.length.toString(), XiType.attrib);
+      root().addItem('m_strDocVersion', getDocVersion(), XiType.attrib);
       return true;
     }
     return false;
@@ -107,14 +108,14 @@ class XmlFileEx extends XmlFile {
         sFile = '<ROOT>$sFile</ROOT>';
 
         // 删除CDATA项
-        root()!.deleteItem(pXI: pXI);
+        root().deleteItem(pXI: pXI);
 
         try {
           xml.XmlDocument doc = xml.XmlDocument.parse(sFile);
           xml.XmlNode node = doc.rootElement;
-          return parseItem(root()!, node);
+          return parseItem(root(), node);
         } catch (ex) {
-          debugPrint('Parse XML failed: $ex');
+          logE('Parse XML failed: $ex');
           setError(XflError.badMsxml);
         }
         return false;
@@ -183,7 +184,7 @@ class XmlFileEx extends XmlFile {
       if (!bRes) return false;
       if (needDecrypt) return decrypt(null);
     } catch (e) {
-      debugPrint('LoadXML failed: $e');
+      logE('LoadXML failed: $e');
       return false;
     }
     return true;
@@ -194,7 +195,7 @@ class XmlFileEx extends XmlFile {
     try {
       return Encodes.dcmDecrypt(szInput, szPassword);
     } catch (e) {
-      debugPrint('XML file decrypt failed: $e');
+      logE('XML file decrypt failed: $e');
       // e.printStackTrace(); // Dart doesn't have stack trace printing like Java
     }
     return null;

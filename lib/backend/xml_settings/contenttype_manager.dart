@@ -39,6 +39,7 @@ class ContentTypeManager {
     if (contentTypeList.isEmpty) {
       loadBuiltinContentTypes();
     }
+    _loadOtherContentTypes();
   }
 
   static void loadBuiltinContentTypes() {
@@ -58,96 +59,122 @@ class ContentTypeManager {
       contentTypeData.dwFlag = contentTypeTable[i].dwFlag;
       contentTypeData.dwFlags = contentTypeTable[i].dwFlags;
     }
-    ContentTypeData contentTypeData =
-        ContentTypeData.fromContent(cDCMFILETYPE, 'Catalogue', '|.DCM|');
-    nContentTypes++;
-    contentTypeList.add(contentTypeData);
-    contentTypeData.uiID = nContentTypes;
-    contentTypeData.uiLangID = 0;
-    contentTypeData.nSeq = -1;
-    contentTypeData.dwFlag = BigInt.zero;
-    contentTypeData.dwFlags = BigInt.from(4194303);
+  }
 
-    contentTypeData = ContentTypeData.fromContent(
-        cDCMAHMESSAGETYPE, 'Emergency Message', '|.xml|');
-    nContentTypes++;
-    contentTypeList.add(contentTypeData);
-    contentTypeData.uiID = nContentTypes;
-    contentTypeData.uiLangID = 0;
-    contentTypeData.nSeq = -1;
-    contentTypeData.dwFlag = BigInt.zero;
-    contentTypeData.dwFlags = BigInt.from(6143);
+  static void _loadOtherContentTypes() {
+    int nContentTypes = contentTypeList.length;
+    ContentTypeData contentTypeData;
+    if (!contentTypeList.any((c) => c.uiContentType == cDCMFILETYPE)) {
+      contentTypeData =
+          ContentTypeData.fromContent(cDCMFILETYPE, 'Catalogue', '|.DCM|');
+      nContentTypes++;
+      contentTypeList.add(contentTypeData);
+      contentTypeData.uiID = nContentTypes;
+      contentTypeData.uiLangID = 0;
+      contentTypeData.nSeq = -1;
+      contentTypeData.dwFlag = BigInt.zero;
+      contentTypeData.dwFlags = BigInt.from(4194303);
+    }
 
-    contentTypeData =
-        ContentTypeData.fromContent(cDCMGRAPHICSTYPE, 'Graphics and template');
-    nContentTypes++;
-    contentTypeList.add(contentTypeData);
-    contentTypeData.uiID = nContentTypes;
-    contentTypeData.uiLangID = 0;
-    contentTypeData.nSeq = -1;
-    contentTypeData.dwFlag = BigInt.zero;
-    contentTypeData.dwFlags = BigInt.zero;
-    contentTypeData =
-        ContentTypeData.fromContent(cDCMMONTHTYPE, 'Month xml file', '|.xml|');
-    nContentTypes++;
-    contentTypeList.add(contentTypeData);
-    contentTypeData.uiID = nContentTypes;
-    contentTypeData.uiLangID = 0;
-    contentTypeData.nSeq = -1;
-    contentTypeData.dwFlag = BigInt.zero;
-    contentTypeData.dwFlags = BigInt.zero;
-    contentTypeData = ContentTypeData.fromContent(
-        cDCMCALENDARTYPE, 'Calendar xml file', '|.xml|');
-    nContentTypes++;
-    contentTypeList.add(contentTypeData);
-    contentTypeData.uiID = nContentTypes;
-    contentTypeData.uiLangID = 0;
-    contentTypeData.nSeq = -1;
-    contentTypeData.dwFlag = BigInt.zero;
-    contentTypeData.dwFlags = BigInt.zero;
-    contentTypeData =
-        ContentTypeData.fromContent(cDCMDAYTYPE, 'Playlist xml file', '|.xml|');
-    nContentTypes++;
-    contentTypeList.add(contentTypeData);
-    contentTypeData.uiID = nContentTypes;
-    contentTypeData.uiLangID = 0;
-    contentTypeData.nSeq = -1;
-    contentTypeData.dwFlag = BigInt.zero;
-    contentTypeData.dwFlags = BigInt.zero;
-    contentTypeData = ContentTypeData.fromContent(cDCMLAYOUTTYPE, 'Layout');
-    nContentTypes++;
-    contentTypeList.add(contentTypeData);
-    contentTypeData.uiID = nContentTypes;
-    contentTypeData.uiLangID = 0;
-    contentTypeData.nSeq = -1;
-    contentTypeData.dwFlag = BigInt.zero;
-    contentTypeData.dwFlags = BigInt.zero;
-    contentTypeData = ContentTypeData.fromContent(cDCMSKINSTYPE, 'Skins');
-    nContentTypes++;
-    contentTypeList.add(contentTypeData);
-    contentTypeData.uiID = nContentTypes;
-    contentTypeData.uiLangID = 0;
-    contentTypeData.nSeq = -1;
-    contentTypeData.dwFlag = BigInt.zero;
-    contentTypeData.dwFlags = BigInt.zero;
-    contentTypeData =
-        ContentTypeData.fromContent(cDCMDDEOTHERTYPE, 'DDE Others');
-    nContentTypes++;
-    contentTypeList.add(contentTypeData);
-    contentTypeData.uiID = nContentTypes;
-    contentTypeData.uiLangID = 0;
-    contentTypeData.nSeq = -1;
-    contentTypeData.dwFlag = BigInt.zero;
-    contentTypeData.dwFlags = BigInt.zero;
-    contentTypeData =
-        ContentTypeData.fromContent(cDCMSITEDATATYPE, 'Site playlist data');
-    nContentTypes++;
-    contentTypeList.add(contentTypeData);
-    contentTypeData.uiID = nContentTypes;
-    contentTypeData.uiLangID = 0;
-    contentTypeData.nSeq = -1;
-    contentTypeData.dwFlag = BigInt.zero;
-    contentTypeData.dwFlags = BigInt.zero;
+    if (!contentTypeList.any((c) => c.uiContentType == cDCMAHMESSAGETYPE)) {
+      contentTypeData = ContentTypeData.fromContent(
+          cDCMAHMESSAGETYPE, 'Emergency Message', '|.xml|');
+      nContentTypes++;
+      contentTypeList.add(contentTypeData);
+      contentTypeData.uiID = nContentTypes;
+      contentTypeData.uiLangID = 0;
+      contentTypeData.nSeq = -1;
+      contentTypeData.dwFlag = BigInt.zero;
+      contentTypeData.dwFlags = BigInt.from(6143);
+    }
+
+    if (!contentTypeList.any((c) => c.uiContentType == cDCMGRAPHICSTYPE)) {
+      contentTypeData = ContentTypeData.fromContent(
+          cDCMGRAPHICSTYPE, 'Graphics and template');
+      nContentTypes++;
+      contentTypeList.add(contentTypeData);
+      contentTypeData.uiID = nContentTypes;
+      contentTypeData.uiLangID = 0;
+      contentTypeData.nSeq = -1;
+      contentTypeData.dwFlag = BigInt.zero;
+      contentTypeData.dwFlags = BigInt.zero;
+    }
+    if (!contentTypeList.any((c) => c.uiContentType == cDCMMONTHTYPE)) {
+      contentTypeData = ContentTypeData.fromContent(
+          cDCMMONTHTYPE, 'Month xml file', '|.xml|');
+      nContentTypes++;
+      contentTypeList.add(contentTypeData);
+      contentTypeData.uiID = nContentTypes;
+      contentTypeData.uiLangID = 0;
+      contentTypeData.nSeq = -1;
+      contentTypeData.dwFlag = BigInt.zero;
+      contentTypeData.dwFlags = BigInt.zero;
+    }
+
+    if (!contentTypeList.any((c) => c.uiContentType == cDCMCALENDARTYPE)) {
+      contentTypeData = ContentTypeData.fromContent(
+          cDCMCALENDARTYPE, 'Calendar xml file', '|.xml|');
+      nContentTypes++;
+      contentTypeList.add(contentTypeData);
+      contentTypeData.uiID = nContentTypes;
+      contentTypeData.uiLangID = 0;
+      contentTypeData.nSeq = -1;
+      contentTypeData.dwFlag = BigInt.zero;
+      contentTypeData.dwFlags = BigInt.zero;
+    }
+    if (!contentTypeList.any((c) => c.uiContentType == cDCMDAYTYPE)) {
+      contentTypeData = ContentTypeData.fromContent(
+          cDCMDAYTYPE, 'Playlist xml file', '|.xml|');
+      nContentTypes++;
+      contentTypeList.add(contentTypeData);
+      contentTypeData.uiID = nContentTypes;
+      contentTypeData.uiLangID = 0;
+      contentTypeData.nSeq = -1;
+      contentTypeData.dwFlag = BigInt.zero;
+      contentTypeData.dwFlags = BigInt.zero;
+    }
+    if (!contentTypeList.any((c) => c.uiContentType == cDCMLAYOUTTYPE)) {
+      contentTypeData = ContentTypeData.fromContent(cDCMLAYOUTTYPE, 'Layout');
+      nContentTypes++;
+      contentTypeList.add(contentTypeData);
+      contentTypeData.uiID = nContentTypes;
+      contentTypeData.uiLangID = 0;
+      contentTypeData.nSeq = -1;
+      contentTypeData.dwFlag = BigInt.zero;
+      contentTypeData.dwFlags = BigInt.zero;
+    }
+    if (!contentTypeList.any((c) => c.uiContentType == cDCMSKINSTYPE)) {
+      contentTypeData = ContentTypeData.fromContent(cDCMSKINSTYPE, 'Skins');
+      nContentTypes++;
+      contentTypeList.add(contentTypeData);
+      contentTypeData.uiID = nContentTypes;
+      contentTypeData.uiLangID = 0;
+      contentTypeData.nSeq = -1;
+      contentTypeData.dwFlag = BigInt.zero;
+      contentTypeData.dwFlags = BigInt.zero;
+    }
+    if (!contentTypeList.any((c) => c.uiContentType == cDCMDDEOTHERTYPE)) {
+      contentTypeData =
+          ContentTypeData.fromContent(cDCMDDEOTHERTYPE, 'DDE Others');
+      nContentTypes++;
+      contentTypeList.add(contentTypeData);
+      contentTypeData.uiID = nContentTypes;
+      contentTypeData.uiLangID = 0;
+      contentTypeData.nSeq = -1;
+      contentTypeData.dwFlag = BigInt.zero;
+      contentTypeData.dwFlags = BigInt.zero;
+    }
+    if (!contentTypeList.any((c) => c.uiContentType == cDCMDDEOTHERTYPE)) {
+      contentTypeData =
+          ContentTypeData.fromContent(cDCMSITEDATATYPE, 'Site playlist data');
+      nContentTypes++;
+      contentTypeList.add(contentTypeData);
+      contentTypeData.uiID = nContentTypes;
+      contentTypeData.uiLangID = 0;
+      contentTypeData.nSeq = -1;
+      contentTypeData.dwFlag = BigInt.zero;
+      contentTypeData.dwFlags = BigInt.zero;
+    }
   }
 
   static void writeToXML(XmlItem xmlItem, ContentTypeData contentTypeData) {

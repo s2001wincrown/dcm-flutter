@@ -127,6 +127,8 @@ class App {
   String playingTitle = 'Not Playing';
 
   bool loop = false;
+  bool showAHMessage = true;
+  int? playTimeForDemo; //minutes
 
   bool seeking = false;
   double seekingPos = 0;

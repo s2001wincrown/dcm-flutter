@@ -3,15 +3,18 @@ import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:dcm/backend/app.dart';
+import 'package:dcm/backend/library_helper.dart';
 import 'package:dcm/backend/models/dcm_global.dart';
-import 'package:dcm/backend/services/schedulelist_impl.dart';
+import 'package:dcm/backend/providers/player_screen_provider.dart';
+import 'package:dcm/backend/services/dcm_skin_impl.dart';
 import 'package:dcm/pages/home.dart';
 import 'package:dcm/widgets/basic_video.dart';
+import 'package:dcm/widgets/slideshow.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
-import 'package:dcm/backend/library_helper.dart';
+import 'package:provider/provider.dart';
 
 class DigitalSignageApp extends StatelessWidget {
   const DigitalSignageApp({Key? key}) : super(key: key);
@@ -143,18 +146,12 @@ class _DigitalSignageScreenState extends State<DigitalSignageScreen> {
   int nextShowIndex = 0;
   Timer? _timer;
   Timer? _exitHintTimer;
+  Timer? _playingTimer;
   DateTime? _lastTap;
   bool _exitHintShown = false;
   bool _showExitHint = false;
   bool _isLoadingNext = false;
   final Map<int, List<PreloadedContent>> _preloadedContents = {};
-
-  String? _strDCMFile;
-  bool _bValidForPlay = false;
-  bool _bScreenLayoutChanged = false;
-  bool _bDisplayChanged = false;
-  bool _bIsTouchScreen = false;
-  bool _bIsSameSkin = false;
 
   @override
   void initState() {
@@ -163,9 +160,10 @@ class _DigitalSignageScreenState extends State<DigitalSignageScreen> {
     // Preload uses `context` (e.g. `precacheImage`), so run it after
     // the first frame to avoid accessing InheritedWidgets during initState.
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _preloadAllContents();
+      Provider.of<PlayerScreenProvider>(context, listen: false).playImm();
+      //_preloadAllContents();
     });
-    _startPlaylist();
+    //_startPlaylist();
   }
 
   // 隐藏系统UI元素
@@ -308,123 +306,6 @@ class _DigitalSignageScreenState extends State<DigitalSignageScreen> {
     });
   }
 
-  void readyForPlay() {
-    bool bCanPlay = loadPlayerState();
-    if (!bCanPlay) {
-      StringBuffer strDCMFile = StringBuffer();
-      if (ScheduleList().playFileList(strDCMFile)) {
-        _strDCMFile = strDCMFile.toString();
-        if (loadCatalogue(_strDCMFile!, true)) {
-          bCanPlay = ScheduleList().isCatalogueCanPlay();
-        }
-
-        if (!bCanPlay) {
-          if (ScheduleList().count>1) {
-            while (true) {
-               if (ScheduleList().playNextFile(strDCMFile)){
-                //if (ScheduleList().LoadCatalogue(strDCMFile))
-                if (loadCatalogue(strDCMFile.toString(), true)) {
-                  if (ScheduleList().isCatalogueCanPlay()) {
-                    bCanPlay = true;
-                    _strDCMFile = strDCMFile.toString();
-                    break;
-                  }
-                }
-              }
-
-              if (!bCanPlay) {
-                sleep(const Duration(seconds: 1));
-              }
-            }
-          }
-        }
-        ScheduleList().setPlayTimes();
-      }
-    }
-    _bValidForPlay = bCanPlay;
-  }
-
-  bool loadPlayerState() {
-    if (DCMGlobal.playStartPoint != 0) {
-      if (ScheduleList().loadState()) {
-        StringBuffer strDCMFile = StringBuffer();
-        if (ScheduleList().playCurrFile(strDCMFile)) {
-          _strDCMFile = strDCMFile.toString();
-          if (loadCatalogue(_strDCMFile!)) {
-            if (ScheduleList().isCatalogueCanPlay()) {
-              return true;
-            }
-          }
-        }
-      }
-    }
-
-    return false;
-  }
-
-  bool loadCatalogue(String strDCMFile, [bool bStart = false]) {
-    String strOldLayout = '';
-    String strCurrSkin = '';
-    int nOldScreen = 0;
-    int nTotalZone1 = 0;
-    if (!bStart) {
-      strCurrSkin = ScheduleList().getCatalogue().strSkinCode;
-      strOldLayout = ScheduleList().getCatalogue().strLayoutName;
-      nOldScreen = ScheduleList().getCatalogue().nScreenType;
-      nTotalZone1 = ScheduleList().getTotalZones();
-    }
-
-    if (ScheduleList().loadCatalogue(strDCMFile)) {
-      int nTotalZone = ScheduleList().getTotalZones();
-      if (nTotalZone <= 0 || nTotalZone > 10000) {
-        return false;
-      }
-
-      if (ScheduleList().hasContentType()) {
-        sendSerialMSG('2!\r\n');
-      }
-      _bIsSameSkin = (strCurrSkin == ScheduleList().getCatalogue().strSkinCode && !_bDisplayChanged);
-      String strOldTouch = PlaySkin._strDCMFile;
-      if (!_bIsSameSkin)
-        PlaySkin.LoadSkins(&ScheduleList().getCatalogue());
-      
-      //WriteMessage(MSG_INFO, 'CPlayerScreenDlg::LoadCatalogue Step: %d, DCMFile:'%s'; last Zone Number:'%d'; Now Zone Number:'%d'; Current TID: %d!!!', 
-      //	0, strDCMFile, nTotalZone1, nTotalZone, GetCurrentThreadId());
-      bool bIsTwoWindows = PlaySkin.m_bIsTwoWindows;
-      bool bIsAutoHide = PlaySkin.m_bIsAutoHidePopWindow;
-      if (!bIsTwoWindows || !bIsAutoHide
-        || (bIsTwoWindows && bIsAutoHide && strOldTouch.CompareNoCase(PlaySkin._strDCMFile) != 0))
-      {
-        DeleteTouchScreen();
-      }
-      
-      if (_bIsTouchScreen) {
-        CRect rect(0, 0, GetSystemMetrics(SM_CXSCREEN), GetSystemMetrics(SM_CYSCREEN));
-        PlaySkin.SetTouchScreen(true);
-        PlaySkin.SetTouchScreenRect(rect);
-      }
-      if (!_bIsSameSkin) {
-        LoadSkinSetting();
-        //UpdateFrame();
-        ReCalcPlayerRect();
-      }
-      String strCompany = ScheduleList().getCurrCompany();
-      PlayMusic(strCompany);
-      ResetZoneRect(nTotalZone);
-
-      _bScreenLayoutChanged = (_bDisplayChanged || ScheduleList().getCatalogue().strLayoutName != strOldLayout 
-        || ScheduleList().getCatalogue().nScreenType != nOldScreen);
-      _bDisplayChanged = false;
-      //WriteMessage(MSG_INFO, 'CPlayerScreenDlg::LoadCatalogue Step: %d, Current TID: %d!!!', 3, GetCurrentThreadId());
-      ScheduleList().setPlayTimes();
-      _strDCMFile = strDCMFile;
-      //WriteMessage(MSG_INFO, 'CPlayerScreenDlg::LoadCatalogue Step: %d, Current TID: %d!!!', 4, GetCurrentThreadId());
-      return true;
-    }
-
-    return false;
-  }
-
   void _exitApplication() {
     if (Platform.isAndroid || Platform.isIOS) {
       SystemNavigator.pop();
@@ -480,9 +361,6 @@ class _DigitalSignageScreenState extends State<DigitalSignageScreen> {
 
   @override
   Widget build(BuildContext context) {
-    const double designWidth = 1920.0;
-    const double designHeight = 1080.0;
-
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: _onPopInvokedWithResult,
@@ -496,114 +374,105 @@ class _DigitalSignageScreenState extends State<DigitalSignageScreen> {
         onDoubleTap: _exitApplication,
         child: Scaffold(
           backgroundColor: Colors.black,
-          body: LayoutBuilder(
-            builder: (context, constraints) {
-              final mq = MediaQuery.of(context);
-              final double screenWidth = mq.size.width;
-              final double screenHeight = mq.size.height;
+          body: Consumer<PlayerScreenProvider>(
+            builder:
+                (BuildContext context, playerScreenProvider, Widget? child) {
+              if (!playerScreenProvider.isValidForPlay()) {
+                return Container(
+                  color: Color(DCMGlobal.clrBGColor),
+                );
+              }
+              return LayoutBuilder(
+                builder: (context, constraints) {
+                  final mq = MediaQuery.of(context);
+                  final double screenWidth = mq.size.width;
+                  final double screenHeight = mq.size.height;
 
-              return SizedBox(
-                width: screenWidth,
-                height: screenHeight,
-                child: Stack(
-                  children: <Widget>[
-                    Builder(
-                      builder: (context) {
-                        if (playlist.isEmpty ||
-                            playlist[currentShowIndex].layout.isEmpty) {
-                          return const Center(
-                            child: Text(
-                              'No Content to Display',
-                              style:
-                                  TextStyle(color: Colors.white, fontSize: 24),
-                            ),
-                          );
-                        }
+                  return SizedBox(
+                    width: screenWidth,
+                    height: screenHeight,
+                    child: Stack(
+                      children: <Widget>[
+                        Builder(
+                          builder: (context) {
+                            final currentLayout =
+                                playerScreenProvider.getPlayerZones();
 
-                        final currentLayout = playlist[currentShowIndex].layout;
+                            return Stack(
+                              children: currentLayout.map((partition) {
+                                final left = partition.rect!.left;
+                                final top = partition.rect!.top;
+                                final w = partition.rect!.width;
+                                final h = partition.rect!.bottom;
 
-                        final double scaleX = screenWidth / designWidth;
-                        final double scaleY = screenHeight / designHeight;
-                        final double scale = math.min(scaleX, scaleY);
-
-                        final double offsetX =
-                            (screenWidth - designWidth * scale) / 2.0;
-                        final double offsetY =
-                            (screenHeight - designHeight * scale) / 2.0;
-
-                        return Stack(
-                          children: currentLayout.map((partition) {
-                            final left = offsetX + partition.x * scale;
-                            final top = offsetY + partition.y * scale;
-                            final w = partition.width * scale;
-                            final h = partition.height * scale;
-
-                            return Positioned(
-                              left: left,
-                              top: top,
-                              width: w,
-                              height: h,
-                              child: Container(
-                                margin: const EdgeInsets.all(0.0),
-                                decoration: BoxDecoration(
-                                  color: Colors.grey[800],
-                                  border:
-                                      Border.all(color: Colors.grey, width: 0),
-                                  borderRadius: BorderRadius.circular(0.0),
-                                ),
-                                child: _buildPartitionContent(partition),
-                              ),
-                            );
-                          }).toList(),
-                        );
-                      },
-                    ),
-                    if (_showExitHint)
-                      Positioned(
-                        left: 0,
-                        right: 0,
-                        bottom: 32,
-                        child: Center(
-                          child: AnimatedOpacity(
-                            opacity: _showExitHint ? 1.0 : 0.0,
-                            duration: const Duration(milliseconds: 300),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 20,
-                                vertical: 12,
-                              ),
-                              decoration: BoxDecoration(
-                                color: Colors.white.withOpacity(0.92),
-                                borderRadius: BorderRadius.circular(30),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withOpacity(0.25),
-                                    blurRadius: 10,
-                                    offset: const Offset(0, 4),
-                                  ),
-                                ],
-                              ),
-                              child: const Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(Icons.touch_app, color: Colors.black87),
-                                  SizedBox(width: 10),
-                                  Text(
-                                    '双击屏幕退出应用',
-                                    style: TextStyle(
-                                      color: Colors.black87,
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w600,
+                                return Positioned(
+                                  left: left,
+                                  top: top,
+                                  width: w,
+                                  height: h,
+                                  child: Container(
+                                    margin: const EdgeInsets.all(0.0),
+                                    decoration: BoxDecoration(
+                                      color: Colors.grey[800],
+                                      border: null,
+                                      borderRadius: BorderRadius.zero,
                                     ),
+                                    child: partition.renderZone(),
                                   ),
-                                ],
+                                );
+                              }).toList(),
+                            );
+                          },
+                        ),
+                        if (_showExitHint)
+                          Positioned(
+                            left: 0,
+                            right: 0,
+                            bottom: 32,
+                            child: Center(
+                              child: AnimatedOpacity(
+                                opacity: _showExitHint ? 1.0 : 0.0,
+                                duration: const Duration(milliseconds: 300),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 20,
+                                    vertical: 12,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withOpacity(0.92),
+                                    borderRadius: BorderRadius.circular(30),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.black.withOpacity(0.25),
+                                        blurRadius: 10,
+                                        offset: const Offset(0, 4),
+                                      ),
+                                    ],
+                                  ),
+                                  child: const Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(Icons.touch_app,
+                                          color: Colors.black87),
+                                      SizedBox(width: 10),
+                                      Text(
+                                        '双击屏幕退出应用',
+                                        style: TextStyle(
+                                          color: Colors.black87,
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
                               ),
                             ),
                           ),
-                        ),
-                      ),
-                  ],
-                ),
+                      ],
+                    ),
+                  );
+                },
               );
             },
           ),
@@ -624,7 +493,7 @@ class _DigitalSignageScreenState extends State<DigitalSignageScreen> {
       if (preloaded.controller != null && preloaded.player != null) {
         // 视频内容使用预加载的控制器
         return ClipRRect(
-          borderRadius: BorderRadius.circular(4),
+          borderRadius: BorderRadius.zero,
           child: BasicVideo(controller: preloaded.controller!),
         );
       }
@@ -639,11 +508,7 @@ class _DigitalSignageScreenState extends State<DigitalSignageScreen> {
           return VideoPartition(file: File(config.content));
         }
       case ContentType.image:
-        if (config.content.startsWith('http')) {
-          return Image.network(config.content, fit: BoxFit.cover);
-        } else {
-          return Image.file(File(config.content), fit: BoxFit.cover);
-        }
+        return Slideshow(imageFile: config.content);
       case ContentType.text:
         return Container(
           alignment: Alignment.center,
@@ -837,7 +702,7 @@ class _VideoPartitionState extends State<VideoPartition> {
 
   @override
   void dispose() {
-    //_player.dispose();
+    _player.dispose();
     super.dispose();
   }
 
