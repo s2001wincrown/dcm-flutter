@@ -277,7 +277,7 @@ class MessageData {
     }
   }
 
-  int getProductInitFromZoneData(List<ProductData> lstProduct) {
+  List<ProductData> getProductInitFromZoneData(List<ProductData> lstProduct) {
     int nProduct = lstProduct.length;
     for (var pZoneData in lstZone) {
       if (pZoneData is ZoneExtData) {
@@ -292,7 +292,7 @@ class MessageData {
       }
     }
 
-    return nProduct;
+    return lstProduct;
   }
 
   bool getZoneDataList(List<ZoneExtData> lstZoneData) {

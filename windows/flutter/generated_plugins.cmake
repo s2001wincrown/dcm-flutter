@@ -3,6 +3,7 @@
 #
 
 list(APPEND FLUTTER_PLUGIN_LIST
+  flutter_inappwebview_windows
   flutter_libserialport
   libmpv_dart
   media_kit_libs_windows_video

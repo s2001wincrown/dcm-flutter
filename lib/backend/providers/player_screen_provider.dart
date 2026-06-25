@@ -15,7 +15,6 @@ import 'package:dcm/backend/services/schedulelist_impl.dart';
 import 'package:dcm/backend/utils/extensions.dart';
 import 'package:dcm/backend/utils/file_utils.dart';
 import 'package:dcm/backend/utils/log_utils.dart';
-import 'package:dcm/backend/utils/platform_utils.dart';
 import 'package:dcm/backend/utils/string_utils.dart';
 import 'package:dcm/backend/utils/utils.dart';
 import 'package:dcm/backend/xml_settings/dcmfile_Impl.dart';
@@ -24,8 +23,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_libserialport/flutter_libserialport.dart';
 import 'package:intl/intl.dart';
+import 'package:nativeapi/nativeapi.dart';
 import 'package:path/path.dart' as path;
-import 'package:window_manager/window_manager.dart';
 
 class PlayerScreenProvider extends ChangeNotifier {
   int currentShowIndex = 0;
@@ -97,6 +96,26 @@ class PlayerScreenProvider extends ChangeNotifier {
 
   List<PlayerZoneImpl> getPlayerZones() => _playerZones;
 
+  PlayerZoneImpl? getPlayerZone(int zone) {
+    for (var playerZoneImpl in _playerZones) {
+      if (playerZoneImpl.getZone() == zone) {
+        return playerZoneImpl;
+      }
+    }
+
+    return null;
+  }
+
+  List<PlayerZoneImpl>? getContentListPlayerZones(int zone) {
+    PlayerZoneImpl? playerZoneImpl = getPlayerZone(zone);
+    if (playerZoneImpl != null &&
+        playerZoneImpl.getContentListPlayer() != null) {
+      return playerZoneImpl.getContentListPlayer()!.players;
+    }
+
+    return null;
+  }
+
   void playImm() async {
     if (isBlank(_strDCMFile)) {
       _readyForPlay();
@@ -144,7 +163,7 @@ class PlayerScreenProvider extends ChangeNotifier {
     // Cancel any pending timer event
     _timer?.cancel();
 
-    _timer = Timer(const Duration(milliseconds: 10000), () {
+    _timer = Timer.periodic(const Duration(milliseconds: 10000), (timer) {
       playImm();
     });
   }
@@ -158,7 +177,8 @@ class PlayerScreenProvider extends ChangeNotifier {
     // Cancel any pending timer event
     _playingTimer?.cancel();
 
-    _playingTimer = Timer(const Duration(milliseconds: cPLAYINGDURATION), () {
+    _playingTimer =
+        Timer.periodic(const Duration(milliseconds: cPLAYINGDURATION), (timer) {
       _onTimer();
     });
   }
@@ -185,7 +205,10 @@ class PlayerScreenProvider extends ChangeNotifier {
   }
 
   void _onTimer() {
+    /*logD(
+        'CPlayerScreenDlg::OnTimer - _bValidForPlay: $_bValidForPlay; _bIsPlaying: \'$_bIsPlaying\'');*/
     if (!_bValidForPlay) {
+      stopPlayingTimer();
       playImm();
       return;
     }
@@ -283,7 +306,7 @@ class PlayerScreenProvider extends ChangeNotifier {
             stopNotQuit();
             resetFirstFinished();
             //_nCurrProduct = 0;
-            stopTimer();
+            stopPlayingTimer();
             playNextProduct();
             return;
           } else {
@@ -303,8 +326,7 @@ class PlayerScreenProvider extends ChangeNotifier {
           nFlag = result.nFlag!;
           if (!_bIsPlaying || (isNormalCut() && !isDurationCut())) {
             logD(
-              'CPlayerScreenDlg::OnTimer - ScheduleList().IsTimeForLoad - IsTimeForPlayAH; _bIsPlaying: \'$_bIsPlaying\'',
-            );
+                'CPlayerScreenDlg::OnTimer - ScheduleList().IsTimeForLoad - IsTimeForPlayAH; _bIsPlaying: \'$_bIsPlaying\'');
             stopNotQuit();
             StringBuffer strDCMFile = StringBuffer();
             _bValidForPlay = false;
@@ -364,7 +386,7 @@ class PlayerScreenProvider extends ChangeNotifier {
         }
       }
       if (_bIsPlaying) {
-        logD('CPlayerScreenDlg::OnTimer Start zoneThreadCheck');
+        //logD('CPlayerScreenDlg::OnTimer Start zoneThreadCheck');
         bool bSaveState = zoneThreadCheck(_nTotalZoneThread);
 
         DateTime dtCurr = DateTime.now();
@@ -407,11 +429,15 @@ class PlayerScreenProvider extends ChangeNotifier {
       if (pThread0.getZone() > -1) {
         if (pThread0.isPlaying() && pThread0.isWantStop()) {
           //::PostMessage(pThread0.GetPlayerHWnd(), WM_INFORM_STOP, 0, 0);
+          logD(
+              'CPlayerScreenDlg::zoneThreadCheck, Zone: ${pThread0.getZone()} want to stop, Current TID $pid.');
           notifyListeners();
           continue;
         } else if (!pThread0.isPlaying() && !pThread0.isWantStop()) {
           bNeedSelectedProduct = true;
           //::PostMessage(pThread0.GetPlayerHWnd(), WM_INFORM_PLAY, 0, 0);
+          logD(
+              'CPlayerScreenDlg::zoneThreadCheck, Zone: ${pThread0.getZone()} try to play, Current TID $pid.');
           notifyListeners();
           continue;
         }
@@ -436,6 +462,9 @@ class PlayerScreenProvider extends ChangeNotifier {
         PlayFinish nFinish = PlayFinish.eNOTFINISH;
         //pThread0.SetContentFinished(false);
         var pfResult = pThread0.isPlayerFinish(rtPos, nFinish);
+        nFinish = pfResult.nFinish ?? nFinish;
+        logD(
+            'CPlayerScreenDlg::zoneThreadCheck, Zone: ${pThread0.getZone()}, pfResult: ${pfResult.status} - ${pfResult.nFinish}, Current TID $pid.');
         if (pfResult.status) {
           pThread0.setPlayingDuration(rtPos);
           pThread0.setStartPlayTime(DateTime.now());
@@ -537,7 +566,7 @@ class PlayerScreenProvider extends ChangeNotifier {
   void adjustPlayRect(ProductData pProductData) {
     //WriteMessage(MSG_INFO, 'CPlayerScreenDlg::LoadCatalogue Step: %d, Current TID $pid.', 1, GetCurrentThreadId());
     //MatchZoneThread(nTotalZone);
-    //matchZoneThread(pProductData);
+    matchZoneThreadByProduct(pProductData);
     //WriteMessage(MSG_INFO, 'CPlayerScreenDlg::LoadCatalogue Step: %d, Current TID $pid.', 2, GetCurrentThreadId());
     if (_bScreenLayoutChanged) {
       _bScreenLayoutChanged = false;
@@ -922,7 +951,7 @@ class PlayerScreenProvider extends ChangeNotifier {
     }
 
     _bIsLoading = true;
-    stopTimer();
+    stopPlayingTimer();
 
     //::SetCursorPos(GetSystemMetrics(SM_CXSCREEN)+10000, GetSystemMetrics(SM_CYSCREEN)+10000);
     dcmShowCursor(false);
@@ -945,7 +974,6 @@ class PlayerScreenProvider extends ChangeNotifier {
     logI(
         '''Product Index: '$nIndex'; Start Time '$_dwFirstTime'; duration:'$rtDuration', TID '$pid'.''');
     int nZone = 0;
-    int nCnt = 0;
     bool bShowMessage = false;
     DateTime dwFirstTime0 = DateTime.now();
     _dwSecondTime = dwFirstTime0;
@@ -1013,7 +1041,6 @@ class PlayerScreenProvider extends ChangeNotifier {
         //pZoneThread.SetPlayingLine(_rtDuration, !pData.bChkZone);
         pZoneThread.setPlayingLine(pData.nZoneDuration, !pData.bChkZone);
         bShowMessage = (bShowMessage || pZoneThread.isShowMessage());
-        nCnt++;
       }
     } catch (e) {
       logD(
@@ -1055,9 +1082,10 @@ class PlayerScreenProvider extends ChangeNotifier {
     }
 
     //ListWindowInfo();
+    notifyListeners();
 
-    startTimer();
-    logD('CPlayerScreenDlg::PlayProduct Restart Timer Event $pid.');
+    startPlayingTimer();
+    //logD('CPlayerScreenDlg::PlayProduct Restart Timer Event $pid.');
 
     _bIsLoading = false;
     /*gShowHideTaskBar(true);
@@ -1157,7 +1185,7 @@ class PlayerScreenProvider extends ChangeNotifier {
     while (i < _playerZones.length) {
       PlayerZoneImpl pThread = _playerZones.elementAt(i);
 
-      ZoneData? pData = pProductData.getZoneData(pThread.getZone()!);
+      ZoneData? pData = pProductData.getZoneData(pThread.getZone());
       if (pData != null) {
         if (pThread.getEffect() != pData.getZoneEffect()) {
           pThread.setZone(-1);
@@ -1324,69 +1352,33 @@ class PlayerScreenProvider extends ChangeNotifier {
   }
 
   void playNextContent() {
-    /*CTypedPtrArray<CPtrArray, CWinThread *> arrThread;
-    for (int i=0; i<_playerZones.length; i++)
-    {
-      PlayerZone pThread0 = (PlayerZone )_playerZones[i];
-      if (pThread0 != null && pThread0.GetZone() > -1)
-      {
-        if (pThread0.IsZoneFinish())
-        {
-          arrThread.Add(pThread0);
-          pThread0.SetZoneFinish(false);
-          pThread0.SetContentFinished(false);
-          pThread0.SetThreadPriority(THREAD_PRIORITY_ABOVE_NORMAL);
-          ::PostMessage(pThread0.GetPlayerHWnd(), WM_INFORM_REPLAY, 0, 0);
-        }
-        else 
-        {
-          if(pThread0.IsContentFinished())
-          {
-            arrThread.Add(pThread0);
-            pThread0.SetContentFinished(false);
-            pThread0.SetThreadPriority(THREAD_PRIORITY_ABOVE_NORMAL);
-            ::PostMessage(pThread0.GetPlayerHWnd(), WM_PLAYNEXT_CONTENTLIST, (WPARAM)CONTENT_FINISH, 0);
-          }
+    for (var pThread0 in _playerZones) {
+      if (pThread0.isZoneFinish()) {
+        pThread0.setZoneFinish(false);
+        pThread0.setContentFinished(false);
+        //::PostMessage(pThread0.GetPlayerHWnd(), WM_INFORM_REPLAY, 0, 0);
+        logD(
+            'CPlayerScreenDlg::playNextContent, Zone: ${pThread0.getZone()} play finished, try to replay, Current TID $pid.');
+        pThread0.rePlay();
+        notifyListeners();
+      } else {
+        if (pThread0.isContentFinished()) {
+          pThread0.setContentFinished(false);
+          logD(
+              '''CPlayerScreenDlg::playNextContent, Zone: ${pThread0.getZone()} contentlist's content play finished, try to playNextContentListItem, Current TID $pid.''');
+          //::PostMessage(pThread0.GetPlayerHWnd(), WM_PLAYNEXT_CONTENTLIST, (WPARAM)CONTENT_FINISH, 0);
+          pThread0.playNextContentListItem(PlayFinish.eCONTENTFINISH);
+          notifyListeners();
         }
       }
     }
-    if (arrThread.length > 0)
-    {
-      StopTimer();
-      HANDLE *pHandles = new HANDLE[arrThread.length];
-      int nZone;
-      for (nZone=0; nZone<arrThread.length; nZone++)
-      {
-        PlayerZone pZoneThread = (PlayerZone )arrThread[nZone];
-        if (pZoneThread != null)
-        {
-          pHandles[nZone] = pZoneThread.GetRenderEvent();
-        }
-      }
-      bool bWaitOK = WaitWithMessageLoop( 
-        arrThread.length,    // number of objects in array
-        pHandles,      // array of objects
-        true,          // wait for all objects
-        20000);       // ten-second wait
-      //logD('CPlayerScreenDlg::PlayNextContent WaitWithMessageLoop: '%d', %s; TID: '%d'!', bWaitOK, DCMMisc::GetErrorString(), GetCurrentThreadId());
-      for (nZone=0; nZone<arrThread.length; nZone++)
-      {
-        PlayerZone pZoneThread = (PlayerZone )arrThread[nZone];
-        if (pZoneThread != null)
-        {
-          pZoneThread.SetThreadPriority(THREAD_PRIORITY_NORMAL);
-        }
-      }
-      SAFE_DELETE_ARRAY(pHandles);
-      startTimer();
-    }*/
   }
 
   void playNextProduct() {
     if (!hasFlag(DCMGlobal.playMode, 2) &&
         ScheduleList().count == 0 &&
         !ScheduleList().catalogue.canPlay()) {
-      startTimer();
+      startPlayingTimer();
       return;
     }
 
@@ -1513,7 +1505,7 @@ class PlayerScreenProvider extends ChangeNotifier {
     }
 
     logD('Try to reload playlist; Current TID: $pid.');
-    stopTimer();
+    stopPlayingTimer();
     try {
       ScheduleList().saveState();
 
@@ -1544,7 +1536,7 @@ class PlayerScreenProvider extends ChangeNotifier {
     } catch (e) {
       logE('reloadSchedule error: $e');
     }
-    startTimer();
+    startPlayingTimer();
     //_bIsPause = false;
   }
 
@@ -1552,7 +1544,7 @@ class PlayerScreenProvider extends ChangeNotifier {
     ScheduleList().saveState();
 
     //StopNotQuit();
-    //StopTimer();
+    //stopPlayingTimer();
     resetFirstFinished();
 
     _bIsPause = false;
@@ -1574,7 +1566,7 @@ class PlayerScreenProvider extends ChangeNotifier {
         _bIsPlaying = true;
       }
     }
-    //StartTimer(PLAYING_TIMER, PLAYING_DURATION);
+    //startPlayingTimer();
   }
 
   void backToSchedule() {
@@ -1919,6 +1911,7 @@ class PlayerScreenProvider extends ChangeNotifier {
   void stopAll() {
     if (_bIsPlaying) {
       stopTimer();
+      stopPlayingTimer();
       //stopPlay();
       _bIsPlaying = false;
       //_bIsFrame = false;
@@ -2146,9 +2139,8 @@ class PlayerScreenProvider extends ChangeNotifier {
   }
 
   void _changeWindowSize(Rect rectMonitor) {
-    if (PlatformUtils.isDesktop) {
-      /*      
-      MoveWindow(rectMonitor);
+    if (rectMonitor.isEmpty) return;
+    /* MoveWindow(rectMonitor);
       SetWindowPos(
           null,
           rectMonitor.left,
@@ -2156,13 +2148,24 @@ class PlayerScreenProvider extends ChangeNotifier {
           rectMonitor.Width(),
           rectMonitor.Height(),
           SWP_NOACTIVATE | SWP_NOREPOSITION); //SWP_NOMOVE |*/
-      windowManager.setBounds(rectMonitor);
+
+    final window = WindowManager.instance.getCurrent();
+    if (window != null) {
+      logD('CPlayerScreenDlg::_changeWindowSize: $rectMonitor');
+      //window.setPosition(rectMonitor.left, rectMonitor.top);
+      //window.setSize(rectMonitor.width, rectMonitor.height);
     }
   }
 
   void _getClientRect() async {
-    if (PlatformUtils.isDesktop) {
+    /*if (PlatformUtils.isDesktop) {
       _rectPlayer = await windowManager.getBounds();
+    }*/
+    final window = WindowManager.instance.getCurrent();
+    if (window != null) {
+      _rectPlayer = Rect.fromLTWH(window.position.dx, window.position.dy,
+          window.size.width, window.size.height);
+      logD('CPlayerScreenDlg::GetClientRect: $_rectPlayer');
     }
   }
 

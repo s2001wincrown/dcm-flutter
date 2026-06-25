@@ -1,3 +1,4 @@
+import 'package:dcm/backend/constants.dart';
 import 'package:dcm/backend/xmlfile/xmlitem.dart';
 
 /// Zone effect types
@@ -79,7 +80,9 @@ class ZoneData {
 
   /// Check if this is mixed content
   bool isMixedContent() {
-    return nZoneType == 1 || nZoneType == 2 || nZoneType == 3;
+    return (nZoneType == cDIRECTPLAYTYPE ||
+        nZoneType == cDDETYPE ||
+        nZoneType == cSITEPLAYLIST);
   }
 
   int getAlpha() => bAlpha;

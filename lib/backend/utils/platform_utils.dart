@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/foundation.dart';
+import 'package:system_info3/system_info3.dart';
 
 class PlatformUtils {
   static bool _isWeb() {
@@ -49,4 +50,14 @@ class PlatformUtils {
   static bool get isLinux => _isLinux();
 
   static bool get isDesktop => _isDesktop();
+
+  String getMemoryLog() {
+    const int megaByte = 1024 * 1024;
+    return '''Total physical memory: ${SysInfo.getTotalPhysicalMemory() ~/ megaByte} MB,
+     Free physical memory: ${SysInfo.getFreePhysicalMemory() ~/ megaByte} MB, 
+     Available physical memory: ${SysInfo.getAvailablePhysicalMemory() ~/ megaByte} MB, 
+     Total virtual memory: ${SysInfo.getTotalVirtualMemory() ~/ megaByte} MB, 
+     Free virtual memory: ${SysInfo.getFreeVirtualMemory() ~/ megaByte} MB, 
+     Virtual memory size: ${SysInfo.getVirtualMemorySize() ~/ megaByte} MB''';
+  }
 }

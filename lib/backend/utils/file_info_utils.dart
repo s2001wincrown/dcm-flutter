@@ -36,7 +36,7 @@ class FileInfoUtils {
       await for (FileSystemEntity entity in dir.list(recursive: true)) {
         if (entity is File &&
             !path.extension(entity.path).toLowerCase().endsWith('.md5')) {
-          FileInfoData? fileInfo = await loadFileInfo(entity.path, contentType);
+          FileInfoData? fileInfo = loadFileInfo(entity.path, contentType);
           if (fileInfo != null) {
             fileInfos.add(fileInfo);
           }

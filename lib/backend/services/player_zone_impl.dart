@@ -6,17 +6,39 @@ import 'package:dcm/backend/library_helper.dart';
 import 'package:dcm/backend/models/dcm_global.dart';
 import 'package:dcm/backend/models/product_data.dart';
 import 'package:dcm/backend/models/zone_data.dart';
+import 'package:dcm/backend/services/content_list_player_impl.dart';
 import 'package:dcm/backend/services/dcm_skin_impl.dart';
 import 'package:dcm/backend/services/schedulelist_impl.dart';
 import 'package:dcm/backend/utils/log_utils.dart';
+import 'package:dcm/backend/utils/platform_utils.dart';
 import 'package:dcm/backend/utils/utils.dart';
 import 'package:dcm/widgets/basic_video.dart';
 import 'package:dcm/widgets/content_list_player.dart';
 import 'package:dcm/widgets/slideshow.dart';
+import 'package:dcm/widgets/webview_desktop_player.dart';
+import 'package:dcm/widgets/webview_player.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
+
+class PreloadedContent {
+  final int type;
+  final VideoController? controller;
+  final Player? player;
+  final String? imagePath;
+  final String? text;
+  final List<String>? images;
+
+  PreloadedContent({
+    required this.type,
+    this.controller,
+    this.player,
+    this.imagePath,
+    this.text,
+    this.images,
+  });
+}
 
 class PlayerZoneImpl {
   //int productId;
@@ -41,7 +63,7 @@ class PlayerZoneImpl {
   int _nPType = 0;
   String? _strCompany;
   String _strContentName = "";
-  late String _strZoneFile;
+  String _strZoneFile = '';
 
   bool _bDDERefresh = false;
   bool _bLoadState = false;
@@ -50,16 +72,16 @@ class PlayerZoneImpl {
   bool _bNeedReset = false;
   bool _bIsAHPlaylist = false;
 
-  late double _rtDuration;
-  late double _rtLine;
-  late double _rtAct;
-  late double _rtPlaying;
-  late double _rtCurrDuration;
+  double _rtDuration = 0.00;
+  double _rtLine = 0.00;
+  double _rtAct = 0.00;
+  double _rtPlaying = 0.00;
+  double _rtCurrDuration = 0.00;
 
   Rect? rect;
   Rect? _rectPlayerOrg;
 
-  ContentListPlayer? _contentListPlayer;
+  ContentListPlayerImpl? _contentListPlayer;
   VideoController? _controller;
   Player? _player;
   int _nVideoStatus = -1;
@@ -89,7 +111,7 @@ class PlayerZoneImpl {
     _rtPlaying = 0;
   }
 
-  void initZone() async {
+  void initZone([PreloadedContent? preloaded]) async {
     stopPlay();
 
     _rtCurrDuration = 0.00;
@@ -122,29 +144,7 @@ class PlayerZoneImpl {
         case cIMAGETYPE:
           break;
         case cVIDEOTYPE:
-          _player = Player(
-            configuration: const PlayerConfiguration(
-              title: 'dcm',
-              osc: false,
-              muted: false,
-              async: true,
-              libass: false,
-              logLevel: MPVLogLevel.error,
-            ),
-          );
-
-          final video = Media(LibraryHelper.normalizeMediaSource(_strZoneFile));
-          _player!.open(video, play: false);
-
-          _controller = VideoController(
-            _player!,
-            configuration: VideoControllerConfiguration(
-              width: rect!.width.toInt(),
-              height: rect!.height.toInt(),
-            ),
-          );
-          _player!.setVolume(
-              DCMGlobal.videoVolume(pZoneData.bZoneMute, pZoneData.dVolume));
+          _initVideoPlayer(pZoneData);
           _rtAct = _player!.state.duration.inMilliseconds / 1000.0;
           break;
 
@@ -174,6 +174,7 @@ class PlayerZoneImpl {
         case cDDETYPE:
         case cDIRECTPLAYTYPE:
         case cSITEPLAYLIST:
+          _initContentList(nCurSel, _strZoneFile, rect!);
           break;
         case cLINKAGETYPE:
           break;
@@ -203,6 +204,13 @@ class PlayerZoneImpl {
     _bNeedReset = true;
   }
 
+  void _initVideoPlayer(ZoneData pZoneData, [PreloadedContent? preloaded]) {
+    preloaded ??=
+        preloadVideoPlayer(pZoneData, filePath: _strZoneFile, size: rect!.size);
+    _player = preloaded.player;
+    _controller = preloaded.controller;
+  }
+
   void setWindowRect(Rect rcWin) {
     rect = rcWin;
   }
@@ -211,6 +219,12 @@ class PlayerZoneImpl {
 
   void setZone(int nZone) {
     _zoneId = nZone;
+  }
+
+  String getZoneFile() => _strZoneFile;
+
+  void setZoneFile(String zoneFile) {
+    _strZoneFile = zoneFile;
   }
 
   void setCompany(String strCompany) {
@@ -276,6 +290,12 @@ class PlayerZoneImpl {
 
   void setZoneFinish(bool bFinish) {
     _bZoneFinish = bFinish;
+  }
+
+  bool isNeedReset() => _bNeedReset;
+
+  void setNeedReset(bool bNeedReset) {
+    _bNeedReset = bNeedReset;
   }
 
   bool isFirstFinished() => _bFirstFinished;
@@ -354,6 +374,8 @@ class PlayerZoneImpl {
 
     return pZoneData;
   }
+
+  ContentListPlayerImpl? getContentListPlayer() => _contentListPlayer;
 
   bool initResetFlag(int nZoneType, String strContent, Rect rect) {
     if (nZoneType < 0) {
@@ -450,30 +472,39 @@ class PlayerZoneImpl {
     rePlayZone();
   }
 
-  Widget renderZone() {
+  Widget renderZone([bool cached = false]) {
+    Widget? widget;
     if (_bIsValid) {
       ZoneData? pZoneData = getZoneData();
       switch (pZoneData!.nZoneType) {
         case cIMAGETYPE:
           if (_bNeedReset) {
-            return Slideshow(imageFile: _strZoneFile);
+            widget = Slideshow(
+                key: Key(_strZoneFile),
+                imageFile: _strZoneFile,
+                cached: cached);
           }
+          /*logD(
+              '''renderZone: $_zoneId, image file: "$_strZoneFile", _bNeedReset: $_bNeedReset, widget: "$widget".''');*/
           break;
         case cVIDEOTYPE:
           if (_player != null) {
             _player!.play();
           }
-          return ClipRRect(
+          widget = ClipRRect(
             borderRadius: BorderRadius.zero,
             child: BasicVideo(controller: _controller!),
           );
-
+          break;
         case cPOWERPOINTTYPE:
           //PlayPPT(strZone1File, rectWin);
           break;
 
         case cQUEUETYPE:
         case cWEBPAGETYPE:
+          widget = PlatformUtils.isDesktop
+              ? WebviewDesktopPlayer(url: _strZoneFile)
+              : WebviewPlayer(url: _strZoneFile);
           break;
         case cFLASHTYPE:
           break;
@@ -495,29 +526,52 @@ class PlayerZoneImpl {
         case cDDETYPE:
         case cDIRECTPLAYTYPE:
         case cSITEPLAYLIST:
+          widget = ContentListPlayer(
+            key: Key(_strZoneFile),
+            contentList: _strZoneFile,
+            contentType: pZoneData.nZoneType,
+            zone: _zoneId,
+            rect: rect!,
+          );
+          //playContentList(pZoneData.nZoneType, _strZoneFile, rect!);
           break;
         case cLINKAGETYPE:
           break;
         case cEVENTTYPE:
+          break;
+        case cPDFTYPE:
+          widget = PlatformUtils.isDesktop
+              ? WebviewDesktopPlayer(url: _strZoneFile)
+              : WebviewPlayer(url: _strZoneFile);
+          break;
+        case cPLUGINTYPE:
+          break;
+        case cLIGHTBOXTYPE:
+          break;
+        case 27:
+          widget = PlatformUtils.isDesktop
+              ? WebviewDesktopPlayer(url: _strZoneFile)
+              : WebviewPlayer(url: _strZoneFile);
           break;
         default:
           break;
       }
     }
 
-    _bIsPlaying = false;
+    _bIsPlaying = true;
     _bNeedReset = true;
+    _bIsRendering = false;
     //Log.i(PlayerMainActivity.LOG_TAG, "RenderZone step 6 _rtDuration: " + _rtDuration + " _rtAct " + _rtAct);
     logI(
         'RenderZone finished - Zone: $_zoneId; _rtDuration: $_rtDuration; _rtAct $_rtAct; _pZoneData: $_pZoneData; _pProductData: $_pProductData;');
 
-    return Container(color: Color(DCMGlobal.clrBGColor));
+    return widget ?? Container(color: Color(DCMGlobal.clrBGColor));
   }
 
-  void playContentList(int nType, String strZoneFile, Rect rectWin) {
+  void _initContentList(int nType, String strZoneFile, Rect rectWin) {
     if (_contentListPlayer == null) {
       logD('''Zone $_zoneId play '$strZoneFile' step 21, TID $pid.''');
-      _contentListPlayer = ContentListPlayer(nType, _zoneId);
+      _contentListPlayer = ContentListPlayerImpl(nType, _zoneId);
     } else {
       logD('''Zone $_zoneId play '$strZoneFile' step 22, TID $pid.''');
       _contentListPlayer!.resetFirstFinished();
@@ -527,7 +581,7 @@ class PlayerZoneImpl {
 
     if (_contentListPlayer != null) {
       logD('''Zone $_zoneId play '$strZoneFile' step 23, TID $pid.''');
-      _contentListPlayer!.loadContentList(strZoneFile);
+      _contentListPlayer!.loadContentList(contentList: strZoneFile);
       if (_contentListPlayer!.isValidForPlay()) {
         logD('''Zone $_zoneId play '$strZoneFile' step 24, TID $pid.''');
         _rtDuration = _contentListPlayer!.getDuration() -
@@ -538,13 +592,25 @@ class PlayerZoneImpl {
         _contentListPlayer!.setParentContentType(_nPType);
         //CString strCompany = PlayList.GetCurrCompany();
         _contentListPlayer!.setCompany(_strCompany);
-        _contentListPlayer!.setStartTime(_dwStartTime);
-        _contentListPlayer!.play(_nStart); //
-        _bShowMessage = _contentListPlayer!.isShowMessage();
-        _bShowMessageNext = _contentListPlayer!.isShowMessageNext();
-        _nStart = 0;
+        //_contentListPlayer!.initZone(context); //
       }
       _contentListPlayer!.setTimeForStop(false);
+    }
+  }
+
+  void preloadContentList(BuildContext context) {
+    if (_contentListPlayer != null) {
+      _contentListPlayer!.initZone(context); //
+    }
+  }
+
+  void playContentList(int nType, String strZoneFile, Rect rectWin) {
+    if (_contentListPlayer != null && _contentListPlayer!.isValidForPlay()) {
+      _contentListPlayer!.setStartTime(_dwStartTime);
+      _contentListPlayer!.play(_nStart); //
+      _bShowMessage = _contentListPlayer!.isShowMessage();
+      _bShowMessageNext = _contentListPlayer!.isShowMessageNext();
+      _nStart = 0;
     }
   }
 
@@ -637,7 +703,7 @@ class PlayerZoneImpl {
         'Zone $_zoneId CPlayerZoneDlg::IsPlayerFinish ${DateFormat('yyyy-MM-dd HH:mm:ss').format(_dtStartPlay)}.');
 
     logD(
-        '''CPlayerZoneDlg::IsPlayerFinish; Zone $_zoneId; _rtDuration:'$_rtDuration'; _rtAct:'$_rtAct'; rtCurrPos:'$rtCurrPos'; _rtLine:'$_rtLine'; _rtPlaying:'$_rtPlaying'.''');
+        '''CPlayerZoneDlg::IsPlayerFinish; Zone: $_zoneId; _nPType: $_nPType; _rtDuration:'$_rtDuration'; _rtAct:'$_rtAct'; rtCurrPos:'$rtCurrPos'; _rtLine:'$_rtLine'; _rtPlaying:'$_rtPlaying'.''');
     if (pZoneData.isMixedContent() && _contentListPlayer != null) {
       //return _contentListPlayer!.IsPlayFinish();
       var result = _contentListPlayer!.isPlayFinish(nFinish);
@@ -734,7 +800,8 @@ class PlayerZoneImpl {
     }
 
     double rtAct = _rtAct;
-    //logI('CPlayerZoneImpl::IsPlayerFinish; Zone %d; _rtDuration:'%.8f'; _rtAct:'%.8f'; rtCurrPos:'%.8f'; _rtLine:'%.8f'!!!', _nZone, _rtDuration, _rtAct, rtCurrPos, _rtLine);
+    logI(
+        '''CPlayerZoneImpl::IsPlayerFinish; Zone '$_zoneId'; _nPType: '$_nPType'; _rtDuration:'$_rtDuration'; _rtAct:'$_rtAct'; rtCurrPos:'$rtCurrPos'; _rtLine:'$_rtLine'.''');
     if (!_bIsRendering && pZoneData.nZoneType == cVIDEOTYPE) {
       if (_player != null) {
         if (_rtDuration - rtAct < cPLAYINGINTERVAL) {
@@ -823,7 +890,7 @@ class PlayerZoneImpl {
         break;
 
       case cVIDEOTYPE:
-        //RePlayVideo();
+        rePlayVideo();
         break;
       case cPOWERPOINTTYPE:
       case cQUEUETYPE:
@@ -850,6 +917,16 @@ class PlayerZoneImpl {
     calcDuration();
   }
 
+  bool rePlayVideo() {
+    if (_player != null) {
+      _player!.dispose();
+    }
+    _initVideoPlayer(getZoneData()!);
+    _player!.play();
+
+    return true;
+  }
+
   void showZoneWnd(bool bool) {}
 
   static double getVideoDuration(String videoFile) {
@@ -869,5 +946,63 @@ class PlayerZoneImpl {
     player.setVolume(cVOLUMESILENCE);
 
     return player.state.duration.inMilliseconds / 1000.0;
+  }
+
+  static Future<PreloadedContent?> preloadContent(
+      ZoneData pZoneData, BuildContext context,
+      {String? filePath, String? company, Size? size, int ptype = -1}) async {
+    filePath ??= Utils.getFilePath(
+        pZoneData.strZoneFile, pZoneData.nZoneType, ptype, company);
+    PreloadedContent? preloaded;
+    switch (pZoneData.nZoneType) {
+      case cVIDEOTYPE:
+        preloaded =
+            preloadVideoPlayer(pZoneData, filePath: filePath, size: size);
+        break;
+      case cIMAGETYPE:
+        if (filePath.startsWith('http')) {
+          await precacheImage(NetworkImage(filePath), context);
+        } else {
+          await precacheImage(FileImage(File(filePath)), context);
+        }
+        preloaded = PreloadedContent(type: cIMAGETYPE, imagePath: filePath);
+        break;
+      default:
+        break;
+    }
+
+    return preloaded;
+  }
+
+  static PreloadedContent preloadVideoPlayer(ZoneData pZoneData,
+      {String? filePath, String? company, Size? size, int ptype = -1}) {
+    filePath ??= Utils.getFilePath(
+        pZoneData.strZoneFile, pZoneData.nZoneType, ptype, company);
+    var player = Player(
+      configuration: const PlayerConfiguration(
+        title: 'dcm',
+        osc: false,
+        muted: false,
+        async: true,
+        libass: false,
+        logLevel: MPVLogLevel.error,
+      ),
+    );
+
+    final video = Media(LibraryHelper.normalizeMediaSource(filePath));
+    player.open(video, play: false);
+
+    var controller = VideoController(
+      player,
+      configuration: VideoControllerConfiguration(
+        width: size?.width.toInt() ?? 800,
+        height: size?.height.toInt() ?? 600,
+      ),
+    );
+    player.setVolume(
+        DCMGlobal.videoVolume(pZoneData.bZoneMute, pZoneData.dVolume));
+
+    return PreloadedContent(
+        type: cVIDEOTYPE, controller: controller, player: player);
   }
 }

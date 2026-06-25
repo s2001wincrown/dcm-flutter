@@ -164,7 +164,7 @@ class DCMFileImpl {
         // get Product information list
         XmlItem? pItem = file.getItem("m_lstProduct");
         if (pItem != null) {
-          XmlItem? pXISibling = pItem.getItem("ProductData");
+          XmlItem? pXISibling = pItem.getItem("CProductData");
           while (pXISibling != null) {
             ProductData pData = ProductData();
 

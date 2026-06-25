@@ -25,11 +25,7 @@ class XmlProfile extends XmlFile {
   }
 
   XmlItem? appendSection(String lpszSection) {
-    XmlItem? pRoot = root();
-    if (pRoot != null) {
-      return pRoot.addItem(lpszSection, '', XiType.element);
-    }
-    return null;
+    return root().addItem(lpszSection, '', XiType.element);
   }
 
   XmlItem? appendNode(XmlItem pItem, String lpszList, String lpszData) {
@@ -47,18 +43,13 @@ class XmlProfile extends XmlFile {
   }
 
   List<String> getSections() {
-    XmlItem? pRoot = root();
-    if (pRoot != null) {
-      List<String> sections = [];
-      var pos = pRoot.getFirstItemPos();
-      while (pos.moveNext()) {
-        sections.add(pos.current.getName());
-      }
-
-      return sections;
+    List<String> sections = [];
+    var pos = root().getFirstItemPos();
+    while (pos.moveNext()) {
+      sections.add(pos.current.getName());
     }
 
-    return [];
+    return sections;
   }
 
   List<String> getSectionsByName(String lpszSection, bool bVal) {
@@ -107,17 +98,15 @@ class XmlProfile extends XmlFile {
   }
 
   bool writeProfileList(String lpszSection, List<dynamic> lstPlay) {
-    if (root() != null) {
-      XmlItem? xi = root()!.newItem(lpszSection); //
-      if (xi != null) {
-        for (var pXMLListData in lstPlay) {
-          if (pXMLListData is XmlFileData) {
-            pXMLListData.writeToXML(xi);
-          }
+    XmlItem? xi = root().newItem(lpszSection); //
+    if (xi != null) {
+      for (var pXMLListData in lstPlay) {
+        if (pXMLListData is XmlFileData) {
+          pXMLListData.writeToXML(xi);
         }
-
-        return true;
       }
+
+      return true;
     }
 
     return false;
@@ -126,7 +115,7 @@ class XmlProfile extends XmlFile {
   List<T> getProfileList<T extends XmlFileData>(String lpszSection, T pObject) {
     List<T> lstPlay = [];
 
-    XmlItem? pXItem = root()?.getItem(lpszSection);
+    XmlItem? pXItem = root().getItem(lpszSection);
     if (pXItem != null) {
       var pos = pXItem.getFirstItemPos();
       while (pos.moveNext()) {
@@ -182,27 +171,23 @@ class XmlProfile extends XmlFile {
   }
 
   bool writeProfileInt(String lpszSection, String lpszEntry, int nValue) {
-    XmlItem? xiRoot = root();
-    if (xiRoot != null) {
-      XmlItem? pSec = xiRoot.addItem(lpszSection, '', XiType.element);
-      if (pSec != null) {
-        pSec.setItemValue(lpszEntry, nValue.toString(), XiType.element);
-        return true;
-      }
+    XmlItem? pSec = root().addItem(lpszSection, '', XiType.element);
+    if (pSec != null) {
+      pSec.setItemValue(lpszEntry, nValue.toString(), XiType.element);
+      return true;
     }
+
     return false;
   }
 
   bool writeProfileString(
       String lpszSection, String lpszEntry, String lpszData) {
-    XmlItem? xiRoot = root();
-    if (xiRoot != null) {
-      XmlItem? pSec = xiRoot.addItem(lpszSection, '', XiType.element);
-      if (pSec != null) {
-        pSec.setItemValue(lpszEntry, lpszData, XiType.element);
-        return true;
-      }
+    XmlItem? pSec = root().addItem(lpszSection, '', XiType.element);
+    if (pSec != null) {
+      pSec.setItemValue(lpszEntry, lpszData, XiType.element);
+      return true;
     }
+
     return false;
   }
 
@@ -296,15 +281,14 @@ class XmlProfile extends XmlFile {
   String getNodeText(XmlItem? pItem, String nodeName) {
     String nodeText = '';
     pItem ??= root();
-    if (pItem != null) {
-      XmlItem? pSubItem = pItem.getItem(nodeName);
-      if (pSubItem != null) {
-        nodeText = pSubItem.getValue();
-      }
-      if (nodeText.isEmpty) {
-        nodeText = pItem.getItemValue(nodeName);
-      }
+    XmlItem? pSubItem = pItem.getItem(nodeName);
+    if (pSubItem != null) {
+      nodeText = pSubItem.getValue();
     }
+    if (nodeText.isEmpty) {
+      nodeText = pItem.getItemValue(nodeName);
+    }
+
     return nodeText;
   }
 }

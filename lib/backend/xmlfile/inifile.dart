@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:dcm/backend/utils/log_utils.dart';
+
 /// INI文件类
 class IniFile {
   Map<String, Map<String, String>> sections = {};
@@ -8,8 +10,12 @@ class IniFile {
   Map<String, String> currentProperties = {};
 
   IniFile(String filename) {
-    String content = File(filename).readAsStringSync();
-    _parse(content);
+    try {
+      String content = File(filename).readAsStringSync();
+      _parse(content);
+    } catch (e) {
+      logE('Error loading ini file: $e');
+    }
   }
 
   void _parse(String content) {

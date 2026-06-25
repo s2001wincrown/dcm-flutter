@@ -950,8 +950,7 @@ class ScheduleList {
 
     Rect? rcVW = catalogue.getZoneRect(nZone, rectVW);
     if (rcVW != null) {
-      rcVW = Rect.fromLTWH(
-          rectPlayer.left, rectPlayer.top, rcVW.width, rcVW.height);
+      rcVW = rcVW.shift(rectPlayer.topLeft);
     } else {
       rcVW = rectPlayer;
     }

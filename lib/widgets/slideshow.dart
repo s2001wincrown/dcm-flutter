@@ -13,8 +13,9 @@ import 'package:transparent_image/transparent_image.dart';
 
 class Slideshow extends StatefulWidget {
   final String imageFile;
+  final bool cached;
 
-  const Slideshow({super.key, required this.imageFile});
+  const Slideshow({super.key, required this.imageFile, this.cached = false});
 
   @override
   State<Slideshow> createState() => _SlideshowState();
@@ -22,7 +23,7 @@ class Slideshow extends StatefulWidget {
 
 class _SlideshowState extends State<Slideshow> {
   int _currentIndex = 0;
-  late Timer _timer;
+  Timer? _timer;
   SlideShowData? _slideShowData;
   final List<String> imageUrls = [];
 
@@ -34,23 +35,39 @@ class _SlideshowState extends State<Slideshow> {
     }
   }
 
-  void _startSlideshow() {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      parser(widget.imageFile);
-    });
-    if (imageUrls.isEmpty) return;
+  void _startSlideshow() async {
+    logD('''Slideshow - _startSlideshow, image file: "${widget.imageFile}".''');
+    parser(widget.imageFile);
+    if (imageUrls.isEmpty) {
+      logD(
+          '''Slideshow - _startSlideshow failed, image file: "${widget.imageFile}" is invalid.''');
+      return;
+    }
 
-    _timer = Timer.periodic(
-        Duration(
-            seconds: _slideShowData == null ? 8 : _slideShowData!.nPerSecond),
-        (timer) {
-      setState(() {
-        _currentIndex = (_currentIndex + 1) % imageUrls.length;
+    if (!widget.cached) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        preloadImages();
       });
-    });
+    }
+
+    if (imageUrls.length > 1) {
+      _timer = Timer.periodic(
+          Duration(
+              seconds: _slideShowData == null ? 8 : _slideShowData!.nPerSecond),
+          (timer) {
+        setState(() {
+          _currentIndex = (_currentIndex + 1) % imageUrls.length;
+          logD(
+              '''Slideshow - _currentIndex: $_currentIndex, images: "${imageUrls[_currentIndex]}".''');
+        });
+      });
+    } /*else {
+      logD(
+          '''Slideshow - _currentIndex: $_currentIndex, images: "${imageUrls[_currentIndex]}".''');
+    }*/
   }
 
-  void parser(String filePath) async {
+  void parser(String filePath) {
     //Log.i(PlayerMainActivity.LOG_TAG, "slideshow parse step 1");
     if (path.extension(filePath).equalsIgnoreCase(".xml")) {
       //Log.i(PlayerMainActivity.LOG_TAG, "slideshow parse step 2");
@@ -67,11 +84,7 @@ class _SlideshowState extends State<Slideshow> {
                 cIMAGETYPE,
                 -1,
                 null); //GetFilePath(pZoneData.m_arrImageFile.get(i), IMAGE_TYPE, DCMConstant.DCM_SINGLEIMAGE_TYPE);
-            var imageFile = File(imageFilePath);
-            if (await imageFile.exists()) {
-              if (context.mounted) {
-                await precacheImage(FileImage(imageFile), context);
-              }
+            if (File(imageFilePath).existsSync()) {
               imageUrls.add(imageFilePath);
             } else {
               logE('''Slideshow - image file: "$imageFilePath" not found.''');
@@ -85,11 +98,7 @@ class _SlideshowState extends State<Slideshow> {
         logE('Slideshow - image file: "$filePath" throw exception; Error: $e.');
       }
     } else {
-      var imageFile = File(filePath);
-      if (await imageFile.exists()) {
-        if (context.mounted) {
-          await precacheImage(FileImage(imageFile), context);
-        }
+      if (File(filePath).existsSync()) {
         imageUrls.add(filePath);
       } else {
         logE('''Slideshow - image file: "$filePath" not found.''');
@@ -97,9 +106,17 @@ class _SlideshowState extends State<Slideshow> {
     }
   }
 
+  Future<void> preloadImages() async {
+    for (var imageFile in imageUrls) {
+      if (context.mounted) {
+        await precacheImage(FileImage(File(imageFile)), context);
+      }
+    }
+  }
+
   @override
   void dispose() {
-    _timer.cancel();
+    _timer?.cancel();
     super.dispose();
   }
 
@@ -107,8 +124,8 @@ class _SlideshowState extends State<Slideshow> {
   Widget build(BuildContext context) {
     if (imageUrls.isEmpty) {
       if (_slideShowData != null && _slideShowData!.strBGFile.isNotEmpty) {
-        String bgImageFilePath =
-            Utils.getFilePath(_slideShowData!.strBGFile, cIMAGETYPE, -1, null);
+        String bgImageFilePath = Utils.getFilePath(
+            _slideShowData!.strBGFile, cIMAGETYPE, cDCMSINGLEIMAGETYPE, null);
         return Image.file(
           File(bgImageFilePath),
           width: double.maxFinite,
@@ -132,11 +149,13 @@ class _SlideshowState extends State<Slideshow> {
 
     return ClipRRect(
       borderRadius: BorderRadius.zero,
-      child: FadeInImage.memoryNetwork(
-        placeholder: kTransparentImage,
-        image: imageUrls[_currentIndex],
+      child: FadeInImage(
+        placeholder: Image.memory(kTransparentImage).image,
+        image: FileImage(File(imageUrls[_currentIndex])),
         fit: BoxFit.cover,
         imageErrorBuilder: (context, error, stackTrace) {
+          logE(
+              '''Slideshow - show image file: "${imageUrls[_currentIndex]}" failed, error: $error, stackTrace: $stackTrace.''');
           return Container(
             color: _slideShowData != null
                 ? Color(_slideShowData!.crBGColor)

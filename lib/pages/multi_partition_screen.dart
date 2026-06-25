@@ -1,15 +1,14 @@
 import 'dart:async';
 import 'dart:io';
-import 'dart:math' as math;
 
 import 'package:dcm/backend/app.dart';
 import 'package:dcm/backend/library_helper.dart';
 import 'package:dcm/backend/models/dcm_global.dart';
 import 'package:dcm/backend/providers/player_screen_provider.dart';
 import 'package:dcm/backend/services/dcm_skin_impl.dart';
+import 'package:dcm/backend/utils/log_utils.dart';
 import 'package:dcm/pages/home.dart';
 import 'package:dcm/widgets/basic_video.dart';
-import 'package:dcm/widgets/slideshow.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:media_kit/media_kit.dart';
@@ -52,106 +51,13 @@ class DigitalSignageScreen extends StatefulWidget {
 }
 
 class _DigitalSignageScreenState extends State<DigitalSignageScreen> {
-  // 示例播放列表 - 实际项目中可以从配置文件加载
-  List<PlaylistItem> playlist = [
-    PlaylistItem(
-      name: 'Sample Show 1',
-      duration: 30,
-      layout: [
-        PartitionConfig(
-          id: 1,
-          type: ContentType.video,
-          content:
-              // 'https://flutter.github.io/assets-for-api-docs/assets/videos/bee.mp4',
-              'D:/dc-data/data/P1920-1.mp4',
-          x: 0,
-          y: 0,
-          width: 1280,
-          height: 720,
-        ),
-        PartitionConfig(
-          id: 2,
-          type: ContentType.image,
-          content:
-              'https://workspace-zb-cdn.quark.cn/a4f3a529b8864f648dbd66882dd7c0f3%2Fo%2F1773978786572.png?auth_key=1805515380-0-0-5a17cd1b8a1c94658c52a06ea2a9f98a',
-          x: 1280,
-          y: 0,
-          width: 640,
-          height: 360,
-        ),
-        PartitionConfig(
-          id: 3,
-          type: ContentType.text,
-          content: 'Welcome to Digital Signage!',
-          x: 1280,
-          y: 360,
-          width: 640,
-          height: 360,
-        ),
-      ],
-    ),
-    PlaylistItem(
-      name: 'Sample Show 2',
-      duration: 20,
-      layout: [
-        PartitionConfig(
-          id: 1,
-          type: ContentType.html,
-          content: '<h1>Live News Feed</h1><p>Latest updates here...</p>',
-          x: 0,
-          y: 0,
-          width: 1920,
-          height: 540,
-        ),
-        PartitionConfig(
-          id: 2,
-          type: ContentType.scrollText,
-          content:
-              'This is a scrolling text message that demonstrates the scroll text functionality in the digital signage system.',
-          x: 0,
-          y: 540,
-          width: 1920,
-          height: 540,
-        ),
-      ],
-    ),
-    PlaylistItem(
-      name: 'Sample Show 3',
-      duration: 25,
-      layout: [
-        PartitionConfig(
-          id: 1,
-          type: ContentType.slideshow,
-          content:
-              'https://picsum.photos/800/600,https://picsum.photos/800/601,https://picsum.photos/800/602',
-          x: 0,
-          y: 0,
-          width: 1920,
-          height: 720,
-        ),
-        PartitionConfig(
-          id: 2,
-          type: ContentType.liveInfo,
-          content: 'Current Time',
-          x: 0,
-          y: 720,
-          width: 1920,
-          height: 360,
-        ),
-      ],
-    ),
-  ];
-
   int currentShowIndex = 0;
   int nextShowIndex = 0;
   Timer? _timer;
   Timer? _exitHintTimer;
-  Timer? _playingTimer;
   DateTime? _lastTap;
   bool _exitHintShown = false;
   bool _showExitHint = false;
-  bool _isLoadingNext = false;
-  final Map<int, List<PreloadedContent>> _preloadedContents = {};
 
   @override
   void initState() {
@@ -173,137 +79,6 @@ class _DigitalSignageScreenState extends State<DigitalSignageScreen> {
       DeviceOrientation.landscapeRight,
       DeviceOrientation.landscapeLeft,
     ]);
-  }
-
-  // 预加载所有内容
-  void _preloadAllContents() async {
-    for (int i = 0; i < playlist.length; i++) {
-      await _preloadContentForShow(i);
-    }
-  }
-
-  // 预加载特定节目的内容
-  Future<void> _preloadContentForShow(int showIndex) async {
-    final show = playlist[showIndex];
-    List<PreloadedContent> preloaded = [];
-
-    for (final partition in show.layout) {
-      switch (partition.type) {
-        case ContentType.video:
-          final player = Player(
-            configuration: const PlayerConfiguration(
-              title: 'dcm',
-              osc: false,
-              muted: false,
-              async: true,
-              libass: false,
-              logLevel: MPVLogLevel.error,
-            ),
-          );
-
-          final video =
-              Media(LibraryHelper.normalizeMediaSource(partition.content));
-          player.open(video, play: App().settings.autoPlay);
-
-          final controller = VideoController(
-            player,
-            configuration: const VideoControllerConfiguration(
-              width: 800,
-              height: 600,
-            ),
-          );
-          player.setVolume(App().settings.volume);
-          preloaded.add(PreloadedContent(
-              type: ContentType.video, controller: controller));
-          /*if (partition.content.startsWith('http')) {
-            final controller = BasicVideoController.networkUrl(
-              Uri.parse(
-                'https://flutter.github.io/assets-for-api-docs/assets/videos/bee.mp4',
-              ),
-            )..initialize().then((_) {
-                // Ensure the first frame is shown after the video is initialized, even before the play button has been pressed.
-                setState(() {});
-              });
-            preloaded.add(PreloadedContent(
-                type: ContentType.video, controller: controller));
-          } else {
-            final controller =
-                BasicVideoController.file(File(partition.content));
-            await controller.initialize();
-            preloaded.add(PreloadedContent(
-                type: ContentType.video, controller: controller));
-          }*/
-          break;
-        case ContentType.image:
-          if (partition.content.startsWith('http')) {
-            await precacheImage(NetworkImage(partition.content), context);
-          } else {
-            await precacheImage(FileImage(File(partition.content)), context);
-          }
-          preloaded.add(PreloadedContent(
-              type: ContentType.image, imagePath: partition.content));
-          break;
-        case ContentType.text:
-        case ContentType.scrollText:
-        case ContentType.html:
-        case ContentType.liveInfo:
-          // 文本类内容不需要预加载
-          preloaded.add(
-              PreloadedContent(type: partition.type, text: partition.content));
-          break;
-        case ContentType.slideshow:
-          final images = partition.content.split(',');
-          for (final imageUrl in images) {
-            if (imageUrl.trim().startsWith('http')) {
-              await precacheImage(NetworkImage(imageUrl.trim()), context);
-            } else {
-              await precacheImage(FileImage(File(imageUrl.trim())), context);
-            }
-          }
-          preloaded.add(PreloadedContent(
-              type: ContentType.slideshow,
-              images: images.map((e) => e.trim()).toList()));
-          break;
-        default:
-          preloaded.add(PreloadedContent(type: partition.type));
-      }
-    }
-
-    _preloadedContents[showIndex] = preloaded;
-  }
-
-  // 预先加载下一个节目的内容
-  void _preloadNextShow() async {
-    if (_isLoadingNext) return;
-
-    _isLoadingNext = true;
-    nextShowIndex = (currentShowIndex + 1) % playlist.length;
-
-    // 预加载下一个节目的内容
-    if (!_preloadedContents.containsKey(nextShowIndex)) {
-      await _preloadContentForShow(nextShowIndex);
-    }
-
-    _isLoadingNext = false;
-  }
-
-  void _startPlaylist() {
-    if (playlist.isNotEmpty) {
-      _playCurrentShow();
-      _preloadNextShow(); // 预加载下一个节目
-    }
-  }
-
-  void _playCurrentShow() {
-    setState(() {}); // 更新UI
-
-    // 设置定时器切换到下一个节目
-    _timer?.cancel();
-    _timer = Timer(Duration(seconds: playlist[currentShowIndex].duration), () {
-      currentShowIndex = (currentShowIndex + 1) % playlist.length;
-      _playCurrentShow();
-      _preloadNextShow(); // 预加载新的下一个节目
-    });
   }
 
   void _exitApplication() {
@@ -348,14 +123,6 @@ class _DigitalSignageScreenState extends State<DigitalSignageScreen> {
   void dispose() {
     _timer?.cancel();
     _exitHintTimer?.cancel();
-    // 释放所有预加载的内容
-    for (final entry in _preloadedContents.entries) {
-      for (final content in entry.value) {
-        if (content.player != null) {
-          content.player!.dispose();
-        }
-      }
-    }
     super.dispose();
   }
 
@@ -373,7 +140,7 @@ class _DigitalSignageScreenState extends State<DigitalSignageScreen> {
         onTapDown: (_) => _handleExitTapDown(),
         onDoubleTap: _exitApplication,
         child: Scaffold(
-          backgroundColor: Colors.black,
+          backgroundColor: Color(DCMGlobal.clrBGColor),
           body: Consumer<PlayerScreenProvider>(
             builder:
                 (BuildContext context, playerScreenProvider, Widget? child) {
@@ -384,9 +151,17 @@ class _DigitalSignageScreenState extends State<DigitalSignageScreen> {
               }
               return LayoutBuilder(
                 builder: (context, constraints) {
-                  final mq = MediaQuery.of(context);
-                  final double screenWidth = mq.size.width;
-                  final double screenHeight = mq.size.height;
+                  double screenWidth;
+                  double screenHeight;
+                  if (playSkin.monitorRect.isEmpty) {
+                    final mq = MediaQuery.of(context);
+                    screenWidth = mq.size.width;
+                    screenHeight = mq.size.height;
+                  } else {
+                    screenWidth = playSkin.monitorRect.width;
+                    screenHeight = playSkin.monitorRect.height;
+                  }
+                  logD('Main windows size: $screenWidth x $screenHeight');
 
                   return SizedBox(
                     width: screenWidth,
@@ -404,6 +179,8 @@ class _DigitalSignageScreenState extends State<DigitalSignageScreen> {
                                 final top = partition.rect!.top;
                                 final w = partition.rect!.width;
                                 final h = partition.rect!.bottom;
+                                /*logD(
+                                    'Render partition ${partition.getZone()} at ($left, $top) with size ($w x $h)');*/
 
                                 return Positioned(
                                   left: left,
@@ -411,9 +188,8 @@ class _DigitalSignageScreenState extends State<DigitalSignageScreen> {
                                   width: w,
                                   height: h,
                                   child: Container(
-                                    margin: const EdgeInsets.all(0.0),
                                     decoration: BoxDecoration(
-                                      color: Colors.grey[800],
+                                      color: Color(DCMGlobal.clrBGColor),
                                       border: null,
                                       borderRadius: BorderRadius.zero,
                                     ),
@@ -480,92 +256,12 @@ class _DigitalSignageScreenState extends State<DigitalSignageScreen> {
       ),
     );
   }
-
-  Widget _buildPartitionContent(PartitionConfig config) {
-    // 尝试从预加载内容中获取对应的控制器或资源
-    final preloadedList = _preloadedContents[currentShowIndex];
-    if (preloadedList != null) {
-      final preloaded = preloadedList.firstWhere(
-        (element) => element.type == config.type,
-        orElse: () => PreloadedContent(type: ContentType.empty),
-      );
-
-      if (preloaded.controller != null && preloaded.player != null) {
-        // 视频内容使用预加载的控制器
-        return ClipRRect(
-          borderRadius: BorderRadius.zero,
-          child: BasicVideo(controller: preloaded.controller!),
-        );
-      }
-    }
-
-    // 如果没有预加载，则按需创建
-    switch (config.type) {
-      case ContentType.video:
-        if (config.content.startsWith('http')) {
-          return VideoPartition(url: config.content);
-        } else {
-          return VideoPartition(file: File(config.content));
-        }
-      case ContentType.image:
-        return Slideshow(imageFile: config.content);
-      case ContentType.text:
-        return Container(
-          alignment: Alignment.center,
-          padding: const EdgeInsets.all(16),
-          child: Text(
-            config.content,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-            ),
-            textAlign: TextAlign.center,
-          ),
-        );
-      case ContentType.scrollText:
-        return ScrollText(text: config.content);
-      case ContentType.html:
-        return HtmlPartition(html: config.content);
-      case ContentType.liveInfo:
-        return LiveInfoPartition(info: config.content);
-      case ContentType.slideshow:
-        return SlideshowPartition(
-            imageUrls: config.content.split(',')); // 假设图片URL用逗号分隔
-      default:
-        return Container(
-          color: Colors.grey[900],
-          child: const Center(
-            child: Icon(Icons.error, color: Colors.red),
-          ),
-        );
-    }
-  }
-}
-
-// 预加载内容类
-class PreloadedContent {
-  final ContentType type;
-  final VideoController? controller;
-  final Player? player;
-  final String? imagePath;
-  final String? text;
-  final List<String>? images;
-
-  PreloadedContent({
-    required this.type,
-    this.controller,
-    this.player,
-    this.imagePath,
-    this.text,
-    this.images,
-  });
 }
 
 // 分区配置类，使用像素定义位置与大小
 class PartitionConfig {
   final int id;
-  final ContentType type;
+  final int type;
   final String content; // URL、文件路径或文本内容
   final int x;
   final int y;

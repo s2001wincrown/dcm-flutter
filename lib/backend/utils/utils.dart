@@ -5,6 +5,7 @@ import 'package:dcm/backend/models/dcm_global.dart';
 import 'package:dcm/backend/models/eventitem_data.dart';
 import 'package:dcm/backend/models/product_data.dart';
 import 'package:dcm/backend/utils/encoder_utils.dart';
+import 'package:dcm/backend/utils/extensions.dart';
 import 'package:dcm/backend/utils/file_utils.dart';
 import 'package:dcm/backend/xml_settings/contenttype_manager.dart';
 import 'package:dcm/backend/xml_settings/dcmfile_Impl.dart';
@@ -88,7 +89,7 @@ class Utils {
     String strExt = path.extension(strFileName).toUpperCase();
     if (type == cIMAGETYPE && (ptype == cDIRECTPLAYTYPE || ptype == -1)) {
       // && ptype == -1
-      if (strExt.isNotEmpty && strExt == '.XML') {
+      if (strExt.isNotEmpty && !strExt.equalsIgnoreCase('.XML')) {
         nPtype = cDCMSINGLEIMAGETYPE;
       }
     }
@@ -485,5 +486,27 @@ class Utils {
     }
 
     return !lprcDst.isEmpty;
+  }
+
+  ///检查string是否为URL。
+  static bool isURL(String s) => hasMatch(s,
+      r"^((((H|h)(T|t)|(F|f))(T|t)(P|p)((S|s)?))://)?(www.|[a-zA-Z0-9].)[a-zA-Z0-9-.]+.[a-zA-Z]{2,6}(:[0-9]{1,5})*(/($|[a-zA-Z0-9.,;?'\+&amp;%$#=~_-]+))*$");
+
+  ///检查字符串是否为email。
+  static bool isEmail(String s) => hasMatch(s,
+      r'^(([^<>()[]\.,;:\s@"]+(.[^<>()[]\.,;:\s@"]+)*)|(".+"))@(([[0-9]{1,3}.[0-9]{1,3}.[0-9]{1,3}.[0-9]{1,3}])|(([a-zA-Z-0-9]+.)+[a-zA-Z]{2,}))$');
+
+  ///检查字符串是否为电话号码。
+  static bool isPhoneNumber(String s) {
+    if (s.length > 16 || s.length < 9) return false;
+    return hasMatch(s, r'^[+]*[(]{0,1}[0-9]{1,4}[)]{0,1}[-\s./0-9]*$');
+  }
+
+  ///检查string是否为DateTime (UTC或Iso8601)。
+  static bool isDateTime(String s) =>
+      hasMatch(s, r'^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}:\d{2}.\d{3}Z?$');
+
+  static bool hasMatch(String? value, String pattern) {
+    return (value == null) ? false : RegExp(pattern).hasMatch(value);
   }
 }

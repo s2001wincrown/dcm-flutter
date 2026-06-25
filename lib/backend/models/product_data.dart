@@ -70,13 +70,13 @@ class ProductData {
     // Get zones
     XmlItem? pItem = pXmlItem.getItem('m_lstZone');
     if (pItem != null) {
-      lstZone = [];
-      var pos = pItem.getFirstItemPos();
-      while (pos.moveNext()) {
-        XmlItem xiZoneData = pItem.getNextItem(pos);
+      lstZone.clear();
+      var pZoneItem = pItem.getItem('CZoneData');
+      while (pZoneItem != null) {
         ZoneData zone = ZoneData();
-        zone.getFromXML(xiZoneData);
+        zone.getFromXML(pZoneItem);
         lstZone.add(zone);
+        pZoneItem = pZoneItem.getSibling();
       }
     }
   }

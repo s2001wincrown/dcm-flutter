@@ -215,7 +215,7 @@ class XmlFile {
     for (var child in pNode.children) {
       if (child.nodeType == xml.XmlNodeType.COMMENT ||
           child.nodeType == xml.XmlNodeType.TEXT) {
-        logD('child: ${child.toXmlString()}');
+        //logD('child: ${child.toXmlString()}');
         continue;
       }
 

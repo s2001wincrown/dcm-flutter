@@ -1,6 +1,5 @@
 import 'dart:io';
 import 'dart:math';
-import 'dart:ui';
 
 import 'package:dcm/backend/constants.dart';
 import 'package:dcm/backend/models/dcm_global.dart';
@@ -309,9 +308,11 @@ class DcmSkinSetting {
     final cy = monitorRect.height;
     screenRect = Rect.fromLTWH(0, 0, cx, cy);
 
-    if (layout != null && layout!.width > 0 && layout!.height > 0) {
-      final fitted = _fitToSize(layout!, screenRect);
-      screenRect = fitted;
+    if (hasFlag(DCMGlobal.playMode, 2)) {
+      if (layout != null && layout!.width > 0 && layout!.height > 0) {
+        final fitted = _fitToSize(layout!, screenRect);
+        screenRect = fitted;
+      }
     }
 
     isTwoWindows = iniFile.readInt(skinCode, 'Two Windows', 0) > 0;
@@ -733,7 +734,7 @@ class DcmSkinSetting {
         display.size.width, display.size.height);
   }
 
-  Rect _fitToSize(Size source, Rect target) {
+  Rect _fitToSize(Size source, Rect target, [bool bOffset = false]) {
     if (source.width <= 0 || source.height <= 0) {
       return target;
     }
@@ -741,8 +742,13 @@ class DcmSkinSetting {
         min(target.width / source.width, target.height / source.height);
     final width = source.width * ratio;
     final height = source.height * ratio;
-    final left = target.left + (target.width - width) / 2;
-    final top = target.top + (target.height - height) / 2;
+    var left = (target.width - width) / 2;
+    var top = (target.height - height) / 2;
+    if (bOffset) {
+      left += target.left;
+      top += target.top;
+    }
+
     return Rect.fromLTWH(left, top, width, height);
   }
 
