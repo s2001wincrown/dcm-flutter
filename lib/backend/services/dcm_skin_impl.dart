@@ -9,6 +9,7 @@ import 'package:dcm/backend/models/zone_rect_data.dart';
 import 'package:dcm/backend/utils/log_utils.dart';
 import 'package:dcm/backend/utils/string_utils.dart';
 import 'package:dcm/backend/xmlfile/inifile.dart';
+import 'package:dcm/main.dart';
 import 'package:nativeapi/nativeapi.dart';
 
 enum DcmSkinType { gdi, html, d2d, html5 }
@@ -107,7 +108,8 @@ class DcmSkinSetting {
   Rect playerRect2 = Rect.zero;
   Rect screenRect = Rect.zero;
   Rect imageRect = Rect.zero;
-  Rect monitorRect = Rect.zero;
+  Rect monitorRect =
+      Rect.fromLTWH(0, 0, primaryDisplaySize.width, primaryDisplaySize.height);
   Rect touchScreenRect = Rect.zero;
   Map<int, Rect> ahMessageRects = {};
   List<ZoneRectData> zoneRects = [];
@@ -642,7 +644,8 @@ class DcmSkinSetting {
     playerRect2 = Rect.zero;
     screenRect = Rect.zero;
     imageRect = Rect.zero;
-    monitorRect = Rect.zero;
+    monitorRect = Rect.fromLTWH(
+        0, 0, primaryDisplaySize.width, primaryDisplaySize.height);
     touchScreenRect = Rect.zero;
     ahMessageRects.clear();
     zoneRects.clear();

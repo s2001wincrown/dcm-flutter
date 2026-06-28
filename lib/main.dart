@@ -18,6 +18,7 @@ import 'package:window_manager/window_manager.dart';
 
 final localhostServer = InAppLocalhostServer(documentRoot: 'assets');
 WebViewEnvironment? webViewEnvironment;
+Size primaryDisplaySize = const Size(1920, 1080);
 void main(List<String> arguments) async {
   WidgetsFlutterBinding.ensureInitialized();
   MediaKit.ensureInitialized();
@@ -47,24 +48,27 @@ void main(List<String> arguments) async {
     final displayManager = display_manager.DisplayManager.instance;
     final primaryDisplay = displayManager.getPrimary();
     //final primaryDisplay = await screenRetriever.getPrimaryDisplay();
-    final windowSize = primaryDisplay!.size;
-    logD('main - windowSize: $windowSize');
-    WindowOptions windowOptions = WindowOptions(
-      size: windowSize,
+    if (primaryDisplay != null) {
+      primaryDisplaySize = primaryDisplay.size;
+    }
+    logD(
+        'main - windowSize: ${primaryDisplaySize.width * windowManager.getDevicePixelRatio()}x${primaryDisplaySize.height * windowManager.getDevicePixelRatio()}, DevicePixelRatio: ${windowManager.getDevicePixelRatio()}');
+    WindowOptions windowOptions = const WindowOptions(
+      //size: primaryDisplaySize,
       center: false,
-      minimumSize: const Size(700, 500),
+      //minimumSize: primaryDisplaySize,
       backgroundColor: Colors.black,
       titleBarStyle: TitleBarStyle.hidden,
-      fullScreen: true,
+      fullScreen: false,
       skipTaskbar: true,
       alwaysOnTop: false,
     );
     windowManager.waitUntilReadyToShow(windowOptions, () async {
-      /*await windowManager.setBounds(
-        Rect.fromLTWH(0, 0, windowSize.width, windowSize.height),
-      );*/
-      await windowManager.setFullScreen(true);
+      //await windowManager.setFullScreen(true);
       //await windowManager.setAlwaysOnTop(true);
+      await windowManager.setAsFrameless();
+      await windowManager.setBounds(Rect.fromLTWH(
+          0, 0, primaryDisplaySize.width, primaryDisplaySize.height));
       await windowManager.show();
       await windowManager.focus();
     });

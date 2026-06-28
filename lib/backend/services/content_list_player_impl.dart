@@ -40,7 +40,7 @@ class ContentListPlayerImpl {
   List<Rect>? _arrZoneRect;
   Map<String, LayoutData>? _mapLayouts;
   List<ProductData>? _lstProduct;
-  Map<ZoneData, PreloadedContent>? _mapPreloadedContents;
+  Map<String, PreloadedContent>? _mapPreloadedContents;
 
   ProductData? _pProductData;
   bool _bIsPlaying = false;
@@ -351,7 +351,7 @@ class ContentListPlayerImpl {
               pZoneData, context,
               company: _strCompany);
           if (proloadContent != null) {
-            _mapPreloadedContents?[pZoneData] = proloadContent;
+            _mapPreloadedContents?[proloadContent.filePath] = proloadContent;
           }
         }
       }
@@ -393,8 +393,7 @@ class ContentListPlayerImpl {
 
   void deleteZoneImpl(int nZone) {
     while (_players.length > nZone) {
-      PlayerZoneImpl pImpl = _players.elementAt(nZone);
-      pImpl.stopPlay();
+      _players[nZone].stopPlay();
       _players.removeAt(nZone);
     }
   }
@@ -403,12 +402,28 @@ class ContentListPlayerImpl {
     /*if (_bIsPlaying)
       return;*/
     deleteZoneImpl(0);
-    _mapPreloadedContents?.clear();
+    //_mapPreloadedContents?.clear();
     _nPrevTotalZone = -1;
     //_nPlayAHItem = -1;
     //_dwPlayADItem = 0;
     //g_pPlayerWnd->DetachMZThread(_nZone);
     _bIsPlaying = false;
+  }
+
+  void release() {
+    _bIsPlaying = false;
+    _players.clear();
+    if (_mapPreloadedContents != null && _mapPreloadedContents!.isNotEmpty) {
+      for (var preloadedContent in _mapPreloadedContents!.values) {
+        preloadedContent.release();
+      }
+      _mapPreloadedContents!.clear();
+    }
+
+    _nPrevTotalZone = -1;
+    //_nPlayAHItem = -1;
+    //_dwPlayADItem = 0;
+    //g_pPlayerWnd->DetachMZThread(_nZone);
   }
 
   void play([int nStart = 0]) {
@@ -540,7 +555,7 @@ class ContentListPlayerImpl {
         }
       }
       logD(
-          '''ContentListPlayerImpl - playProduct, Zone:'$_nZone', Content list item: '$nIndex'; SetPlayerRect: '$rect', TID: '$pid'.''');
+          '''ContentListPlayerImpl - playProduct, Zone:'$_nZone', Content list item: '$nIndex'; SetPlayerRect: '$rect', _mapPreloadedContents: '${_mapPreloadedContents?.length}'.''');
     }
 
     for (nZone = 0; nZone < nMaxZone; nZone++) {
@@ -568,7 +583,7 @@ class ContentListPlayerImpl {
       pZoneImpl!.setZone(nZone);
       pZoneImpl.setProductData(_pProductData);
       pZoneImpl.setAHPlaying(_bIsAHPlaying);
-      pZoneImpl.initZone(_mapPreloadedContents![pData]);
+      pZoneImpl.initZone(_mapPreloadedContents);
       if (bStart) {
         /*if (!pZoneImpl.renderZone(pNextData)) {
             playNextProduct();
@@ -605,7 +620,7 @@ class ContentListPlayerImpl {
   }
 
   bool notNeedStop(ZoneData pCurr, ZoneData? pNext) {
-    if (pCurr.nZoneType == cVIDEOTYPE) {
+    /*if (pCurr.nZoneType == cVIDEOTYPE) {
       if (pNext != null) {
         if (pNext.nZoneType == cVIDEOTYPE) {
           return true;
@@ -630,7 +645,7 @@ class ContentListPlayerImpl {
           return true;
         }
       }
-    }
+    }*/
 
     return false;
   }

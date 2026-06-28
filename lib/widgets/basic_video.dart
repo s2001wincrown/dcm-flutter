@@ -1,11 +1,9 @@
 import 'dart:async';
 
-import 'package:file_picker/file_picker.dart';
+import 'package:dcm/backend/app.dart';
+import 'package:dcm/backend/models/dcm_global.dart';
 import 'package:flutter/material.dart';
 import 'package:media_kit_video/media_kit_video.dart';
-import 'package:dcm/backend/app.dart';
-import 'package:dcm/backend/models/playitem.dart';
-import 'package:dcm/backend/utils/l10n_utils.dart';
 
 /// a simple implementaion of `media_kit_video` Video Widget
 class BasicVideo extends StatefulWidget {
@@ -87,84 +85,8 @@ class _BasicVideoState extends State<BasicVideo> {
                     ),
                   );
                 }
-                return Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      TextButton.icon(
-                        onPressed: () async {
-                          var res = await FilePicker.platform
-                              .pickFiles(lockParentWindow: true);
-                          if (res != null) {
-                            String link = res.files.single.path!;
-                            App().openMedia(
-                              PlayItem(source: link, title: link),
-                            );
-                          }
-                        },
-                        icon: const Icon(
-                          Icons.file_open_outlined,
-                          color: Colors.white,
-                        ),
-                        label: Text(
-                          '打开文件'.l10n,
-                          style: const TextStyle(color: Colors.white),
-                        ),
-                      ),
-                      TextButton.icon(
-                        onPressed: () {
-                          var editingController = TextEditingController();
-                          App().dialog(
-                            (BuildContext context) => AlertDialog(
-                              surfaceTintColor: Colors.transparent,
-                              title: Text('播放网络串流'.l10n),
-                              content: TextField(
-                                autofocus: true,
-                                maxLines: 1,
-                                controller: editingController,
-                                decoration: const InputDecoration(
-                                  prefixIcon: Icon(Icons.link),
-                                  border: OutlineInputBorder(),
-                                  labelText: 'URL',
-                                ),
-                                onSubmitted: (value) async {
-                                  String link = value;
-                                  App().openMedia(
-                                    PlayItem(source: link, title: link),
-                                  );
-                                },
-                              ),
-                              actions: <Widget>[
-                                TextButton(
-                                  onPressed: () {
-                                    Navigator.pop(context);
-                                  },
-                                  child: Text('取消'.l10n),
-                                ),
-                                TextButton(
-                                  onPressed: () async {
-                                    String link = editingController.text;
-                                    App().openMedia(
-                                      PlayItem(source: link, title: link),
-                                    );
-                                  },
-                                  child: Text('确定'.l10n),
-                                ),
-                              ],
-                            ),
-                          );
-                        },
-                        icon: const Icon(
-                          Icons.link,
-                          color: Colors.white,
-                        ),
-                        label: Text(
-                          '打开 URL'.l10n,
-                          style: const TextStyle(color: Colors.white),
-                        ),
-                      ),
-                    ],
-                  ),
+                return Container(
+                  color: Color(DCMGlobal.clrBGColor),
                 );
               },
             );

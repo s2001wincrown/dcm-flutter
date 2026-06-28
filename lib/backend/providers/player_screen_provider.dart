@@ -30,7 +30,6 @@ class PlayerScreenProvider extends ChangeNotifier {
   int currentShowIndex = 0;
   int nextShowIndex = 0;
   Timer? _timer;
-  Timer? _exitHintTimer;
   Timer? _playingTimer;
   final List<PlayerZoneImpl> _playerZones = [];
 
@@ -1935,6 +1934,14 @@ class PlayerScreenProvider extends ChangeNotifier {
     }*/
   }
 
+  void release() {
+    stopTimer();
+    stopPlayingTimer();
+    resetMusicPlayer();
+    deleteZoneThread(0);
+    deleteMessageThreadByOutput(cINTMIN);
+  }
+
   void videoStatusControl(int nVideoStatus) {}
 
   void tvChannelControl(int nNewChannel) {}
@@ -2272,8 +2279,8 @@ class PlayerScreenProvider extends ChangeNotifier {
 
   @override
   void dispose() {
+    logI('PlayerScreenProvider dispose');
     _timer?.cancel();
-    _exitHintTimer?.cancel();
     _playingTimer?.cancel();
 
     super.dispose();
