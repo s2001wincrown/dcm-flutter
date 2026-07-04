@@ -509,4 +509,9 @@ class Utils {
   static bool hasMatch(String? value, String pattern) {
     return (value == null) ? false : RegExp(pattern).hasMatch(value);
   }
+
+  static Color fromRGB(int color) {
+    return Color.fromARGB(
+        255, (color >> 16) & 0xFF, (color >> 8) & 0xFF, (color >> 0) & 0xFF);
+  }
 }

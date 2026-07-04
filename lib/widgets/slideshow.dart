@@ -13,9 +13,14 @@ import 'package:transparent_image/transparent_image.dart';
 
 class Slideshow extends StatefulWidget {
   final String imageFile;
+  final Rect rect;
   final bool cached;
 
-  const Slideshow({super.key, required this.imageFile, this.cached = false});
+  const Slideshow(
+      {super.key,
+      required this.imageFile,
+      required this.rect,
+      this.cached = false});
 
   @override
   State<Slideshow> createState() => _SlideshowState();
@@ -23,6 +28,7 @@ class Slideshow extends StatefulWidget {
 
 class _SlideshowState extends State<Slideshow> {
   int _currentIndex = 0;
+  bool shouldExit = false;
   Timer? _timer;
   SlideShowData? _slideShowData;
   final List<String> imageUrls = [];
@@ -51,7 +57,7 @@ class _SlideshowState extends State<Slideshow> {
     }
 
     if (imageUrls.length > 1) {
-      _timer = Timer.periodic(
+      /*_timer = Timer.periodic(
           Duration(
               seconds: _slideShowData == null ? 8 : _slideShowData!.nPerSecond),
           (timer) {
@@ -60,11 +66,35 @@ class _SlideshowState extends State<Slideshow> {
           logD(
               '''Slideshow - _currentIndex: $_currentIndex, images: "${imageUrls[_currentIndex]}".''');
         });
+      });*/
+      _timer = Timer(Duration.zero, () async {
+        while (!shouldExit) {
+          await Future.delayed(
+              Duration(milliseconds: getImageDuration(_currentIndex)));
+          if (shouldExit) break;
+          setState(() {
+            _currentIndex = (_currentIndex + 1) % imageUrls.length;
+            logD(
+                '''Slideshow - _currentIndex: $_currentIndex, images: "${imageUrls[_currentIndex]}".''');
+          });
+        }
       });
     } /*else {
       logD(
           '''Slideshow - _currentIndex: $_currentIndex, images: "${imageUrls[_currentIndex]}".''');
     }*/
+  }
+
+  int getImageDuration(int nIndex /* = 0*/) {
+    if (_slideShowData != null &&
+        _slideShowData!.arrDuration != null &&
+        _slideShowData!.arrDuration!.length > nIndex) {
+      return _slideShowData!.arrDuration![nIndex] * 1000;
+    } else if (_slideShowData != null) {
+      return _slideShowData!.nPerSecond * 1000;
+    }
+
+    return 8000;
   }
 
   void parser(String filePath) {
@@ -116,24 +146,28 @@ class _SlideshowState extends State<Slideshow> {
 
   @override
   void dispose() {
+    shouldExit = true;
     _timer?.cancel();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    //logD(
+    //    'Slideshow - rect size: (${widget.rect.width} x ${widget.rect.height})');
     if (imageUrls.isEmpty) {
       if (_slideShowData != null && _slideShowData!.strBGFile.isNotEmpty) {
         String bgImageFilePath = Utils.getFilePath(
             _slideShowData!.strBGFile, cIMAGETYPE, cDCMSINGLEIMAGETYPE, null);
         return Image.file(
           File(bgImageFilePath),
-          width: double.maxFinite,
+          width: widget.rect.width,
+          height: widget.rect.height,
           fit: BoxFit.cover,
           errorBuilder: (context, error, stackTrace) {
             return Container(
               color: _slideShowData != null
-                  ? Color(_slideShowData!.crBGColor)
+                  ? Utils.fromRGB(_slideShowData!.crBGColor)
                   : Colors.black,
             );
           },
@@ -141,7 +175,7 @@ class _SlideshowState extends State<Slideshow> {
       } else {
         return Container(
           color: _slideShowData != null
-              ? Color(_slideShowData!.crBGColor)
+              ? Utils.fromRGB(_slideShowData!.crBGColor)
               : Colors.black,
         );
       }
@@ -152,13 +186,17 @@ class _SlideshowState extends State<Slideshow> {
       child: FadeInImage(
         placeholder: Image.memory(kTransparentImage).image,
         image: FileImage(File(imageUrls[_currentIndex])),
-        fit: BoxFit.cover,
+        fit: (_slideShowData != null && _slideShowData!.bAspectRatio)
+            ? BoxFit.contain
+            : BoxFit.fill,
+        width: widget.rect.width,
+        height: widget.rect.height,
         imageErrorBuilder: (context, error, stackTrace) {
           logE(
               '''Slideshow - show image file: "${imageUrls[_currentIndex]}" failed, error: $error, stackTrace: $stackTrace.''');
           return Container(
             color: _slideShowData != null
-                ? Color(_slideShowData!.crBGColor)
+                ? Utils.fromRGB(_slideShowData!.crBGColor)
                 : Colors.black,
           );
         },

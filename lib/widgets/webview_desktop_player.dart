@@ -1,5 +1,7 @@
 import 'dart:collection';
 
+import 'package:dcm/backend/constants.dart';
+import 'package:dcm/backend/models/dcm_global.dart';
 import 'package:dcm/backend/utils/log_utils.dart';
 import 'package:dcm/backend/utils/string_utils.dart';
 import 'package:dcm/main.dart';
@@ -26,6 +28,9 @@ class _WebviewDesktopPlayerState extends State<WebviewDesktopPlayer> {
       isInspectable: kDebugMode,
       mediaPlaybackRequiresUserGesture: false,
       allowsInlineMediaPlayback: true,
+      disableContextMenu: true,
+      verticalScrollBarEnabled: hasFlag(DCMGlobal.ieSetting, 0x0001),
+      horizontalScrollBarEnabled: hasFlag(DCMGlobal.ieSetting, 0x0002),
       iframeAllow: "camera; microphone",
       iframeAllowFullscreen: true);
 
@@ -86,7 +91,8 @@ class _WebviewDesktopPlayerState extends State<WebviewDesktopPlayer> {
         webViewController = controller;
       },
       onLoadStart: (controller, url) async {
-        logD('onLoadStart: ${url.toString()}');
+        logD(
+            'onLoadStart: ${url.toString()}; DCMGlobal.ieSetting=${DCMGlobal.ieSetting}');
         setState(() {
           this.url = url.toString();
         });

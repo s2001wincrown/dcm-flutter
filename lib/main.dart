@@ -1,10 +1,12 @@
 import 'package:dcm/backend/app.dart';
 import 'package:dcm/backend/keymap_helper.dart';
+import 'package:dcm/backend/models/dcm_global.dart';
 import 'package:dcm/backend/providers/player_screen_provider.dart';
 import 'package:dcm/backend/services/schedulelist_impl.dart';
 import 'package:dcm/backend/utils/l10n_utils.dart';
 import 'package:dcm/backend/utils/log_utils.dart';
 import 'package:dcm/backend/utils/platform_utils.dart';
+import 'package:dcm/backend/utils/utils.dart';
 import 'package:dcm/pages/multi_partition_screen.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -53,11 +55,11 @@ void main(List<String> arguments) async {
     }
     logD(
         'main - windowSize: ${primaryDisplaySize.width * windowManager.getDevicePixelRatio()}x${primaryDisplaySize.height * windowManager.getDevicePixelRatio()}, DevicePixelRatio: ${windowManager.getDevicePixelRatio()}');
-    WindowOptions windowOptions = const WindowOptions(
-      //size: primaryDisplaySize,
+    WindowOptions windowOptions = WindowOptions(
+      //size: Size(0, 0),
       center: false,
-      //minimumSize: primaryDisplaySize,
-      backgroundColor: Colors.black,
+      //minimumSize: Size(0, 0),
+      backgroundColor: Utils.fromRGB(DCMGlobal.clrBGColor),
       titleBarStyle: TitleBarStyle.hidden,
       fullScreen: false,
       skipTaskbar: true,
@@ -71,6 +73,7 @@ void main(List<String> arguments) async {
           0, 0, primaryDisplaySize.width, primaryDisplaySize.height));
       await windowManager.show();
       await windowManager.focus();
+      DigitalSignageScreen.refresh?.call();
     });
   }
 

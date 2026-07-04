@@ -46,11 +46,11 @@ class ContentListPlayerImpl {
   bool _bIsPlaying = false;
   bool _bNeedStop = false;
 
-  late int _nCurrProduct;
+  int _nCurrProduct = 0;
   int _nContentType;
   int _nPType = -1;
   int _nZone;
-  late int _nPrevTotalZone;
+  int _nPrevTotalZone = 0;
 
   int _nPlayAHItem = -1;
   int _dwPlayADItem = 0;
@@ -205,14 +205,16 @@ class ContentListPlayerImpl {
   }
 
   //return next product data
-  ProductData? getProductData({int nProduct = 0}) {
-    if (_lstProduct == null) return null;
+  ({bool status, ProductData? pNextData}) getProductData({int nProduct = 0}) {
+    if (_lstProduct == null) return (status: false, pNextData: null);
 
     int nIndex = 0;
     ProductData? pFirst;
     ProductData? pNextData;
-    for (var pData in _lstProduct!) {
-      if (isTimeForPlay(pData)) {
+    bool bExisted = false;
+    for (int i = 0; i < _lstProduct!.length; i++) {
+      ProductData? pData = getProductDataByID(i);
+      if (pData != null && isTimeForPlay(pData)) {
         if (nIndex == 0) {
           pFirst = pData;
         }
@@ -220,6 +222,7 @@ class ContentListPlayerImpl {
         if (nIndex == nProduct) {
           _pProductData = pData;
           _strLayout = pData.strProductDesc;
+          bExisted = true;
         } else if (nIndex == nProduct + 1) {
           pNextData = pData;
           break;
@@ -227,9 +230,10 @@ class ContentListPlayerImpl {
         nIndex++;
       }
     }
+
     pNextData ??= pFirst;
 
-    return pNextData;
+    return (status: bExisted, pNextData: pNextData);
   }
 
   ProductData? getProductDataByID([int nProductID = 0]) {
@@ -506,7 +510,13 @@ class ContentListPlayerImpl {
     ProductData? pNextProduct;
     ProductData? pCurrProduct = _pProductData;
     _nCurrProduct = nIndex;
-    pNextProduct = getProductData(nProduct: nIndex);
+    var result = getProductData(nProduct: nIndex);
+    if (!result.status) {
+      playNextProduct();
+      return;
+    }
+
+    pNextProduct = result.pNextData;
     if (_nPType != cEVENTTYPE && _nPlayAHItem == -1 && _dwPlayADItem == 0) {
       ScheduleList().setContentListIndex(_nZone, nIndex, _lstProduct!.length);
     }
@@ -674,13 +684,12 @@ class ContentListPlayerImpl {
     DateTime dwSecondTime = DateTime.now();
 
     double rtPos = 0;
-    double rtPlayerDuration = 0;
     for (PlayerZoneImpl pPlayer in _players) {
       double rtCurrPos1 = dwSecondTime
           .difference(pPlayer.getStartPlayTime())
           .inMilliseconds
           .toDouble();
-      var result = pPlayer.getCurrentPosition(rtPos);
+      var result = pPlayer.getCurrentPosition();
       if (!result.status) {
         rtPos = rtCurrPos1 / Duration.millisecondsPerSecond;
       } else {

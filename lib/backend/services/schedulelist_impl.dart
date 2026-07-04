@@ -541,62 +541,62 @@ class ScheduleList {
     return bAHPlaylist;
   }
 
-  bool startPlayAHItem(StringBuffer strDCMFile) {
+  ({bool status, String? strDCMFile}) startPlayAHItem() {
     if (arrEvent.isEmpty) {
-      strDCMFile.write(dcmFile);
-
-      return true;
+      return (status: true, strDCMFile: dcmFile);
     }
 
     PlayList? pPlayList = getCurrPlaylist();
-    if (pPlayList != null && pPlayList.startPlayAHItem(strDCMFile)) {
-      return true;
+    if (pPlayList != null) {
+      var result = pPlayList.startPlayAHItem();
+      if (result.status) {
+        return result;
+      }
     }
 
-    return false;
+    return (status: false, strDCMFile: null);
   }
 
-  bool returnPlayNormalItem(StringBuffer strDCMFile) {
+  ({bool status, String? strDCMFile}) returnPlayNormalItem() {
     if (arrEvent.isEmpty) {
-      strDCMFile.write(dcmFile);
-      return true;
+      return (status: true, strDCMFile: dcmFile);
     }
 
     PlayList? pPlayList = getCurrPlaylist();
-    if (pPlayList != null && pPlayList.returnPlayNormalItem(strDCMFile)) {
-      return true;
+    if (pPlayList != null) {
+      var result = pPlayList.returnPlayNormalItem();
+      if (result.status) {
+        return result;
+      }
     }
 
-    return false;
+    return (status: false, strDCMFile: null);
   }
 
-  bool playFileList(StringBuffer outFile) {
+  ({bool status, String? strDCMFile}) playFileList() {
     if (arrEvent.isEmpty) {
-      outFile.write(dcmFile);
-      return true;
+      return (status: true, strDCMFile: dcmFile);
     }
 
     var nPlaylist = getPlaylistForPlay();
     if (nPlaylist != -1) {
       var pPlayList = getPlayList(arrEvent[nPlaylist].value);
       if (pPlayList != null) {
-        var dtCurr = DateTime.now();
-        pPlayList.adjustAHTime(dtCurr);
-        if (pPlayList.playFileList(outFile)) {
+        pPlayList.adjustAHTime(DateTime.now());
+        var result = pPlayList.playFileList();
+        if (result.status) {
           playListIndex = nPlaylist;
-          return true;
+          return result;
         }
       }
     }
 
-    return false;
+    return (status: false, strDCMFile: null);
   }
 
-  bool playNextPlaylist(StringBuffer strDCMFile) {
+  ({bool status, String? strDCMFile}) playNextPlaylist() {
     if (arrEvent.isEmpty) {
-      strDCMFile.write(dcmFile);
-
-      return true;
+      return (status: true, strDCMFile: dcmFile);
     }
 
     DateTime dtCurr = DateTime.now();
@@ -610,14 +610,15 @@ class ScheduleList {
       PlayList? pPlayList = getPlayList(arrEvent[nPlaylist].key);
       if (pPlayList != null) {
         pPlayList.adjustAHTime(dtCurr);
-        if (pPlayList.playNextPlaylist(strDCMFile)) {
+        var result = pPlayList.playNextPlaylist();
+        if (result.status) {
           playListIndex = nPlaylist;
-          return true;
+          return result;
         }
       }
     }
 
-    return false;
+    return (status: false, strDCMFile: null);
   }
 
   int getPlaylistForPlay() {
@@ -659,38 +660,35 @@ class ScheduleList {
     return strCompany;
   }
 
-  bool playNextFile(StringBuffer outDCMFile) {
+  ({bool status, String? strDCMFile}) playNextFile() {
     if (arrEvent.isEmpty) {
-      outDCMFile.write(dcmFile);
-      return true;
+      return (status: true, strDCMFile: dcmFile);
     }
 
     var pPlayList = getCurrPlaylist();
-    if (pPlayList != null && pPlayList.playNextFile(outDCMFile)) {
-      return true;
+    if (pPlayList != null) {
+      return pPlayList.playNextFile();
     }
 
-    return false;
+    return (status: false, strDCMFile: null);
   }
 
-  bool playNextGroup(StringBuffer strDCMFile) {
+  ({bool status, String? strDCMFile}) playNextGroup() {
     if (arrEvent.isEmpty) {
-      strDCMFile.write(dcmFile);
-      return true;
+      return (status: true, strDCMFile: dcmFile);
     }
 
     PlayList? pPlayList = getCurrPlaylist();
-    if (pPlayList != null && pPlayList.playNextFile(strDCMFile)) {
-      return true;
+    if (pPlayList != null) {
+      return pPlayList.playNextFile();
     }
 
-    return false;
+    return (status: false, strDCMFile: null);
   }
 
-  bool playCurrFile(StringBuffer strDCMFile) {
+  ({bool status, String? strDCMFile}) playCurrFile() {
     if (arrEvent.isEmpty) {
-      strDCMFile.write(dcmFile);
-      return true;
+      return (status: true, strDCMFile: dcmFile);
     }
 
     if (arrEvent.length <= playListIndex) {
@@ -698,56 +696,63 @@ class ScheduleList {
     } else {
       if (arrEvent.length == 1) {
         PlayList? pPlayList = getPlayList(arrEvent[0].key);
-        if (pPlayList != null && pPlayList.playCurrFile(strDCMFile)) {
-          pPlayList.adjustAHTime(DateTime.now());
-          playListIndex = 0;
+        if (pPlayList != null) {
+          var result = pPlayList.playCurrFile();
+          if (result.status) {
+            pPlayList.adjustAHTime(DateTime.now());
+            playListIndex = 0;
 
-          return true;
+            return result;
+          }
         }
       }
 
       int nPlaylist = getPlaylistForPlay();
       if (nPlaylist != -1) {
         PlayList? pPlayList = getPlayList(arrEvent[nPlaylist].key);
-        if (pPlayList != null && pPlayList.playCurrFile(strDCMFile)) {
-          pPlayList.adjustAHTime(DateTime.now());
-          playListIndex = nPlaylist;
-          return true;
+        if (pPlayList != null) {
+          var result = pPlayList.playCurrFile();
+          if (result.status) {
+            pPlayList.adjustAHTime(DateTime.now());
+            playListIndex = nPlaylist;
+            return result;
+          }
         }
       }
     }
 
-    if (strDCMFile.isEmpty && !validPlayFileList(playListIndex, strDCMFile)) {
-      return false;
-    }
-
-    return true;
+    return validPlayFileList(playListIndex);
   }
 
   String getPlayFile() {
-    var strDCMFile = StringBuffer();
-    validPlayFileList(0, strDCMFile, true);
-    return strDCMFile.toString();
+    var result = validPlayFileList(0, true);
+    return result.strDCMFile ?? '';
   }
 
-  bool getFirstAHFile(StringBuffer strDCMFile) {
+  ({bool status, String? strDCMFile}) getFirstAHFile() {
     if (playListIndex < arrEvent.length) {
       PlayList? pPlayList = getPlayList(arrEvent[playListIndex].key);
-      if (pPlayList != null && pPlayList.getFirstAHFile(strDCMFile)) {
-        return true;
+      if (pPlayList != null) {
+        var result = pPlayList.getFirstAHFile();
+        if (result.status) {
+          return result;
+        }
       }
     }
 
-    return false;
+    return (status: false, strDCMFile: null);
   }
 
-  bool validPlayFileList(int nStart, StringBuffer strDCMFile,
+  ({bool status, String? strDCMFile}) validPlayFileList(int nStart,
       [bool bSeq = true]) {
     if (arrEvent.length == 1) {
       var pPlayList = getPlayList(arrEvent[0].key);
-      if (pPlayList != null && pPlayList.playNextFile(strDCMFile)) {
-        playListIndex = 0;
-        return true;
+      if (pPlayList != null) {
+        var result = pPlayList.playNextFile();
+        if (result.status) {
+          playListIndex = 0;
+          return result;
+        }
       }
     }
 
@@ -756,17 +761,22 @@ class ScheduleList {
     var dtStartTime1 = scheduleStart;
     bool bPlaylist = false;
 
+    String? validDCMFile;
     if (bSeq) {
       for (int i = (nStart < 0 ? 0 : nStart); i < arrEvent.length; i++) {
         var pPlayList = getPlayList(arrEvent[i].key);
         if (pPlayList != null) {
           var result = pPlayList.isTimeForStartPlay(dtCurr, dtStartTime);
-          if (result.timeForPlay && pPlayList.playNextFile(strDCMFile)) {
-            dtStartTime = result.dtStartTime!;
-            if (dtStartTime.compareTo(dtStartTime1!) >= 0) {
-              dtStartTime1 = dtStartTime;
-              playListIndex = i;
-              bPlaylist = true;
+          if (result.timeForPlay) {
+            var playNextResult = pPlayList.playNextFile();
+            if (playNextResult.status) {
+              dtStartTime = result.dtStartTime!;
+              if (dtStartTime.compareTo(dtStartTime1!) >= 0) {
+                dtStartTime1 = dtStartTime;
+                playListIndex = i;
+                bPlaylist = true;
+                validDCMFile = playNextResult.strDCMFile;
+              }
             }
           }
         }
@@ -776,19 +786,23 @@ class ScheduleList {
         var pPlayList = getPlayList(arrEvent[i].key);
         if (pPlayList != null) {
           var result = pPlayList.isTimeForStartPlay(dtCurr, dtStartTime);
-          if (result.timeForPlay && pPlayList.playNextFile(strDCMFile)) {
-            dtStartTime = result.dtStartTime!;
-            if (dtStartTime.compareTo(dtStartTime1!) >= 0) {
-              dtStartTime1 = dtStartTime;
-              playListIndex = i;
-              bPlaylist = true;
+          if (result.timeForPlay) {
+            var playNextResult = pPlayList.playNextFile();
+            if (playNextResult.status) {
+              dtStartTime = result.dtStartTime!;
+              if (dtStartTime.compareTo(dtStartTime1!) >= 0) {
+                dtStartTime1 = dtStartTime;
+                playListIndex = i;
+                bPlaylist = true;
+                validDCMFile = playNextResult.strDCMFile;
+              }
             }
           }
         }
       }
     }
 
-    return bPlaylist;
+    return (status: bPlaylist, strDCMFile: validDCMFile);
   }
 
   int getPlayMeth() => playMeth;
@@ -1261,7 +1275,7 @@ class ScheduleList {
   bool hasPowerPoint(int nCurrProduct) {
     return catalogue.hasPowerPoint(nCurrProduct);
   }
-  //bool isLastProduct() { return (catalogue.m_nQuantity <= m_nCurrProduct + 1);}
+  //bool isLastProduct() { return (catalogue.m_nQuantity <= _nCurrProduct + 1);}
 
   bool loadState() => true;
   bool saveState() => true;

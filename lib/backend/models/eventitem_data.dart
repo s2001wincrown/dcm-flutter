@@ -365,19 +365,19 @@ class EventItemData {
   }
 
   // 播放下一个文件
-  bool playNextFile(StringBuffer outDCMFile, int nCurrPlay,
+  ({bool status, int nCurrPlay, String? strDCMFile}) playNextFile(int nCurrPlay,
       {String? strCompany}) {
     if (arrDCMFile != null && nCurrPlay < arrDCMFile!.length - 1) {
       for (int i = nCurrPlay + 1; i < arrDCMFile!.length; i++) {
         String strPlayFile =
             Utils.getFilePath(arrDCMFile![i], cDCMFILETYPE, -1, strCompany);
         if (File(strPlayFile).existsSync()) {
-          outDCMFile.write(arrDCMFile![i]);
-          return true;
+          nCurrPlay = i;
+          return (status: true, nCurrPlay: i, strDCMFile: arrDCMFile![i]);
         }
       }
     }
-    return false;
+    return (status: false, nCurrPlay: -1, strDCMFile: null);
   }
 
   // 获取当前文件
@@ -410,15 +410,13 @@ class EventItemData {
   }
 
   // 获取DCM文件
-  bool getDCMFile(StringBuffer outDCMFile, int nCurrPlay,
+  ({bool status, int nCurrPlay, String? strDCMFile}) getDCMFile(int nCurrPlay,
       [String? strCompany]) {
     if (nItemType == EventItemType.wallpaper) {
-      outDCMFile.write(strDCMFile);
-      return true;
+      return (status: true, nCurrPlay: nCurrPlay, strDCMFile: strDCMFile);
     } else if (nItemType != EventItemType.group &&
         nItemType != EventItemType.rtGroup) {
-      outDCMFile.write(strDCMFile);
-      return true;
+      return (status: true, nCurrPlay: nCurrPlay, strDCMFile: strDCMFile);
     } else {
       if (arrDCMFile != null && nCurrPlay < arrDCMFile!.length) {
         for (int i = (nCurrPlay < 0 ? 0 : nCurrPlay);
@@ -427,13 +425,17 @@ class EventItemData {
           String strPlayFile =
               Utils.getFilePath(arrDCMFile![i], cDCMFILETYPE, -1, strCompany);
           if (File(strPlayFile).existsSync()) {
-            outDCMFile.write(arrDCMFile![i]);
-            return true;
+            return (
+              status: true,
+              nCurrPlay: nCurrPlay,
+              strDCMFile: arrDCMFile![i]
+            );
           }
         }
       }
     }
-    return false;
+
+    return (status: false, nCurrPlay: nCurrPlay, strDCMFile: null);
   }
 
   // 检查目录列表中是否包含任何目录

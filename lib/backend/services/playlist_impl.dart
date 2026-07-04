@@ -645,11 +645,11 @@ class PlayList {
     return bLoad;
   }
 
-  bool getFirstAHFile(StringBuffer strDCMFile) {
-    return validPlayFileList(playlistZone.getPlayFile, strDCMFile);
+  ({bool status, String? strDCMFile}) getFirstAHFile() {
+    return validPlayFileList(playlistZone.getPlayFile);
   }
 
-  bool returnPlayNormalItem(StringBuffer strDCMFile) {
+  ({bool status, String? strDCMFile}) returnPlayNormalItem() {
     logD(
         'CPlayList::ReturnPlayNormalItem; Playlist: $strEvent; IsAHPlaylist:$ahPlaylist; IsPlayingEpisode:$isAHPlaying\n\r');
     playlistZone.dumpPlaylistZone();
@@ -668,7 +668,8 @@ class PlayList {
       }
     }
 
-    if (validPlayFileList(nCurrPlayFile, strDCMFile)) {
+    var result = validPlayFileList(nCurrPlayFile);
+    if (result.status) {
       if (playlistZone.getPlayFile != nCurrPlayFile) {
         playlistZone.resetPlayIndex();
       }
@@ -678,7 +679,7 @@ class PlayList {
       playlistZone.dumpPlaylistZone();
       ahPlaylistZone.dumpPlaylistZone();
 
-      return true;
+      return (status: true, strDCMFile: result.strDCMFile);
     }
 
     logD(
@@ -686,21 +687,22 @@ class PlayList {
     playlistZone.dumpPlaylistZone();
     ahPlaylistZone.dumpPlaylistZone();
 
-    return false;
+    return (status: false, strDCMFile: null);
   }
 
-  bool startPlayAHItem(StringBuffer strDCMFile) {
+  ({bool status, String? strDCMFile}) startPlayAHItem() {
     isAHPlaying = true;
     ahPlaylistZone.resetPlaylistZone();
     int nPlayFile = currEpisode;
-    if (validPlayFileList(nPlayFile, strDCMFile)) {
-      return true;
+    var result = validPlayFileList(nPlayFile);
+    if (result.status) {
+      return (status: true, strDCMFile: result.strDCMFile);
     }
 
-    return false;
+    return (status: false, strDCMFile: null);
   }
 
-  bool playFileList(StringBuffer dcmFile) {
+  ({bool status, String? strDCMFile}) playFileList() {
     playlistZone.resetPlaylistZone();
     ahPlaylistZone.resetPlaylistZone();
 
@@ -711,22 +713,26 @@ class PlayList {
       nPlayFile = currEpisode;
     }
 
-    if (validPlayFileList(nPlayFile, dcmFile)) {
+    var result = validPlayFileList(nPlayFile);
+    if (result.status) {
       isAHPlaying = isPlayEpisode;
-      getPlaylistZone().setDCMFile(dcmFile.toString());
-      return true;
+      getPlaylistZone().setDCMFile(result.strDCMFile!);
+      return (status: true, strDCMFile: result.strDCMFile);
     }
 
-    return false;
+    return (status: false, strDCMFile: null);
   }
 
-  bool validPlayFileList(int nStart, StringBuffer dcmFile) {
+  ({bool status, String? strDCMFile}) validPlayFileList(int nStart) {
     // 验证播放文件列表
     int nPlayFile = -1;
+    String? validDCMFile;
     for (int i = nStart; i < eventFile.getCount(); i++) {
       for (var pPlayListData in eventFile.lstPlayList!) {
         if (pPlayListData.uiID == i) {
-          if (validPlayListData(pPlayListData, dcmFile)) {
+          var result = validPlayListData(pPlayListData);
+          if (result.status) {
+            validDCMFile = result.strDCMFile;
             nPlayFile = i;
             break;
           }
@@ -743,10 +749,10 @@ class PlayList {
     }
 
     getPlaylistZone(isPlayEpisode).setPlayFile(nPlayFile);
-    return bValid;
+    return (status: bValid, strDCMFile: validDCMFile);
   }
 
-  bool validPlayListData(EventItemData data, StringBuffer dcmFile) {
+  ({bool status, String? strDCMFile}) validPlayListData(EventItemData data) {
     if (!isPlayEpisode) {
       var nCurrPlay = playlistZone.getCurrPlay;
       if (eventFile.isNormalGroupLoop()) {
@@ -755,21 +761,21 @@ class PlayList {
         }
         if (data.isNormalGroupItem() && isTimeForPlayNormalGroup(data)) {
           // 获取DCM文件
-          if (data.getDCMFile(dcmFile, nCurrPlay, company)) {
-            playlistZone.setCurrPlay(nCurrPlay);
-            playlistZone.setDCMFile(dcmFile.toString());
+          var result = data.getDCMFile(nCurrPlay, company);
+          if (result.status) {
+            playlistZone.setCurrPlay(result.nCurrPlay);
+            playlistZone.setDCMFile(result.strDCMFile!);
             playlistZone.setPlayFile(data.uiID);
             currGroup = data.uiID;
             groupIndex = data.uiGroupID;
-            return true;
+            return (status: true, strDCMFile: result.strDCMFile);
           }
         }
       } else {
         if (!data.bIsTimeSchedule && data.isDCMFileExist(0, company)) {
-          dcmFile.write(data.strDCMFile);
           playlistZone.setDCMFile(data.strDCMFile);
           playlistZone.setPlayFile(data.uiID);
-          return true;
+          return (status: true, strDCMFile: data.strDCMFile);
         }
       }
     } else {
@@ -779,26 +785,27 @@ class PlayList {
 
         if (eventFile.nGroupLoop == 0) {
           if (data.bIsGroup) {
-            if (data.uiID == currEpisode &&
-                data.getDCMFile(dcmFile, nCurrPlay, company)) {
-              ahPlaylistZone.setCurrPlay(nCurrPlay);
-              ahPlaylistZone.setDCMFile(dcmFile.toString());
-              ahPlaylistZone.setPlayFile(data.uiID);
-              return true;
+            if (data.uiID == currEpisode) {
+              var result = data.getDCMFile(nCurrPlay, company);
+              if (result.status) {
+                ahPlaylistZone.setCurrPlay(result.nCurrPlay);
+                ahPlaylistZone.setDCMFile(result.strDCMFile!);
+                ahPlaylistZone.setPlayFile(data.uiID);
+                return (status: true, strDCMFile: result.strDCMFile);
+              }
             }
           } else {
             if (data.isDCMFileExist(0, company)) {
-              dcmFile.write(data.strDCMFile);
               ahPlaylistZone.setDCMFile(data.strDCMFile);
               ahPlaylistZone.setPlayFile(data.uiID);
-              return true;
+              return (status: true, strDCMFile: data.strDCMFile);
             }
           }
         }
       }
     }
 
-    return false;
+    return (status: false, strDCMFile: null);
   }
 
   bool isTimeForPlayNormalGroup(EventItemData playListData) {
@@ -830,37 +837,42 @@ class PlayList {
     return false; // 需要根据实际逻辑实现
   }
 
-  bool playNextFile(StringBuffer dcmFile) {
+  ({bool status, String? strDCMFile}) playNextFile() {
     var nCurrPlay = getPlaylistZone(isAHPlaying).getCurrPlay;
-    if (!isPlayFileFinished(dcmFile, nCurrPlay)) {
-      getPlaylistZone(isAHPlaying).setDCMFile(dcmFile.toString());
-      getPlaylistZone(isAHPlaying).setCurrPlay(nCurrPlay);
-      return true;
+    var result = isPlayFileFinished(nCurrPlay);
+    if (!result.status) {
+      getPlaylistZone(isAHPlaying).setDCMFile(result.strDCMFile!);
+      getPlaylistZone(isAHPlaying).setCurrPlay(result.nCurrPlay);
+      return (status: true, strDCMFile: result.strDCMFile);
     }
 
     var nPlayFile = getPlaylistZone(isAHPlaying).getPlayFile;
 
     nPlayFile++;
     if (eventFile.getCount() <= nPlayFile) {
-      if (playFileList(dcmFile)) {
-        return true;
+      var result = playFileList();
+      if (result.status) {
+        return result;
       }
     } else {
-      if (!validPlayFileList(nPlayFile, dcmFile)) {
+      var result = validPlayFileList(nPlayFile);
+      if (!result.status) {
         nPlayFile = 0;
         getPlaylistZone(isAHPlaying).resetPlaylistZone();
       }
     }
 
-    if (validPlayFileList(nPlayFile, dcmFile)) {
-      getPlaylistZone(isAHPlaying).setDCMFile(dcmFile.toString());
-      return true;
+    var validResult = validPlayFileList(nPlayFile);
+    if (validResult.status) {
+      getPlaylistZone(isAHPlaying).setDCMFile(validResult.strDCMFile!);
+      return validResult;
     }
 
-    return false;
+    return (status: false, strDCMFile: null);
   }
 
-  bool isPlayFileFinished(StringBuffer dcmFile, int nCurrPlay) {
+  ({bool status, int nCurrPlay, String? strDCMFile}) isPlayFileFinished(
+      int nCurrPlay) {
     if (!isAHPlaying) {
       var nPlayFile = playlistZone.getPlayFile;
       var playListData = eventFile.getEventItem(nPlayFile);
@@ -868,13 +880,16 @@ class PlayList {
       if (playListData != null) {
         if (playListData.isNormalGroupItem() &&
             isTimeForPlayNormalGroup(playListData)) {
-          var finished = playListData.playNextFile(dcmFile, nCurrPlay);
-
-          if (nCurrPlay == -1) {
+          var finished = playListData.playNextFile(nCurrPlay);
+          if (finished.nCurrPlay == -1) {
             writeLog = true;
           }
 
-          return !finished;
+          return (
+            status: !finished.status,
+            nCurrPlay: finished.nCurrPlay,
+            strDCMFile: finished.strDCMFile
+          );
         }
       }
     } else {
@@ -883,48 +898,60 @@ class PlayList {
 
       if (playListData != null) {
         if (playListData.bIsTimeSchedule && playListData.bIsGroup) {
-          return !playListData.playNextFile(dcmFile, nCurrPlay);
+          var result = playListData.playNextFile(nCurrPlay);
+          if (result.status) {
+            return (
+              status: !result.status,
+              nCurrPlay: result.nCurrPlay,
+              strDCMFile: result.strDCMFile
+            );
+          }
         }
       }
     }
 
-    return true;
+    return (status: true, nCurrPlay: nCurrPlay, strDCMFile: null);
   }
 
-  bool playNextGroup(StringBuffer strDCMFile) {
+  ({bool status, String? strDCMFile}) playNextGroup() {
     int nPlayFile = getPlaylistZone(false).getPlayFile;
     if (eventFile.getCount() <= nPlayFile) {
-      if (playFileList(strDCMFile)) {
-        return true;
+      var result = playFileList();
+      if (result.status) {
+        return result;
       }
     } else {
-      if (!validPlayFileList(nPlayFile, strDCMFile)) {
+      var result = validPlayFileList(nPlayFile);
+      if (!result.status) {
         nPlayFile = 0;
         getPlaylistZone(false).resetPlaylistZone();
       }
     }
-    if (validPlayFileList(nPlayFile, strDCMFile)) {
-      getPlaylistZone(false).setDCMFile(strDCMFile.toString());
+    var validResult = validPlayFileList(nPlayFile);
+    if (validResult.status) {
+      getPlaylistZone(false).setDCMFile(validResult.strDCMFile!);
 
-      return true;
+      return validResult;
     }
 
-    return false;
+    return (status: false, strDCMFile: null);
   }
 
-  bool playCurrFile(StringBuffer strDCMFile) {
+  ({bool status, String? strDCMFile}) playCurrFile() {
     logD(
         'CPlayList::PlayCurrFile first: ${getPlaylistZone(true).getCurrPlay} - ${getPlaylistZone(false).getCurrPlay}');
     int nPlayFile = getPlaylistZone(isPlayEpisode).getPlayFile;
     if (eventFile.getCount() <= nPlayFile) {
-      if (playFileList(strDCMFile)) return true;
+      var result = playFileList();
+      if (result.status) return result;
     } else {
       if ((DCMGlobal.loopMethod & settingRETURNBRKPTS) == 0) {
         getPlaylistZone(isPlayEpisode).resetPlaylistZone();
         nPlayFile = 0;
       }
 
-      if (!validPlayFileList(nPlayFile, strDCMFile)) {
+      var result = validPlayFileList(nPlayFile);
+      if (!result.status) {
         getPlaylistZone(isPlayEpisode).resetPlaylistZone();
         nPlayFile = 0;
       }
@@ -932,20 +959,20 @@ class PlayList {
 
     logD(
         'CPlayList::PlayCurrFile second: ${getPlaylistZone(true).getCurrPlay} - ${getPlaylistZone(false).getCurrPlay}');
-    if (validPlayFileList(nPlayFile, strDCMFile)) {
-      getPlaylistZone(isPlayEpisode).setDCMFile(strDCMFile.toString());
+    var validResult = validPlayFileList(nPlayFile);
+    if (validResult.status) {
+      getPlaylistZone(isPlayEpisode).setDCMFile(validResult.strDCMFile!);
       isAHPlaying = isPlayEpisode;
 
-      return true;
+      return validResult;
     }
 
-    return false;
+    return (status: false, strDCMFile: null);
   }
 
   String getPlayFile() {
-    StringBuffer dcmFile = StringBuffer();
-    validPlayFileList(0, dcmFile);
-    return dcmFile.toString();
+    var result = validPlayFileList(0);
+    return result.strDCMFile ?? '';
   }
 
   int get count => eventFile.getCount();
@@ -1113,16 +1140,17 @@ class PlayList {
     return (status: true, dtStart: dtStart, dtEnd: dtEnd);
   }
 
-  bool playNextPlaylist(StringBuffer strDCMFile) {
+  ({bool status, String? strDCMFile}) playNextPlaylist() {
     if (!ahPlaylist && isPlayEpisode) {
-      if (validPlayFileList(currEpisode, strDCMFile)) {
+      var result = validPlayFileList(currEpisode);
+      if (result.status) {
         isAHPlaying = isPlayEpisode;
         logD(
             'CPlayList::PlayNextPlaylist1; Playlist: $strEvent; isPlayEpisode: $isPlayEpisode - IsAHPlaylist:$ahPlaylist; IsPlayingEpisode:$isAHPlaying\n\r');
         playlistZone.dumpPlaylistZone();
         ahPlaylistZone.dumpPlaylistZone();
 
-        return true;
+        return result;
       }
     }
 
@@ -1145,23 +1173,25 @@ class PlayList {
       nPlayFile = currEpisode;
     }
     //bool bPlay = false;
-    if (validPlayFileList(nPlayFile, strDCMFile)) {
+    var result = validPlayFileList(nPlayFile);
+    if (result.status) {
       if (getPlaylistZone(bIsTimeForPlayEpisode).getPlayFile != nPlayFile) {
         getPlaylistZone(bIsTimeForPlayEpisode).resetPlayIndex();
       }
-      getPlaylistZone(bIsTimeForPlayEpisode).setDCMFile(strDCMFile.toString());
+      getPlaylistZone(bIsTimeForPlayEpisode).setDCMFile(result.strDCMFile!);
       isAHPlaying = isPlayEpisode;
       logD(
           'CPlayList::PlayNextPlaylist2; Playlist: $strEvent; IsTimeForPlayEpisode: $bIsTimeForPlayEpisode - IsAHPlaylist:$ahPlaylist; IsPlayingEpisode:$isAHPlaying\n\r');
       playlistZone.dumpPlaylistZone();
       ahPlaylistZone.dumpPlaylistZone();
 
-      return true;
+      return result;
     }
 
-    if (validPlayFileList(0, strDCMFile)) {
+    result = validPlayFileList(0);
+    if (result.status) {
       getPlaylistZone(bIsTimeForPlayEpisode).resetPlayIndex();
-      getPlaylistZone(bIsTimeForPlayEpisode).setDCMFile(strDCMFile.toString());
+      getPlaylistZone(bIsTimeForPlayEpisode).setDCMFile(result.strDCMFile!);
       isAHPlaying = isPlayEpisode;
 
       logD(
@@ -1169,10 +1199,10 @@ class PlayList {
       playlistZone.dumpPlaylistZone();
       ahPlaylistZone.dumpPlaylistZone();
 
-      return true;
+      return result;
     }
 
-    return false;
+    return (status: false, strDCMFile: null);
   }
 
   bool isPlayingNormalGroup() {
@@ -1197,9 +1227,10 @@ class PlayList {
         if (playListData != null) {
           if (playListData.isNormalGroupItem() &&
               isTimeForPlayNormalGroup(playListData)) {
-            StringBuffer dcmFile = StringBuffer();
-            if (playListData.playNextFile(dcmFile, nCurrPlay)) {
-              getPlaylistZone(isPlayEpisode).setDCMFile(dcmFile.toString());
+            var result = playListData.playNextFile(nCurrPlay);
+            if (result.status) {
+              nCurrPlay = result.nCurrPlay;
+              getPlaylistZone(isPlayEpisode).setDCMFile(result.strDCMFile!);
               getPlaylistZone(isPlayEpisode).setCurrPlay(nCurrPlay);
             }
             if (nCurrPlay == -1) {
@@ -1213,9 +1244,10 @@ class PlayList {
         var playListData = eventFile.getEventItem(nPlayFile);
         if (playListData != null) {
           if (playListData.bIsTimeSchedule && playListData.bIsGroup) {
-            StringBuffer dcmFile = StringBuffer();
-            if (playListData.playNextFile(dcmFile, nCurrPlay)) {
-              getPlaylistZone(isPlayEpisode).setDCMFile(dcmFile.toString());
+            var result = playListData.playNextFile(nCurrPlay);
+            if (result.status) {
+              nCurrPlay = result.nCurrPlay;
+              getPlaylistZone(isPlayEpisode).setDCMFile(result.strDCMFile!);
               getPlaylistZone(isPlayEpisode).setCurrPlay(nCurrPlay);
               return;
             }

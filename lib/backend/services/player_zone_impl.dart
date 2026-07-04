@@ -12,8 +12,8 @@ import 'package:dcm/backend/services/schedulelist_impl.dart';
 import 'package:dcm/backend/utils/log_utils.dart';
 import 'package:dcm/backend/utils/platform_utils.dart';
 import 'package:dcm/backend/utils/utils.dart';
-import 'package:dcm/widgets/basic_video.dart';
 import 'package:dcm/widgets/content_list_player.dart';
+import 'package:dcm/widgets/scrolltext.dart';
 import 'package:dcm/widgets/slideshow.dart';
 import 'package:dcm/widgets/webview_desktop_player.dart';
 import 'package:dcm/widgets/webview_player.dart';
@@ -79,7 +79,7 @@ class PlayerZoneImpl {
   String _strContentName = "";
   String _strZoneFile = '';
 
-  bool _bDDERefresh = false;
+  bool _playCached = false;
   bool _bLoadState = false;
   bool _bShowMessage = false;
   bool _bShowMessageNext = false;
@@ -92,7 +92,7 @@ class PlayerZoneImpl {
   double _rtPlaying = 0.00;
   double _rtCurrDuration = 0.00;
 
-  Rect? rect;
+  Rect? _rect;
   Rect? _rectPlayerOrg;
 
   ContentListPlayerImpl? _contentListPlayer;
@@ -135,10 +135,13 @@ class PlayerZoneImpl {
     _rtPlaying = 0;
   }
 
+  //mapPreloadedContents: cached contents
   void initZone([Map<String, PreloadedContent>? mapPreloadedContents]) async {
     if (mapPreloadedContents != null) {
+      _playCached = true;
       stopPlay();
     } else {
+      _playCached = false;
       release();
     }
 
@@ -159,7 +162,7 @@ class PlayerZoneImpl {
     }
 
     if (_zoneId < 0) _zoneId = pZoneData.nZoneID;
-    if (rect == null && _zoneId > -1) rect = playSkin.getZoneRect(_zoneId);
+    if (_rect == null && _zoneId > -1) _rect = playSkin.getZoneRect(_zoneId);
 
     _bIsRendering = true;
     int nCurSel = pZoneData.nZoneType;
@@ -207,7 +210,7 @@ class PlayerZoneImpl {
         case cDDETYPE:
         case cDIRECTPLAYTYPE:
         case cSITEPLAYLIST:
-          _initContentList(nCurSel, _strZoneFile, rect!);
+          _initContentList(nCurSel, _strZoneFile, _rect!);
           break;
         case cLINKAGETYPE:
           break;
@@ -235,18 +238,22 @@ class PlayerZoneImpl {
     _bIsRendering = false;
     _bIsPlaying = false;
     _bNeedReset = true;
+    logI(
+        'Init Zone finished - Zone: $_zoneId; _rtDuration: $_rtDuration; _rtAct $_rtAct; _strZoneFile: $_strZoneFile; _playCached: $_playCached.');
   }
 
   void _initVideoPlayer(ZoneData pZoneData, [PreloadedContent? preloaded]) {
-    preloaded ??=
-        preloadVideoPlayer(pZoneData, filePath: _strZoneFile, size: rect!.size);
+    preloaded ??= preloadVideoPlayer(pZoneData,
+        filePath: _strZoneFile, size: _rect!.size);
     _player = preloaded.player;
     _controller = preloaded.controller;
   }
 
   void setWindowRect(Rect rcWin) {
-    rect = rcWin;
+    _rect = rcWin;
   }
+
+  Rect getRect() => _rect ?? Rect.zero;
 
   int getZone() => _zoneId;
 
@@ -515,6 +522,7 @@ class PlayerZoneImpl {
             widget = Slideshow(
                 key: Key(_strZoneFile),
                 imageFile: _strZoneFile,
+                rect: _rect!,
                 cached: cached);
           }
           /*logD(
@@ -524,10 +532,19 @@ class PlayerZoneImpl {
           if (_player != null) {
             _player!.play();
           }
-          widget = ClipRRect(
+          /*widget = ClipRRect(
             borderRadius: BorderRadius.zero,
-            child: BasicVideo(key: Key(_strZoneFile), controller: _controller!),
-          );
+            child: Video(
+                key: Key(_strZoneFile),
+                controller: _controller!,
+                fit: pZoneData.bZoneRatio ? BoxFit.contain : BoxFit.fill,
+                controls: null),
+          );*/
+          widget = Video(
+              key: Key(_strZoneFile),
+              controller: _controller!,
+              fit: pZoneData.bZoneRatio ? BoxFit.contain : BoxFit.fill,
+              controls: null);
           break;
         case cPOWERPOINTTYPE:
           //PlayPPT(strZone1File, rectWin);
@@ -545,6 +562,10 @@ class PlayerZoneImpl {
         case cWEBCAMTYPE:
           break;
         case cTEXTTYPE:
+          if (_bNeedReset) {
+            widget = ScrollText(
+                key: Key(_strZoneFile), textFile: _strZoneFile, rect: _rect!);
+          }
           //if (_bNeedReset) PlayTextType(pZoneData, strZone1File, rectWin);
           break;
 
@@ -564,7 +585,7 @@ class PlayerZoneImpl {
             contentList: _strZoneFile,
             contentType: pZoneData.nZoneType,
             zone: _zoneId,
-            rect: rect!,
+            rect: _rect!,
           );
           //playContentList(pZoneData.nZoneType, _strZoneFile, rect!);
           break;
@@ -573,9 +594,13 @@ class PlayerZoneImpl {
         case cEVENTTYPE:
           break;
         case cPDFTYPE:
+          bool bShowPDFScrollBar = (hasFlag(DCMGlobal.pdfViewMode, 0x0002));
+          var strContent = (bShowPDFScrollBar
+              ? '$_strZoneFile#toolbar=0&navpanes=0&scrollbar=0&view=FitH'
+              : '$_strZoneFile#toolbar=0&navpanes=0&scrollbar=0&view=Fit');
           widget = PlatformUtils.isDesktop
-              ? WebviewDesktopPlayer(url: _strZoneFile)
-              : WebviewPlayer(url: _strZoneFile);
+              ? WebviewDesktopPlayer(url: strContent)
+              : WebviewPlayer(url: strContent);
           break;
         case cPLUGINTYPE:
           break;
@@ -596,9 +621,9 @@ class PlayerZoneImpl {
     _bIsRendering = false;
     //Log.i(PlayerMainActivity.LOG_TAG, "RenderZone step 6 _rtDuration: " + _rtDuration + " _rtAct " + _rtAct);
     logI(
-        'RenderZone finished - Zone: $_zoneId; _rtDuration: $_rtDuration; _rtAct $_rtAct; _pZoneData: $_pZoneData; _pProductData: $_pProductData;');
+        'RenderZone finished - Zone: $_zoneId; _rtDuration: $_rtDuration; _rtAct $_rtAct; _strZoneFile: $_strZoneFile; _pProductData: $_pProductData;');
 
-    return widget ?? Container(color: Color(DCMGlobal.clrBGColor));
+    return widget ?? Container(color: Utils.fromRGB(DCMGlobal.clrBGColor));
   }
 
   void _initContentList(int nType, String strZoneFile, Rect rectWin) {
@@ -619,7 +644,7 @@ class PlayerZoneImpl {
         logD('''Zone $_zoneId play '$strZoneFile' step 24, TID $pid.''');
         _rtDuration = _contentListPlayer!.getDuration() -
             _contentListPlayer!.getDuration(_nStart);
-        _contentListPlayer!.setPlayerRect(rect!);
+        _contentListPlayer!.setPlayerRect(_rect!);
         logD('''Zone $_zoneId play '$strZoneFile' step 25, TID $pid.''');
         _contentListPlayer!.setAHPlaying(_bIsAHPlaylist);
         _contentListPlayer!.setParentContentType(_nPType);
@@ -681,22 +706,25 @@ class PlayerZoneImpl {
     }
   }
 
-  ({bool status, double? rtPosition}) getCurrentPosition(double rtPosition) {
+  ({bool status, double? rtPosition}) getCurrentPosition() {
     if (_bIsRendering) {
       return (status: false, rtPosition: null);
     }
 
     bool bRet = false;
+    double? rtPosition;
     if (_player != null) {
       rtPosition = _player!.state.position.inMilliseconds / 1000.0;
       bRet = true;
     }
 
     if (bRet) {
-      if (_nVideoStatus != 1 && rtPosition - _rtCurrDuration < cEPSILON) {
+      logD(
+          'CPlayerZoneDlg::getCurrentPosition - Zone: $_zoneId, rtPosition=$rtPosition, _rtCurrDuration=$_rtCurrDuration.');
+      if (_nVideoStatus != 1 && rtPosition! - _rtCurrDuration < cEPSILON) {
         bRet = false;
       } else {
-        _rtCurrDuration = rtPosition;
+        _rtCurrDuration = rtPosition!;
       }
     }
 
@@ -946,18 +974,34 @@ class PlayerZoneImpl {
         //RePlayDCMContent();
         break;
     }
-    _rtDuration = pZoneData.nZoneDuration;
+    if (nCurSel != cSITEPLAYLIST &&
+        nCurSel != cDDETYPE &&
+        nCurSel != cDIRECTPLAYTYPE) {
+      _rtDuration = pZoneData.nZoneDuration;
+    }
     calcDuration();
   }
 
   bool rePlayVideo() {
-    if (_player != null) {
-      _player!.dispose();
+    /*if (!_playCached || _player == null) {
+      if (_player != null) {
+        _player!.dispose();
+      }
+      _initVideoPlayer(getZoneData()!);
     }
-    _initVideoPlayer(getZoneData()!);
-    _player!.play();
+    if (_player != null) {
+      _player!.play();
+    }*/
+    if (_player != null) {
+      //_player!.seek(Duration.zero);
+      _player!.stop();
+      _player!.open(Media(LibraryHelper.normalizeMediaSource(_strZoneFile)),
+          play: true);
+      _rtAct = _player!.state.duration.inMilliseconds / 1000.0;
 
-    return true;
+      return true;
+    }
+    return false;
   }
 
   void showZoneWnd(bool bool) {}

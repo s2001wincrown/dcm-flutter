@@ -57,6 +57,8 @@ dependencies:
     path: ./local_flutter_libserialport
   transparent_image: ^2.0.1
   system_info3: ^4.0.2
+  image_size_getter: ^2.3.0
+  marqueer: ^2.5.0
 
 dev_dependencies:
   flutter_test:

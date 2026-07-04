@@ -5,9 +5,11 @@ import 'package:dcm/backend/models/dcm_global.dart';
 import 'package:dcm/backend/providers/player_screen_provider.dart';
 import 'package:dcm/backend/services/dcm_skin_impl.dart';
 import 'package:dcm/backend/utils/log_utils.dart';
+import 'package:dcm/backend/utils/utils.dart';
 import 'package:dcm/pages/home.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:nativeapi/nativeapi.dart';
 import 'package:provider/provider.dart';
 
 class DigitalSignageApp extends StatelessWidget {
@@ -43,20 +45,39 @@ class DigitalSignageScreen extends StatefulWidget {
 
   @override
   State<DigitalSignageScreen> createState() => _DigitalSignageScreenState();
+
+  static void Function()? refresh;
+}
+
+bool shouldTriggerDoubleTapExit({
+  required DateTime now,
+  required DateTime? lastTap,
+  required Duration window,
+  required bool mounted,
+  required bool isExiting,
+}) {
+  if (!mounted || isExiting || lastTap == null) {
+    return false;
+  }
+  return now.difference(lastTap) <= window;
 }
 
 class _DigitalSignageScreenState extends State<DigitalSignageScreen> {
   int currentShowIndex = 0;
   int nextShowIndex = 0;
+  static const Duration _doubleTapWindow = Duration(milliseconds: 300);
   Timer? _exitHintTimer;
   DateTime? _lastTap;
   bool _exitHintShown = false;
   bool _showExitHint = false;
+  bool _isExiting = false;
+  bool _forceRebuild = false;
 
   @override
   void initState() {
     super.initState();
     _hideSystemUI();
+    DigitalSignageScreen.refresh = () => setState(() => _forceRebuild = true);
     // Preload uses `context` (e.g. `precacheImage`), so run it after
     // the first frame to avoid accessing InheritedWidgets during initState.
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -81,33 +102,66 @@ class _DigitalSignageScreenState extends State<DigitalSignageScreen> {
   }
 
   void _exitApplication() {
+    if (!mounted || _isExiting) {
+      return;
+    }
+
+    _isExiting = true;
+    _exitHintTimer?.cancel();
+
     if (Platform.isAndroid || Platform.isIOS) {
-      SystemNavigator.pop();
+      try {
+        SystemNavigator.pop();
+      } catch (_) {
+        exit(0);
+      }
     } else {
       exit(0);
     }
   }
 
-  void _handleExitTapDown() {
+  void _handleExitTap() {
+    if (!mounted || _isExiting) {
+      return;
+    }
+
+    final windows = WindowManager.instance.getAll();
+    for (var window in windows) {
+      logD(
+          'WindowManager::getAll, position: ${window.position}, ${window.size}'); //, title: ${window.title}, id: ${window.id}
+    }
+
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+
     final now = DateTime.now();
-    if (_lastTap == null ||
-        now.difference(_lastTap!) > const Duration(seconds: 2)) {
-      _lastTap = now;
-      if (!_exitHintShown) {
-        _exitHintShown = true;
-        _showExitHint = true;
-        _exitHintTimer?.cancel();
-        _exitHintTimer = Timer(const Duration(seconds: 3), () {
-          if (mounted) {
-            setState(() {
-              _showExitHint = false;
-              _exitHintShown = false;
-            });
-          }
-        });
+    final lastTap = _lastTap;
+    _lastTap = now;
+
+    if (shouldTriggerDoubleTapExit(
+      now: now,
+      lastTap: lastTap,
+      window: _doubleTapWindow,
+      mounted: mounted,
+      isExiting: _isExiting,
+    )) {
+      _exitApplication();
+      return;
+    }
+
+    if (!_exitHintShown) {
+      _exitHintShown = true;
+      _showExitHint = true;
+      _exitHintTimer?.cancel();
+      _exitHintTimer = Timer(const Duration(seconds: 3), () {
         if (mounted) {
-          setState(() {});
+          setState(() {
+            _showExitHint = false;
+            _exitHintShown = false;
+          });
         }
+      });
+      if (mounted) {
+        setState(() {});
       }
     }
   }
@@ -121,16 +175,29 @@ class _DigitalSignageScreenState extends State<DigitalSignageScreen> {
   @override
   void dispose() {
     logI('multi_partition_screen dispose');
+    _isExiting = true;
     _exitHintTimer?.cancel();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    if (_forceRebuild) {
+      _forceRebuild = false;
+      void rebuild(Element e) {
+        e.markNeedsBuild();
+        e.visitChildren(rebuild);
+      }
+
+      (context as Element).visitChildren(rebuild);
+    }
+
     double screenWidth;
     double screenHeight;
+    final mq = MediaQuery.of(context);
+    logD(
+        'multi_partition_screen - MediaQuery size: (${mq.size.width} x ${mq.size.height}), _forceRebuild: $_forceRebuild');
     if (playSkin.monitorRect.isEmpty) {
-      final mq = MediaQuery.of(context);
       screenWidth = mq.size.width;
       screenHeight = mq.size.height;
     } else {
@@ -145,20 +212,15 @@ class _DigitalSignageScreenState extends State<DigitalSignageScreen> {
       onPopInvokedWithResult: _onPopInvokedWithResult,
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
-        onTap: () {
-          // 单击重置系统UI隐藏计时器
-          SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
-        },
-        onTapDown: (_) => _handleExitTapDown(),
-        onDoubleTap: _exitApplication,
+        onTap: _handleExitTap,
         child: Scaffold(
-          backgroundColor: Color(DCMGlobal.clrBGColor),
+          backgroundColor: Colors.red, //Color(DCMGlobal.clrBGColor),
           body: Consumer<PlayerScreenProvider>(
             builder:
                 (BuildContext context, playerScreenProvider, Widget? child) {
               if (!playerScreenProvider.isValidForPlay()) {
                 return Container(
-                  color: Color(DCMGlobal.clrBGColor),
+                  color: Utils.fromRGB(DCMGlobal.clrBGColor),
                 );
               }
               return LayoutBuilder(
@@ -171,14 +233,25 @@ class _DigitalSignageScreenState extends State<DigitalSignageScreen> {
                         Builder(
                           builder: (context) {
                             final currentLayout =
-                                playerScreenProvider.getPlayerZones();
+                                playerScreenProvider.getPlayingZones();
 
                             return Stack(
                               children: currentLayout.map((partition) {
-                                final left = partition.rect!.left;
-                                final top = partition.rect!.top;
-                                final w = partition.rect!.width;
-                                final h = partition.rect!.bottom;
+                                final left = partition.getRect().left;
+                                final top = partition.getRect().top;
+                                final w = partition.getRect().width;
+                                final h = partition.getRect().height;
+                                /*var left = 0.00;
+                                var top = 0.00;
+                                var w = mq.size.width / 2;
+                                var h = mq.size.height;
+                                if (partition.getZone() > 0) {
+                                  left = mq.size.width / 2;
+                                  top = 0;
+                                  w = mq.size.width / 2;
+                                  h = mq.size.height;
+                                }*/
+
                                 /*logD(
                                     'multi_partition_screen - Render partition ${partition.getZone()} at ($left, $top) with size ($w x $h)');*/
 
@@ -188,12 +261,19 @@ class _DigitalSignageScreenState extends State<DigitalSignageScreen> {
                                   width: w,
                                   height: h,
                                   child: Container(
-                                    decoration: BoxDecoration(
-                                      color: Color(DCMGlobal.clrBGColor),
+                                    width: w,
+                                    height: h,
+                                    decoration: const BoxDecoration(
+                                      color: Colors
+                                          .blue, //Utils.fromRGB(DCMGlobal.clrBGColor),
                                       border: null,
                                       borderRadius: BorderRadius.zero,
                                     ),
-                                    child: partition.renderZone(),
+                                    child: SizedBox(
+                                      width: w,
+                                      height: h,
+                                      child: partition.renderZone(),
+                                    ),
                                   ),
                                 );
                               }).toList(),

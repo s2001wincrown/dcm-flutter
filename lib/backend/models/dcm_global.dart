@@ -84,6 +84,9 @@ class DCMGlobal {
   static String eventContentPath = '';
   static int tvInstalled = 2;
 
+  static int pdfViewMode = 0;
+  static int pdfPlayMode = 0;
+
   static int messagePlayMode = 4;
   static int processAHConflict = 0;
   static int eventTimeout = 0;
@@ -195,6 +198,8 @@ class DCMGlobal {
     'Global Setting.Background Color': (v) => clrBGColor = int.parse(v),
     'Global Setting.BackgroundImage': (v) => bgImageFile = v,
     'Global Setting.StartupWallpaper': (v) => startupWallpaper = v,
+    'Global Setting.nPDFViewMode': (v) => pdfViewMode = int.parse(v),
+    'Global Setting.nPDFPlayMode': (v) => pdfPlayMode = int.parse(v),
   };
 
   static Future<bool> loadFromIni() async {
@@ -489,6 +494,22 @@ class DCMGlobal {
 
   static String getAppPath() {
     return App().dataPath;
+  }
+
+  static String getString(String pszPath, [String? defaultValue]) {
+    return defaultValue ?? '';
+  }
+
+  static int getInt(String pszPath, [int? nDefault]) {
+    return nDefault ?? 0;
+  }
+
+  static double getDouble(String pszPath) {
+    return 0.00;
+  }
+
+  static bool getBool(String pszPath) {
+    return false;
   }
 
   static double videoVolume(bool bMute, double nVolume) {

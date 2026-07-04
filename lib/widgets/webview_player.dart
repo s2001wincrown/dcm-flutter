@@ -8,6 +8,8 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:dcm/backend/constants.dart';
+import 'package:dcm/backend/models/dcm_global.dart';
 import 'package:dcm/backend/utils/string_utils.dart';
 import 'package:dcm/backend/utils/utils.dart';
 import 'package:flutter/foundation.dart';
@@ -120,7 +122,7 @@ class _WebviewPlayerState extends State<WebviewPlayer> {
   late final WebViewController _controller;
 
   @override
-  void initState() {
+  Future<void> initState() async {
     super.initState();
 
     // #docregion platform_features
@@ -196,7 +198,14 @@ Page resource error:
 
     // setBackgroundColor is not currently supported on macOS.
     if (kIsWeb || !Platform.isMacOS) {
-      controller.setBackgroundColor(const Color(0x00000000));
+      controller.setBackgroundColor(Utils.fromRGB(DCMGlobal.clrBGColor));
+    }
+
+    if (await controller.supportsSetScrollBarsEnabled()) {
+      controller
+          .setVerticalScrollBarEnabled(hasFlag(DCMGlobal.ieSetting, 0x0001));
+      controller
+          .setHorizontalScrollBarEnabled(hasFlag(DCMGlobal.ieSetting, 0x0002));
     }
 
     // #docregion platform_features

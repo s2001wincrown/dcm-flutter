@@ -19,6 +19,7 @@ import 'package:dcm/backend/utils/string_utils.dart';
 import 'package:dcm/backend/utils/utils.dart';
 import 'package:dcm/backend/xml_settings/dcmfile_Impl.dart';
 import 'package:dcm/backend/xmlfile/inifile.dart';
+import 'package:dcm/pages/multi_partition_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_libserialport/flutter_libserialport.dart';
@@ -94,6 +95,8 @@ class PlayerScreenProvider extends ChangeNotifier {
   int _lTVChannel = -1;
 
   List<PlayerZoneImpl> getPlayerZones() => _playerZones;
+  List<PlayerZoneImpl> getPlayingZones() =>
+      _playerZones.where((element) => element.getZone() > -1).toList();
 
   PlayerZoneImpl? getPlayerZone(int zone) {
     for (var playerZoneImpl in _playerZones) {
@@ -327,13 +330,13 @@ class PlayerScreenProvider extends ChangeNotifier {
             logD(
                 'CPlayerScreenDlg::OnTimer - ScheduleList().IsTimeForLoad - IsTimeForPlayAH; _bIsPlaying: \'$_bIsPlaying\'');
             stopNotQuit();
-            StringBuffer strDCMFile = StringBuffer();
             _bValidForPlay = false;
-            if (ScheduleList().playFileList(strDCMFile)) {
+            var playResult = ScheduleList().playFileList();
+            if (!playResult.status) {
               return;
             }
 
-            if (!loadCatalogue(strDCMFile.toString())) {
+            if (!loadCatalogue(playResult.strDCMFile!)) {
               stopNotQuit();
               return;
             }
@@ -355,13 +358,13 @@ class PlayerScreenProvider extends ChangeNotifier {
               logD(
                   'CPlayerScreenDlg::OnTimer - ScheduleList().IsTimeForLoad - IsTimeForPlayAH');
               stopNotQuit();
-              StringBuffer strDCMFile = StringBuffer();
               _bValidForPlay = false;
-              if (ScheduleList().playFileList(strDCMFile)) {
+              var playResult = ScheduleList().playFileList();
+              if (!playResult.status) {
                 return;
               }
 
-              if (!loadCatalogue(strDCMFile.toString())) {
+              if (!loadCatalogue(playResult.strDCMFile!)) {
                 stopNotQuit();
                 return;
               }
@@ -415,8 +418,6 @@ class PlayerScreenProvider extends ChangeNotifier {
 
   bool zoneThreadCheck(int nTotalZone) {
     double rtPos = 0;
-    double rtPlaying = 0;
-    double rtPlayerDuration = 0;
     bool bSaveState = false;
 
     DateTime dwSecondTime = DateTime.now();
@@ -449,10 +450,11 @@ class PlayerScreenProvider extends ChangeNotifier {
             .difference(pThread0.getStartPlayTime())
             .inMilliseconds
             .toDouble();
-        var result = pThread0.getCurrentPosition(rtPos);
+        var result = pThread0.getCurrentPosition();
         if (!result.status) {
           rtPos = rtCurrPos1 / Duration.millisecondsPerSecond;
         } else {
+          rtPos = result.rtPosition!;
           if (rtCurrPos1 > 0 && rtPos < cEPSILON) {
             rtPos = rtCurrPos1 / Duration.millisecondsPerSecond;
           }
@@ -463,7 +465,7 @@ class PlayerScreenProvider extends ChangeNotifier {
         var pfResult = pThread0.isPlayerFinish(rtPos, nFinish);
         nFinish = pfResult.nFinish ?? nFinish;
         logD(
-            'CPlayerScreenDlg::zoneThreadCheck, Zone: ${pThread0.getZone()}, pfResult: ${pfResult.status} - ${pfResult.nFinish}, Current TID $pid.');
+            'CPlayerScreenDlg::zoneThreadCheck, Zone: ${pThread0.getZone()}, rtPos: $rtPos, rtCurrPos1: $rtCurrPos1, pfResult: ${pfResult.status} - ${pfResult.nFinish}.');
         if (pfResult.status) {
           pThread0.setPlayingDuration(rtPos);
           pThread0.setStartPlayTime(DateTime.now());
@@ -576,6 +578,7 @@ class PlayerScreenProvider extends ChangeNotifier {
       //ChangeMessageRgn(nOutput);
       //ChangePlayerRgn();
       //changeFrameRgn();
+      //DigitalSignageScreen.refresh;
     }
   }
 
@@ -665,17 +668,17 @@ class PlayerScreenProvider extends ChangeNotifier {
               ScheduleList().adjustAHTime(dtAH);
             }
 
-            StringBuffer strDCMFile = StringBuffer();
-            if (ScheduleList().startPlayAHItem(strDCMFile)) {
-              if (loadCatalogue(strDCMFile.toString())) {
+            var ahResult = ScheduleList().startPlayAHItem();
+            if (ahResult.status) {
+              if (loadCatalogue(ahResult.strDCMFile!)) {
                 _bValidForPlay = true;
                 playProduct(0, true);
               }
             }
           } else {
-            StringBuffer strDCMFile = StringBuffer();
-            if (ScheduleList().returnPlayNormalItem(strDCMFile)) {
-              if (loadCatalogue(strDCMFile.toString())) {
+            var playResult = ScheduleList().returnPlayNormalItem();
+            if (playResult.status) {
+              if (loadCatalogue(playResult.strDCMFile!)) {
                 ScheduleList().setLoadedState(true);
                 _bValidForPlay = true;
                 playProduct(ScheduleList().getPlayProduct(false), true);
@@ -692,20 +695,20 @@ class PlayerScreenProvider extends ChangeNotifier {
             ScheduleList().adjustAHTime(dtAH);
           }
 
-          StringBuffer strDCMFile = StringBuffer();
           _bValidForPlay = false;
-          if (ScheduleList().startPlayAHItem(strDCMFile)) {
-            if (loadCatalogue(strDCMFile.toString())) {
+          var ahResult = ScheduleList().startPlayAHItem();
+          if (ahResult.status) {
+            if (loadCatalogue(ahResult.strDCMFile!)) {
               _bValidForPlay = true;
               playProduct(0, true);
             }
           }
         } else if (_bIsTimeForNextGroup) {
           logD('start playing next group, Current TID: $pid.');
-          StringBuffer strDCMFile = StringBuffer();
           _bValidForPlay = false;
-          if (ScheduleList().playNextGroup(strDCMFile)) {
-            if (loadCatalogue(strDCMFile.toString())) {
+          var playResult = ScheduleList().playNextGroup();
+          if (playResult.status) {
+            if (loadCatalogue(playResult.strDCMFile!)) {
               _bValidForPlay = true;
               ScheduleList().setLoadedState(false);
               playProduct(0, true);
@@ -721,10 +724,10 @@ class PlayerScreenProvider extends ChangeNotifier {
             ScheduleList().adjustAHTime(dtAH);
           }
 
-          StringBuffer strDCMFile = StringBuffer();
           _bValidForPlay = false;
-          if (ScheduleList().playFileList(strDCMFile)) {
-            if (loadCatalogue(strDCMFile.toString())) {
+          var playResult = ScheduleList().playFileList();
+          if (playResult.status) {
+            if (loadCatalogue(playResult.strDCMFile!)) {
               _bValidForPlay = true;
               ScheduleList().setLoadedState(true);
               playProduct(ScheduleList().getPlayProduct(), true);
@@ -794,17 +797,17 @@ class PlayerScreenProvider extends ChangeNotifier {
                 ScheduleList().adjustAHTime(dtAH);
               }
 
-              StringBuffer strDCMFile = StringBuffer();
-              if (ScheduleList().startPlayAHItem(strDCMFile)) {
-                if (loadCatalogue(strDCMFile.toString())) {
+              var ahResult = ScheduleList().startPlayAHItem();
+              if (ahResult.status) {
+                if (loadCatalogue(ahResult.strDCMFile!)) {
                   _bValidForPlay = true;
                   playProduct(0, true);
                 }
               }
             } else {
-              StringBuffer strDCMFile = StringBuffer();
-              if (ScheduleList().returnPlayNormalItem(strDCMFile)) {
-                if (loadCatalogue(strDCMFile.toString())) {
+              var playResult = ScheduleList().returnPlayNormalItem();
+              if (playResult.status) {
+                if (loadCatalogue(playResult.strDCMFile!)) {
                   _bValidForPlay = true;
                   ScheduleList().setLoadedState(true);
                   playProduct(ScheduleList().getPlayProduct(false), true);
@@ -821,20 +824,20 @@ class PlayerScreenProvider extends ChangeNotifier {
               ScheduleList().adjustAHTime(dtAH);
             }
 
-            StringBuffer strDCMFile = StringBuffer();
             _bValidForPlay = false;
-            if (ScheduleList().startPlayAHItem(strDCMFile)) {
-              if (loadCatalogue(strDCMFile.toString())) {
+            var ahResult = ScheduleList().startPlayAHItem();
+            if (ahResult.status) {
+              if (loadCatalogue(ahResult.strDCMFile!)) {
                 _bValidForPlay = true;
                 playProduct(0, true);
               }
             }
           } else if (_bIsTimeForNextGroup) {
             logD('start playing next group, Current TID: $pid.');
-            StringBuffer strDCMFile = StringBuffer();
             _bValidForPlay = false;
-            if (ScheduleList().playNextGroup(strDCMFile)) {
-              if (loadCatalogue(strDCMFile.toString())) {
+            var playResult = ScheduleList().playNextGroup();
+            if (playResult.status) {
+              if (loadCatalogue(playResult.strDCMFile!)) {
                 _bValidForPlay = true;
                 ScheduleList().setLoadedState(false);
                 playProduct(0, true);
@@ -850,10 +853,10 @@ class PlayerScreenProvider extends ChangeNotifier {
               ScheduleList().adjustAHTime(dtAH);
             }
 
-            StringBuffer strDCMFile = StringBuffer();
             _bValidForPlay = false;
-            if (ScheduleList().playFileList(strDCMFile)) {
-              if (loadCatalogue(strDCMFile.toString())) {
+            var playResult = ScheduleList().playFileList();
+            if (playResult.status) {
+              if (loadCatalogue(playResult.strDCMFile!)) {
                 _bValidForPlay = true;
                 ScheduleList().setLoadedState(true);
                 playProduct(ScheduleList().getPlayProduct(), true);
@@ -1107,8 +1110,9 @@ class PlayerScreenProvider extends ChangeNotifier {
           pThread.setContentType(pData.nZoneType);
           pThread.setWindowRect(playSkin.getZoneRect(pData.nZoneID));
         } else {
-          pThread = createZoneThread(pData);
+          pThread = _createZoneThread(pData);
         }
+        pThread.initZone();
       }
 
       /*for(var pThread in _playerZones) {
@@ -1205,6 +1209,8 @@ class PlayerScreenProvider extends ChangeNotifier {
           pThread.setZone(pData.nZoneID);
           pThread.setContentType(pData.nZoneType);
           pThread.setWindowRect(playSkin.getZoneRect(pData.nZoneID));
+          pThread.setZoneData(pData);
+          pThread.initZone();
         }
       }
     }
@@ -1293,29 +1299,31 @@ class PlayerScreenProvider extends ChangeNotifier {
         pZoneThread.setZone(pZoneData.nZoneID);
         pZoneThread.setContentType(pZoneData.nZoneType);
         pZoneThread.setWindowRect(playSkin.getZoneRect(pZoneData.nZoneID));
-        pZoneThread.initZone();
+        //pZoneThread.initZone();
         _playerZones.add(pZoneThread);
 
-        logI('Create Zone Thread Count ${_playerZones.length}.');
+        logI(
+            '_createZoneThreadByZoneData: Create Thread for zone: ${pZoneData.nZoneID}, Zone count ${_playerZones.length}.');
         return pZoneThread;
       }
       return null;
     } else {
-      return createZoneThread(pZoneData);
+      return _createZoneThread(pZoneData);
     }
   }
 
-  PlayerZoneImpl createZoneThread(ZoneData pZoneData) {
+  PlayerZoneImpl _createZoneThread(ZoneData pZoneData) {
     PlayerZoneImpl pZoneThread = PlayerZoneImpl();
     pZoneThread.setZoneData(pZoneData);
     pZoneThread.setZone(pZoneData.nZoneID);
     pZoneThread.setContentType(pZoneData.nZoneType);
     pZoneThread.setWindowRect(playSkin.getZoneRect(pZoneData.nZoneID));
-    pZoneThread.initZone();
+    //pZoneThread.initZone();
 
     _playerZones.add(pZoneThread);
 
-    logI('Create Zone Thread Count ${_playerZones.length}.');
+    logI(
+        '_createZoneThread: Create Thread for zone: ${pZoneData.nZoneID}, Zone count ${_playerZones.length}.');
 
     return pZoneThread;
   }
@@ -1359,7 +1367,7 @@ class PlayerScreenProvider extends ChangeNotifier {
         logD(
             'CPlayerScreenDlg::playNextContent, Zone: ${pThread0.getZone()} play finished, try to replay, Current TID $pid.');
         pThread0.rePlay();
-        notifyListeners();
+        //notifyListeners();
       } else {
         if (pThread0.isContentFinished()) {
           pThread0.setContentFinished(false);
@@ -1384,7 +1392,7 @@ class PlayerScreenProvider extends ChangeNotifier {
     bool bHasPowerPoint =
         ScheduleList().hasPowerPoint(ScheduleList().getPlayProduct());
     logD(
-        'CPlayerScreenDlg::PlayNextProduct step:$bHasPowerPoint, Current TID $pid.');
+        'CPlayerScreenDlg::PlayNextProduct, bHasPowerPoint:$bHasPowerPoint, Current TID $pid.');
 
     try {
       if (ScheduleList().reachLastProduct()) {
@@ -1409,15 +1417,16 @@ class PlayerScreenProvider extends ChangeNotifier {
           //logD('CPlayerScreenDlg::PlayNextProduct step:%d, Current TID $pid.', 4, GetCurrentThreadId());
           if (ScheduleList().count > 1) {
             // multi playlist
-            StringBuffer strDCMFile = StringBuffer();
             //12/03/2001 John Lee
             //if (ScheduleList().getPlayTimes())// not reach playlist item play times
             {
-              if (ScheduleList().playNextFile(strDCMFile)) {
-                if (!strDCMFile.toString().equalsIgnoreCase(_strDCMFile)) {
+              var playNextResult = ScheduleList().playNextFile();
+              if (playNextResult.status) {
+                if (!playNextResult.strDCMFile!.equalsIgnoreCase(_strDCMFile)) {
                   //logD('CPlayerScreenDlg::PlayNextProduct step:%d, Current TID $pid.', 51, GetCurrentThreadId());
-                  if (!loadCatalogue(strDCMFile.toString())) {
-                    logD('load DCM file: $strDCMFile error; Current TID $pid.');
+                  if (!loadCatalogue(playNextResult.strDCMFile!)) {
+                    logD(
+                        'load DCM file: ${playNextResult.strDCMFile} error; Current TID $pid.');
                     //StopNotQuit();
                     //_bValidForPlay = false;
                     _bNeedPlayNextProduct = true;
@@ -1436,13 +1445,13 @@ class PlayerScreenProvider extends ChangeNotifier {
             {
               ScheduleList().SetPlayTimes();
             }*/ //12/03/2001 John lee
-            logD('play DCM file: $strDCMFile; Current TID $pid.');
+            logD('play DCM file: $_strDCMFile; Current TID $pid.');
           } else {
             //Single Playlist play
             String strDCMFile = ScheduleList().getPlayFile();
-            if (!strDCMFile.toString().equalsIgnoreCase(_strDCMFile)) {
+            if (!strDCMFile.equalsIgnoreCase(_strDCMFile)) {
               //logD('CPlayerScreenDlg::PlayNextProduct step:%d, Current TID $pid.', 53, GetCurrentThreadId());
-              if (!loadCatalogue(strDCMFile.toString())) {
+              if (!loadCatalogue(strDCMFile)) {
                 logD('load DCM file: $strDCMFile error; Current TID $pid.');
                 _bNeedPlayNextProduct = true;
                 //StopNotQuit();
@@ -1547,12 +1556,12 @@ class PlayerScreenProvider extends ChangeNotifier {
     resetFirstFinished();
 
     _bIsPause = false;
-    StringBuffer strDCMFile = StringBuffer();
     //COleDateTime dtCurr = COleDateTime::getCurrentTime();
-    if (ScheduleList().playNextPlaylist(strDCMFile)) {
+    var playResult = ScheduleList().playNextPlaylist();
+    if (playResult.status) {
       //if (!ScheduleList().IsAHPlaylist())
       ScheduleList().writePlaylistLog();
-      if (loadCatalogue(strDCMFile.toString())) {
+      if (loadCatalogue(playResult.strDCMFile!)) {
         _bValidForPlay = true;
         //_nCurrProduct = 0;
         if (ScheduleList().isAHPlaylist()) {
@@ -1963,9 +1972,9 @@ class PlayerScreenProvider extends ChangeNotifier {
   void _readyForPlay() {
     bool bCanPlay = loadPlayerState();
     if (!bCanPlay) {
-      StringBuffer strDCMFile = StringBuffer();
-      if (ScheduleList().playFileList(strDCMFile)) {
-        _strDCMFile = strDCMFile.toString();
+      var playResult = ScheduleList().playFileList();
+      if (playResult.status) {
+        _strDCMFile = playResult.strDCMFile;
         if (loadCatalogue(_strDCMFile!, true)) {
           bCanPlay = ScheduleList().isCatalogueCanPlay();
         }
@@ -1973,12 +1982,13 @@ class PlayerScreenProvider extends ChangeNotifier {
         if (!bCanPlay) {
           if (ScheduleList().count > 1) {
             while (true) {
-              if (ScheduleList().playNextFile(strDCMFile)) {
+              var playNextResult = ScheduleList().playNextFile();
+              if (playNextResult.status) {
                 //if (ScheduleList().LoadCatalogue(strDCMFile))
-                if (loadCatalogue(strDCMFile.toString(), true)) {
+                if (loadCatalogue(playNextResult.strDCMFile!, true)) {
                   if (ScheduleList().isCatalogueCanPlay()) {
                     bCanPlay = true;
-                    _strDCMFile = strDCMFile.toString();
+                    _strDCMFile = playNextResult.strDCMFile!;
                     break;
                   }
                 }
@@ -1999,10 +2009,10 @@ class PlayerScreenProvider extends ChangeNotifier {
   bool loadPlayerState() {
     if (DCMGlobal.playStartPoint != 0) {
       if (ScheduleList().loadState()) {
-        StringBuffer strDCMFile = StringBuffer();
-        if (ScheduleList().playCurrFile(strDCMFile)) {
-          _strDCMFile = strDCMFile.toString();
-          if (loadCatalogue(_strDCMFile!)) {
+        var playResult = ScheduleList().playCurrFile();
+        if (playResult.status) {
+          _strDCMFile = playResult.strDCMFile;
+          if (loadCatalogue(playResult.strDCMFile!)) {
             if (ScheduleList().isCatalogueCanPlay()) {
               return true;
             }
@@ -2165,9 +2175,6 @@ class PlayerScreenProvider extends ChangeNotifier {
   }
 
   void _getClientRect() async {
-    /*if (PlatformUtils.isDesktop) {
-      _rectPlayer = await windowManager.getBounds();
-    }*/
     final window = WindowManager.instance.getCurrent();
     if (window != null) {
       _rectPlayer = Rect.fromLTWH(window.position.dx, window.position.dy,

@@ -95,7 +95,7 @@ class XmlClockSetting {
             xmlProfile.getProfileInt('ClockSetting', 'm_nOffsetMins', 0);
         pClock.nRows = xmlProfile.getProfileInt('ClockSetting', 'm_nRows', 0);
         pClock.nCols = xmlProfile.getProfileInt('ClockSetting', 'm_nCols', 0);
-        XmlItem? xiClocks = xmlProfile.root()?.getItem('Clocks');
+        XmlItem? xiClocks = xmlProfile.root().getItem('Clocks');
         if (xiClocks != null) {
           getClocksFromXML(xiClocks, pClock);
         }
@@ -190,7 +190,7 @@ class XmlClockSetting {
       xmlProfile.writeProfileInt("ClockSetting", "m_nRows", pClock.nRows);
       xmlProfile.writeProfileInt("ClockSetting", "m_nCols", pClock.nCols);
       if (pClock.pClocks != null) {
-        XmlItem? xiClocks = xmlProfile.root()?.addItem("Clocks");
+        XmlItem? xiClocks = xmlProfile.root().addItem("Clocks");
         if (xiClocks != null) {
           writeClocksToXML(xiClocks, pClock);
         }

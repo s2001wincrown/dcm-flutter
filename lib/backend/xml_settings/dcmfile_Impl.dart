@@ -7,7 +7,6 @@ import 'dart:io';
 import 'dart:ui';
 
 import 'package:dcm/backend/constants.dart';
-import 'package:dcm/backend/models/dcm_global.dart';
 import 'package:dcm/backend/models/dcmfile_data.dart';
 import 'package:dcm/backend/models/layout_data.dart';
 import 'package:dcm/backend/models/product_data.dart';
