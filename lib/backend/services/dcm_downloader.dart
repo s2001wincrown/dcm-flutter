@@ -6,6 +6,7 @@ import 'package:dcm/backend/models/file_info_data.dart';
 import 'package:dcm/backend/utils/utils.dart';
 import 'package:dcm/backend/xmlfile/xmlfile.dart';
 import 'package:dcm/backend/xmlfile/xmlitem.dart';
+import 'package:worker_manager/worker_manager.dart';
 
 enum DcmDownloadStatus {
   pending,
@@ -203,6 +204,73 @@ class DcmDownloadQueue {
   }
 }
 
+class DcmDownloadWorkerPayload {
+  DcmDownloadWorkerPayload({
+    required this.apiUrl,
+    required this.persistencePath,
+    required this.timeoutSeconds,
+    required this.maxRetries,
+    required this.backoffSeconds,
+    required this.taskJson,
+  });
+
+  final String apiUrl;
+  final String persistencePath;
+  final int timeoutSeconds;
+  final int maxRetries;
+  final int backoffSeconds;
+  final Map<String, dynamic> taskJson;
+
+  Map<String, dynamic> toJson() {
+    return {
+      'apiUrl': apiUrl,
+      'persistencePath': persistencePath,
+      'timeoutSeconds': timeoutSeconds,
+      'maxRetries': maxRetries,
+      'backoffSeconds': backoffSeconds,
+      'taskJson': taskJson,
+    };
+  }
+
+  factory DcmDownloadWorkerPayload.fromJson(Map<String, dynamic> json) {
+    return DcmDownloadWorkerPayload(
+      apiUrl: json['apiUrl']?.toString() ?? '',
+      persistencePath: json['persistencePath']?.toString() ?? '',
+      timeoutSeconds: json['timeoutSeconds'] is int
+          ? json['timeoutSeconds'] as int
+          : int.tryParse(json['timeoutSeconds']?.toString() ?? '30') ?? 30,
+      maxRetries: json['maxRetries'] is int
+          ? json['maxRetries'] as int
+          : int.tryParse(json['maxRetries']?.toString() ?? '3') ?? 3,
+      backoffSeconds: json['backoffSeconds'] is int
+          ? json['backoffSeconds'] as int
+          : int.tryParse(json['backoffSeconds']?.toString() ?? '2') ?? 2,
+      taskJson: Map<String, dynamic>.from(json['taskJson'] ?? const {}),
+    );
+  }
+}
+
+class DcmDownloadWorkerResult {
+  DcmDownloadWorkerResult({required this.taskJson, required this.success});
+
+  final Map<String, dynamic> taskJson;
+  final bool success;
+
+  Map<String, dynamic> toJson() {
+    return {
+      'taskJson': taskJson,
+      'success': success,
+    };
+  }
+
+  factory DcmDownloadWorkerResult.fromJson(Map<String, dynamic> json) {
+    return DcmDownloadWorkerResult(
+      taskJson: Map<String, dynamic>.from(json['taskJson'] ?? const {}),
+      success: json['success'] == true,
+    );
+  }
+}
+
 class DcmDownloader {
   DcmDownloader({
     required this.apiUrl,
@@ -354,16 +422,64 @@ class DcmDownloader {
       task.lastUpdated = DateTime.now();
       await queue.save();
 
-      final success = await _attemptDownload(task);
-      task.status =
-          success ? DcmDownloadStatus.success : DcmDownloadStatus.failed;
-      task.lastUpdated = DateTime.now();
-      await queue.save();
-      onTaskComplete?.call(task);
+      try {
+        final processedTask = await _processTaskWithWorker(task);
+        task.downloaded = processedTask.downloaded;
+        task.retryCount = processedTask.retryCount;
+        task.status = processedTask.status;
+        task.errorMessage = processedTask.errorMessage;
+        task.lastUpdated = processedTask.lastUpdated;
+        await queue.save();
+        onProgress?.call(task);
+        onTaskComplete?.call(task);
+      } catch (e) {
+        task.status = DcmDownloadStatus.failed;
+        task.errorMessage = e.toString();
+        task.lastUpdated = DateTime.now();
+        await queue.save();
+        onTaskComplete?.call(task);
+      }
     }
   }
 
-  Future<bool> _attemptDownload(DcmDownloadTask task) async {
+  Future<DcmDownloadTask> _processTaskWithWorker(DcmDownloadTask task) async {
+    final payload = DcmDownloadWorkerPayload(
+      apiUrl: apiUrl,
+      persistencePath: queue.persistencePath,
+      timeoutSeconds: timeout.inSeconds,
+      maxRetries: maxRetries,
+      backoffSeconds: backoffBase.inSeconds,
+      taskJson: task.toJson(),
+    );
+
+    final result = await workerManager.executeGentle(
+      (_) => DcmDownloader.executeTaskInWorker(payload),
+    );
+
+    return DcmDownloadTask.fromJson(result.taskJson);
+  }
+
+  static Future<DcmDownloadWorkerResult> executeTaskInWorker(
+      DcmDownloadWorkerPayload payload) async {
+    final task = DcmDownloadTask.fromJson(payload.taskJson);
+    final downloader = DcmDownloader(
+      apiUrl: payload.apiUrl,
+      queue: DcmDownloadQueue(persistencePath: payload.persistencePath),
+      timeout: Duration(seconds: payload.timeoutSeconds),
+      maxRetries: payload.maxRetries,
+      backoffBase: Duration(seconds: payload.backoffSeconds),
+    );
+
+    final success =
+        await downloader._attemptDownload(task, persistState: false);
+    task.status =
+        success ? DcmDownloadStatus.success : DcmDownloadStatus.failed;
+    task.lastUpdated = DateTime.now();
+    return DcmDownloadWorkerResult(taskJson: task.toJson(), success: success);
+  }
+
+  Future<bool> _attemptDownload(DcmDownloadTask task,
+      {bool persistState = true}) async {
     while (task.retryCount <= maxRetries) {
       try {
         await _downloadTask(task);
@@ -373,7 +489,9 @@ class DcmDownloader {
         task.errorMessage = e.toString();
         task.status = DcmDownloadStatus.failed;
         task.lastUpdated = DateTime.now();
-        await queue.save();
+        if (persistState) {
+          await queue.save();
+        }
         if (task.retryCount > maxRetries) {
           return false;
         }

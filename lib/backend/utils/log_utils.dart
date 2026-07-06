@@ -1,57 +1,36 @@
-import 'dart:io';
-
-import 'package:dcm/backend/app.dart';
-import 'package:logging/logging.dart';
+import 'package:mixin_logger/mixin_logger.dart';
 
 const String _tag = "dcm";
-
-Logger _logger = initFileLogger(_tag);
-Logger initFileLogger(String name) {
-  hierarchicalLoggingEnabled = true;
-  final logger = Logger(name);
-  final now = DateTime.now();
-
-  final dir = Directory('${App().dataPath}/logs');
-  if (!dir.existsSync()) dir.createSync();
-  final logFile = File(
-    '${dir.path}/${now.year}_${now.month}_${now.day}_$name.log',
+void initFileLogger(String dataPath) {
+  // init logger with dir. then all logs will be saved to this dir.
+  initLogger(
+    '$dataPath/logs',
+    maxFileCount: 10, // max 10 files.
+    maxFileLength: 5 * 1024 * 1024, // max to 5 MB for single file.
   );
-
-  // Set the logger level to ALL, so it logs all messages regardless of severity.
-  // Level.ALL is useful for development and debugging, but you'll likely want to
-  // use a more restrictive level like Level.INFO or Level.WARNING in production.
-  logger.level = Level.ALL;
-
-  // Listen for log records and write each one to the log file.
-  logger.onRecord.listen((record) {
-    final msg =
-        '[${record.time} - ${record.loggerName}] ${record.level.name}: ${record.message}';
-    logFile.writeAsStringSync('$msg \n', mode: FileMode.append);
-  });
-
-  return logger;
+  logI('log_utils: after initLogger');
 }
 
-logV(String msg) {
-  _logger.fine("$_tag :: $msg");
+void logV(String msg) {
+  v("$_tag :: $msg");
 }
 
-logD(String msg) {
-  _logger.shout("$_tag :: $msg");
+void logD(String msg) {
+  d("$_tag :: $msg");
 }
 
-logI(String msg) {
-  _logger.info("$_tag :: $msg");
+void logI(String msg) {
+  i("$_tag :: $msg");
 }
 
-logW(String msg) {
-  _logger.warning("$_tag :: $msg");
+void logW(String msg) {
+  w("$_tag :: $msg");
 }
 
-logE(String msg) {
-  _logger.severe("$_tag :: $msg");
+void logE(String msg) {
+  e("$_tag :: $msg");
 }
 
-logWTF(String msg) {
-  _logger.severe("$_tag :: $msg");
+void logWTF(String msg) {
+  wtf("$_tag :: $msg");
 }

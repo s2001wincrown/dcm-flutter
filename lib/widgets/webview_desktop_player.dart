@@ -93,9 +93,7 @@ class _WebviewDesktopPlayerState extends State<WebviewDesktopPlayer> {
       onLoadStart: (controller, url) async {
         logD(
             'onLoadStart: ${url.toString()}; DCMGlobal.ieSetting=${DCMGlobal.ieSetting}');
-        setState(() {
-          this.url = url.toString();
-        });
+        this.url = url.toString();
       },
       onPermissionRequest: (controller, request) async {
         return PermissionResponse(
@@ -120,10 +118,12 @@ class _WebviewDesktopPlayerState extends State<WebviewDesktopPlayer> {
         return NavigationActionPolicy.ALLOW;
       },
       onLoadStop: (controller, url) async {
+        if (DCMGlobal.ieSetting == 0x0000) {
+          await controller.evaluateJavascript(
+              source: "document.querySelector('body').style.overflow='hidden'");
+        }
         pullToRefreshController?.endRefreshing();
-        setState(() {
-          this.url = url.toString();
-        });
+        this.url = url.toString();
       },
       onReceivedError: (controller, request, error) {
         pullToRefreshController?.endRefreshing();
@@ -132,14 +132,10 @@ class _WebviewDesktopPlayerState extends State<WebviewDesktopPlayer> {
         if (progress == 100) {
           pullToRefreshController?.endRefreshing();
         }
-        setState(() {
-          this.progress = progress / 100;
-        });
+        this.progress = progress / 100;
       },
       onUpdateVisitedHistory: (controller, url, isReload) {
-        setState(() {
-          this.url = url.toString();
-        });
+        this.url = url.toString();
       },
       onConsoleMessage: (controller, consoleMessage) {
         logD('onConsoleMessage: $consoleMessage');

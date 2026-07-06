@@ -103,6 +103,8 @@ class DCMGlobal {
   static late String cmsToken; //CMS Token
   static late String organization;
 
+  static int statusCheckInterval = 1; //minutes
+
   // Other
   static int copyFileQueueSize = 8 * 1024 * 1024;
   static int maxApprovalLevel = 0;
@@ -200,6 +202,7 @@ class DCMGlobal {
     'Global Setting.StartupWallpaper': (v) => startupWallpaper = v,
     'Global Setting.nPDFViewMode': (v) => pdfViewMode = int.parse(v),
     'Global Setting.nPDFPlayMode': (v) => pdfPlayMode = int.parse(v),
+    'Global.StatusCheckInterval': (v) => statusCheckInterval = int.parse(v),
   };
 
   static Future<bool> loadFromIni() async {

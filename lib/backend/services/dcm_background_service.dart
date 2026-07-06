@@ -7,13 +7,13 @@ import 'package:dcm/backend/models/dcm_global.dart';
 import 'package:dcm/backend/services/dcm_downloader.dart';
 import 'package:dcm/backend/xmlfile/xmlfile.dart';
 import 'package:path/path.dart' as path;
+import 'package:worker_manager/worker_manager.dart';
 
 class DcmBackgroundService {
   DcmBackgroundService._();
 
   static final DcmBackgroundService instance = DcmBackgroundService._();
 
-  DcmDownloader? _downloader;
   bool _started = false;
 
   Future<void> init() async {
@@ -26,22 +26,48 @@ class DcmBackgroundService {
     }
 
     final queuePath = path.join(App().dataPath, 'download_queue.json');
-    _downloader = DcmDownloader(
-      apiUrl: DCMGlobal.cmsUrl + cmsGETFILELISTURL,
-      queue: DcmDownloadQueue(persistencePath: queuePath),
-      pollingInterval: const Duration(minutes: 5),
-      buildRequestBody: _buildRequestBody,
-      onProgress: _onProgress,
-      onTaskComplete: _onTaskComplete,
-    );
 
     try {
-      await _downloader?.startPolling();
       _started = true;
+      unawaited(workerManager.executeGentle((_) async {
+        await _startPollingInWorker(
+          apiUrl: DCMGlobal.cmsUrl + cmsGETFILELISTURL,
+          queuePath: queuePath,
+          pollingIntervalMinutes: DCMGlobal.statusCheckInterval,
+          token: DCMGlobal.cmsToken,
+          organization: DCMGlobal.organization,
+        );
+      }));
     } catch (e, stack) {
+      _started = false;
       stderr.writeln('DcmBackgroundService.init() failed: $e');
       stderr.writeln(stack);
     }
+  }
+
+  Future<void> _startPollingInWorker({
+    required String apiUrl,
+    required String queuePath,
+    required int pollingIntervalMinutes,
+    required String token,
+    required String organization,
+  }) async {
+    final downloader = DcmDownloader(
+      apiUrl: apiUrl,
+      queue: DcmDownloadQueue(persistencePath: queuePath),
+      pollingInterval: Duration(minutes: pollingIntervalMinutes),
+      buildRequestBody: () async =>
+          _buildRequestBodyForWorker(token, organization),
+    );
+    await downloader.startPolling();
+  }
+
+  Future<String> _buildRequestBodyForWorker(
+      String token, String organization) async {
+    final xml = XmlFile('PublishFileInformation');
+    xml.setItemValue('Token', token);
+    xml.setItemValue('Organization', organization);
+    return xml.export();
   }
 
   Future<String> _buildRequestBody() async {

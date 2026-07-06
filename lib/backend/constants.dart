@@ -544,6 +544,7 @@ enum PlayFinish {
   eCONTENTFINISH,
   eZONEFINISH,
   ePRODUCTFINISH,
+  eCONTENTSTARTING,
 }
 
 enum ButtonPosition { eBOTTOM, eRIGHT, eTOP, eLEFT, eTHUMBVIEW }

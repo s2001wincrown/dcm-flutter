@@ -1,4 +1,6 @@
+import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:dcm/backend/net/netdef.dart';
@@ -45,7 +47,11 @@ class Packet {
     isFromPF = false;
     tempBuffer = null;
     completeBuffer = null;
-    pBuffer = buf;
+
+    final payloadBuffer = Uint8List(size);
+    final copyLength = buf.length < size ? buf.length : size;
+    payloadBuffer.setRange(0, copyLength, buf.sublist(0, copyLength));
+    pBuffer = payloadBuffer;
   }
 
   // 构造函数3: 从字符串构建
@@ -55,8 +61,12 @@ class Packet {
     isLastSplitted = false;
     isFromPF = false;
     size = str.length;
-    completeBuffer = Uint8List(size + 10);
-    pBuffer = completeBuffer!.sublist(6);
+    completeBuffer = Uint8List(size + 6);
+    pBuffer = Uint8List.view(
+      completeBuffer!.buffer,
+      completeBuffer!.offsetInBytes + 6,
+      size,
+    );
     final strBytes = utf8.encode(str);
     pBuffer!.setRange(0, strBytes.length, strBytes);
     tempBuffer = null;
@@ -99,7 +109,7 @@ class Packet {
       if (tempBuffer != null) {
         tempBuffer = null;
       }
-      tempBuffer = Uint8List(size + 6 + 4);
+      tempBuffer = Uint8List(size + 6);
       final headerBytes = getHeader();
       tempBuffer!.setRange(0, headerBytes.length, headerBytes);
       tempBuffer!.setRange(6, 6 + size, pBuffer!);
@@ -122,7 +132,7 @@ class Packet {
       if (tempBuffer != null) {
         tempBuffer = null;
       }
-      tempBuffer = Uint8List(size + 6 + 4);
+      tempBuffer = Uint8List(size + 6);
       final headerBytes = getHeader();
       tempBuffer!.setRange(0, headerBytes.length, headerBytes);
       tempBuffer!.setRange(6, 6 + size, pBuffer!);
@@ -202,17 +212,11 @@ class Packet {
 
   // 实现网络字节序转换函数
   static int _htonl(int value) {
-    return ((value & 0xFF) << 24) |
-        (((value >> 8) & 0xFF) << 16) |
-        (((value >> 16) & 0xFF) << 8) |
-        ((value >> 24) & 0xFF);
+    return value & 0xFFFFFFFF;
   }
 
   static int _ntohl(int value) {
-    return ((value & 0xFF) << 24) |
-        (((value >> 8) & 0xFF) << 16) |
-        (((value >> 16) & 0xFF) << 8) |
-        ((value >> 24) & 0xFF);
+    return value & 0xFFFFFFFF;
   }
 
   static Uint8List _int32ToBytes(int value) {
@@ -222,6 +226,97 @@ class Packet {
       (value >> 8) & 0xFF,
       value & 0xFF
     ]);
+  }
+}
+
+class PacketTcpServer {
+  PacketTcpServer({
+    this.port = kFTPMANAGERPORT,
+    this.address,
+    this.onPacket,
+    this.onError,
+  });
+
+  final int port;
+  final InternetAddress? address;
+  final void Function(Packet packet)? onPacket;
+  final void Function(Object error, StackTrace stackTrace)? onError;
+
+  ServerSocket? _serverSocket;
+  final PacketStreamParser _parser = PacketStreamParser();
+
+  Future<void> start() async {
+    final bindAddress = address ?? InternetAddress.anyIPv4;
+    _serverSocket = await ServerSocket.bind(bindAddress, port);
+    _serverSocket!.listen((socket) {
+      socket.listen(
+        (data) {
+          final packets = _parser.feedAll(data);
+          for (final packet in packets) {
+            onPacket?.call(packet);
+          }
+        },
+        onError: (error, StackTrace stackTrace) {
+          onError?.call(error, stackTrace);
+        },
+        onDone: () {
+          socket.destroy();
+        },
+      );
+    });
+  }
+
+  Future<void> stop() async {
+    final serverSocket = _serverSocket;
+    _serverSocket = null;
+    await serverSocket?.close();
+  }
+
+  static Packet? parsePacket(Uint8List bytes) {
+    return PacketStreamParser().feed(bytes);
+  }
+
+  static PacketStreamParser createParser() {
+    return PacketStreamParser();
+  }
+}
+
+class PacketStreamParser {
+  final List<int> _buffer = <int>[];
+
+  Packet? feed(Uint8List chunk) {
+    final packets = feedAll(chunk);
+    return packets.isEmpty ? null : packets.first;
+  }
+
+  List<Packet> feedAll(Uint8List chunk) {
+    _buffer.addAll(chunk);
+    final packets = <Packet>[];
+
+    while (true) {
+      if (_buffer.length < 6) {
+        return packets;
+      }
+
+      final headerBytes = Uint8List.fromList(_buffer.sublist(0, 6));
+      final packetSize = Packet.getPacketSizeFromHeader(headerBytes);
+      if (packetSize <= 0) {
+        _buffer.clear();
+        return packets;
+      }
+
+      final totalPacketLength = 6 + packetSize;
+      if (_buffer.length < totalPacketLength) {
+        return packets;
+      }
+
+      final packetBytes =
+          Uint8List.fromList(_buffer.sublist(0, totalPacketLength));
+      _buffer.removeRange(0, totalPacketLength);
+      packets.add(
+        Packet.fromRawHeader(packetBytes.sublist(0, 6), packetBytes.sublist(6)),
+      );
+    }
   }
 }
 

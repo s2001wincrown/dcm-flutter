@@ -18,4 +18,4 @@ We prioritize the security of your data. Any data collected by third-party servi
 We may update this Privacy Statement as necessary to reflect changes in the software or our privacy practices. The latest version of the Privacy Statement will be available in the repository.
 
 #### 6. Contact Us
-If you have any questions or concerns about your privacy in relation to this project, please feel free to reach out to us at yuihrsw@outlook.com.
+If you have any questions or concerns about your privacy in relation to this project, please feel free to reach out to us at s2001johnlee@outlook.com.

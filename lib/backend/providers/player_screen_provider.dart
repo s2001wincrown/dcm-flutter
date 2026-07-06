@@ -76,6 +76,7 @@ class PlayerScreenProvider extends ChangeNotifier {
   bool _bNeedPlayNextProduct = false;
   int _isNeedBackToSchedule = 0;
   bool _bIsLoading = false;
+  bool _needNotifyListeners = false;
 
   bool _bIsPushFile = false;
 
@@ -207,6 +208,7 @@ class PlayerScreenProvider extends ChangeNotifier {
   }
 
   void _onTimer() {
+    _needNotifyListeners = false;
     /*logD(
         'CPlayerScreenDlg::OnTimer - _bValidForPlay: $_bValidForPlay; _bIsPlaying: \'$_bIsPlaying\'');*/
     if (!_bValidForPlay) {
@@ -387,6 +389,7 @@ class PlayerScreenProvider extends ChangeNotifier {
           return;
         }
       }
+
       if (_bIsPlaying) {
         //logD('CPlayerScreenDlg::OnTimer Start zoneThreadCheck');
         bool bSaveState = zoneThreadCheck(_nTotalZoneThread);
@@ -404,6 +407,10 @@ class PlayerScreenProvider extends ChangeNotifier {
         isTimeForAHMessage(dtCurr);
 
         changePlaylist();
+        if (_needNotifyListeners) {
+          _needNotifyListeners = false;
+          notifyListeners();
+        }
       }
     } catch (e) {
       _bReloadSchedule = false;
@@ -421,7 +428,6 @@ class PlayerScreenProvider extends ChangeNotifier {
     bool bSaveState = false;
 
     DateTime dwSecondTime = DateTime.now();
-    int i = 0;
     //for (i=0; i<nTotalZone; i++)
     bool bNeedSelectedProduct = false;
     PlayerZoneImpl? pThread;
@@ -431,14 +437,14 @@ class PlayerScreenProvider extends ChangeNotifier {
           //::PostMessage(pThread0.GetPlayerHWnd(), WM_INFORM_STOP, 0, 0);
           logD(
               'CPlayerScreenDlg::zoneThreadCheck, Zone: ${pThread0.getZone()} want to stop, Current TID $pid.');
-          notifyListeners();
+          _needNotifyListeners = true;
           continue;
         } else if (!pThread0.isPlaying() && !pThread0.isWantStop()) {
           bNeedSelectedProduct = true;
           //::PostMessage(pThread0.GetPlayerHWnd(), WM_INFORM_PLAY, 0, 0);
           logD(
               'CPlayerScreenDlg::zoneThreadCheck, Zone: ${pThread0.getZone()} try to play, Current TID $pid.');
-          notifyListeners();
+          _needNotifyListeners = true;
           continue;
         }
 
@@ -478,6 +484,10 @@ class PlayerScreenProvider extends ChangeNotifier {
             pThread0.setFirstFinished();
           }
         } else {
+          if (nFinish == PlayFinish.eCONTENTSTARTING) {
+            _needNotifyListeners = true;
+            pThread0.setContentStarting(false);
+          }
           if (nFinish == PlayFinish.eCONTENTFINISH) {
             bSaveState = true;
           }
@@ -491,7 +501,8 @@ class PlayerScreenProvider extends ChangeNotifier {
         pThread != null &&
         playSkin.highlightFocusBtn &&
         playSkin.dcmFile.isEmpty) {
-      notifyListeners();
+      _needNotifyListeners = true;
+      //notifyListeners();
       //::PostMessage(pThread.GetPlayerHWnd(), WM_INFORM_PLAY, 2, 0);
     }
 
@@ -1084,6 +1095,7 @@ class PlayerScreenProvider extends ChangeNotifier {
     }
 
     //ListWindowInfo();
+    _needNotifyListeners = false;
     notifyListeners();
 
     startPlayingTimer();
@@ -1375,7 +1387,8 @@ class PlayerScreenProvider extends ChangeNotifier {
               '''CPlayerScreenDlg::playNextContent, Zone: ${pThread0.getZone()} contentlist's content play finished, try to playNextContentListItem, Current TID $pid.''');
           //::PostMessage(pThread0.GetPlayerHWnd(), WM_PLAYNEXT_CONTENTLIST, (WPARAM)CONTENT_FINISH, 0);
           pThread0.playNextContentListItem(PlayFinish.eCONTENTFINISH);
-          notifyListeners();
+          //notifyListeners();
+          _needNotifyListeners = true;
         }
       }
     }

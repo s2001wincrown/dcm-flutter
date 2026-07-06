@@ -37,7 +37,7 @@ class CategoryProvider extends ChangeNotifier {
     downloadTabs.add('All');
     List<Directory> storages = await FileUtils.getStorageList();
     storages.forEach((dir) {
-      if (Directory(dir.path + 'Download').existsSync()) {
+      if (Directory('${dir.path}Download').existsSync()) {
         List<FileSystemEntity> files =
             Directory(dir.path + 'Download').listSync();
         print(files);

@@ -239,7 +239,7 @@ class PlayerZoneImpl {
     _bIsPlaying = false;
     _bNeedReset = true;
     logI(
-        'Init Zone finished - Zone: $_zoneId; _rtDuration: $_rtDuration; _rtAct $_rtAct; _strZoneFile: $_strZoneFile; _playCached: $_playCached.');
+        'Init Zone finished - Zone: $_zoneId; _nPType: $_nPType; _rtDuration: $_rtDuration; _rtAct $_rtAct; _strZoneFile: $_strZoneFile; _playCached: $_playCached.');
   }
 
   void _initVideoPlayer(ZoneData pZoneData, [PreloadedContent? preloaded]) {
@@ -346,6 +346,12 @@ class PlayerZoneImpl {
   bool isContentFinished() => _bContentFinished;
   void setContentFinished([bool bContentFinished = true]) {
     _bContentFinished = bContentFinished;
+  }
+
+  void setContentStarting([bool isLoading = true]) {
+    if (_contentListPlayer != null) {
+      return _contentListPlayer!.setIsLoading(isLoading);
+    }
   }
 
   void setContentType(int nContentType) {
@@ -532,19 +538,16 @@ class PlayerZoneImpl {
           if (_player != null) {
             _player!.play();
           }
-          /*widget = ClipRRect(
-            borderRadius: BorderRadius.zero,
-            child: Video(
-                key: Key(_strZoneFile),
-                controller: _controller!,
-                fit: pZoneData.bZoneRatio ? BoxFit.contain : BoxFit.fill,
-                controls: null),
-          );*/
-          widget = Video(
-              key: Key(_strZoneFile),
-              controller: _controller!,
-              fit: pZoneData.bZoneRatio ? BoxFit.contain : BoxFit.fill,
-              controls: null);
+          if (_controller != null) {
+            widget = ClipRRect(
+              borderRadius: BorderRadius.zero,
+              child: Video(
+                  key: Key(_strZoneFile),
+                  controller: _controller!,
+                  fit: pZoneData.bZoneRatio ? BoxFit.contain : BoxFit.fill,
+                  controls: null),
+            );
+          }
           break;
         case cPOWERPOINTTYPE:
           //PlayPPT(strZone1File, rectWin);
@@ -580,6 +583,7 @@ class PlayerZoneImpl {
         case cDDETYPE:
         case cDIRECTPLAYTYPE:
         case cSITEPLAYLIST:
+          //playContentList(pZoneData.nZoneType, _strZoneFile, _rect!);
           widget = ContentListPlayer(
             key: Key(_strZoneFile),
             contentList: _strZoneFile,
@@ -587,7 +591,6 @@ class PlayerZoneImpl {
             zone: _zoneId,
             rect: _rect!,
           );
-          //playContentList(pZoneData.nZoneType, _strZoneFile, rect!);
           break;
         case cLINKAGETYPE:
           break;
@@ -621,7 +624,7 @@ class PlayerZoneImpl {
     _bIsRendering = false;
     //Log.i(PlayerMainActivity.LOG_TAG, "RenderZone step 6 _rtDuration: " + _rtDuration + " _rtAct " + _rtAct);
     logI(
-        'RenderZone finished - Zone: $_zoneId; _rtDuration: $_rtDuration; _rtAct $_rtAct; _strZoneFile: $_strZoneFile; _pProductData: $_pProductData;');
+        'RenderZone finished - Zone: $_zoneId; _nPType: $_nPType; _rtDuration: $_rtDuration; _rtAct $_rtAct; _strZoneFile: $_strZoneFile; _bIsValid: $_bIsValid.');
 
     return widget ?? Container(color: Utils.fromRGB(DCMGlobal.clrBGColor));
   }
@@ -656,7 +659,7 @@ class PlayerZoneImpl {
     }
   }
 
-  void preloadContentList(BuildContext context) {
+  Future<void> preloadContentList(BuildContext context) async {
     if (_contentListPlayer != null) {
       _contentListPlayer!.initZone(context); //
     }
@@ -719,8 +722,8 @@ class PlayerZoneImpl {
     }
 
     if (bRet) {
-      logD(
-          'CPlayerZoneDlg::getCurrentPosition - Zone: $_zoneId, rtPosition=$rtPosition, _rtCurrDuration=$_rtCurrDuration.');
+      /*logD(
+          'CPlayerZoneDlg::getCurrentPosition - Zone: $_zoneId, rtPosition=$rtPosition, _rtCurrDuration=$_rtCurrDuration.');*/
       if (_nVideoStatus != 1 && rtPosition! - _rtCurrDuration < cEPSILON) {
         bRet = false;
       } else {

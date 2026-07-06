@@ -17,6 +17,7 @@ import 'package:path/path.dart' as path;
 import 'package:provider/provider.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 import 'package:window_manager/window_manager.dart';
+import 'package:worker_manager/worker_manager.dart';
 
 final localhostServer = InAppLocalhostServer(documentRoot: 'assets');
 WebViewEnvironment? webViewEnvironment;
@@ -28,6 +29,8 @@ void main(List<String> arguments) async {
 
   await App().init();
   //await DcmBackgroundService.instance.init();
+  //workerManager.log = true;
+  //await workerManager.init();
   await L10n.init();
 
   if (!kIsWeb && defaultTargetPlatform == TargetPlatform.windows) {

@@ -24,17 +24,13 @@ import 'package:path/path.dart' as path;
 /// A Flutter/Dart replacement for the legacy ContentListPlayer C++ implementation.
 class ContentListPlayerImpl {
   int _currPlaying = 0;
-  int _videoStatus = -1;
   bool _bTimeForStop = false;
   bool _bIsAHPlaying = false;
-  bool _bFirstFinished = false;
   bool _bShowMessage = false;
   bool _bShowMessageNext = false;
-  int _nParentContentType = 0;
   late String _strContentListPath;
   String _strCompany = '';
   String _strLayout = '';
-  DateTime? _dtStartTime;
   Rect? _playerRect;
   final List<PlayerZoneImpl> _players = [];
   List<Rect>? _arrZoneRect;
@@ -44,20 +40,20 @@ class ContentListPlayerImpl {
 
   ProductData? _pProductData;
   bool _bIsPlaying = false;
+  bool _bIsLoading = false;
   bool _bNeedStop = false;
 
   int _nCurrProduct = 0;
-  int _nContentType;
-  int _nPType = -1;
-  int _nZone;
+  final int _nContentType;
+  final int _nPType = -1;
+  final int _nZone;
   int _nPrevTotalZone = 0;
 
-  int _nPlayAHItem = -1;
-  int _dwPlayADItem = 0;
+  final int _nPlayAHItem = -1;
+  final int _dwPlayADItem = 0;
 
   double _rtDuration = 0.0;
   DateTime _dwFirstTime = DateTime.now();
-  int _nUpdateInterval = 0;
 
   ContentListPlayerImpl(this._nContentType, this._nZone) {
     if (_nContentType == cDDETYPE) {
@@ -67,6 +63,11 @@ class ContentListPlayerImpl {
     } else {
       _strContentListPath = DCMGlobal.siteContentPath;
     }
+  }
+
+  bool get bIsLoading => _bIsLoading;
+  void setIsLoading(bool value) {
+    _bIsLoading = value;
   }
 
   bool get bTimeForStop => _bTimeForStop;
@@ -248,11 +249,11 @@ class ContentListPlayerImpl {
     return null;
   }
 
-  double getDuration([int nStart = 0]) {
+  double getDuration([int nSeq = 0]) {
     double dbDuration = 0.00;
     if (_lstProduct == null) return dbDuration;
 
-    if (nStart <= 0) {
+    if (nSeq <= 0) {
       for (var pData in _lstProduct!) {
         if (isTimeForPlay(pData)) {
           dbDuration += Utils.getMaxDuration(pData);
@@ -261,7 +262,7 @@ class ContentListPlayerImpl {
       return dbDuration;
     }
 
-    for (int j = 0; j < nStart; j++) {
+    for (int j = 0; j < nSeq; j++) {
       int nIndex = 0;
       for (int i = 0; i < _lstProduct!.length; i++) {
         ProductData? pData = getProductDataByID(i);
@@ -327,17 +328,13 @@ class ContentListPlayerImpl {
     _bIsAHPlaying = bIsAHPlaying;
   }
 
-  void setParentContentType(int nParentContentType) {
-    _nParentContentType = nParentContentType;
-  }
+  void setParentContentType(int nParentContentType) {}
 
   void setCompany(String? strCompany) {
     _strCompany = strCompany ?? '';
   }
 
-  void setStartTime(DateTime? dtStartTime) {
-    _dtStartTime = dtStartTime;
-  }
+  void setStartTime(DateTime? dtStartTime) {}
 
   void setTimeForStop(bool timeForStop) {
     _bTimeForStop = timeForStop;
@@ -431,6 +428,7 @@ class ContentListPlayerImpl {
   }
 
   void play([int nStart = 0]) {
+    _bIsLoading = true;
     _dwFirstTime = DateTime.now();
     playProduct(nStart, true);
   }
@@ -438,7 +436,6 @@ class ContentListPlayerImpl {
   void stopCurrProduct() {
     if (_bIsPlaying) return;
 
-    _nUpdateInterval = 0;
     if (!_bNeedStop) {
       return;
     }
@@ -575,9 +572,7 @@ class ContentListPlayerImpl {
         continue;
       }
 
-      if (pData.nZoneType == cPDFTYPE) {
-        _nUpdateInterval = pData.nZoneDelay;
-      }
+      if (pData.nZoneType == cPDFTYPE) {}
 
       ZoneData? pNextData;
       if (pNextProduct != null) {
@@ -674,12 +669,13 @@ class ContentListPlayerImpl {
 
   bool isShowMessageNext() => _bShowMessageNext;
 
-  void videoStatusControl(int nVideoStatus) {
-    _videoStatus = nVideoStatus;
-  }
+  void videoStatusControl(int nVideoStatus) {}
 
   ({bool status, PlayFinish? nFinish}) isPlayFinish(PlayFinish nFinish) {
     if (_bTimeForStop) return (status: false, nFinish: nFinish);
+    if (_bIsLoading) {
+      return (status: false, nFinish: PlayFinish.eCONTENTSTARTING);
+    }
 
     DateTime dwSecondTime = DateTime.now();
 
@@ -751,11 +747,9 @@ class ContentListPlayerImpl {
   void clear() {
     _lstProduct?.clear();
     _currPlaying = 0;
-    _videoStatus = -1;
     _bTimeForStop = false;
     _bShowMessage = false;
     _bShowMessageNext = false;
-    _bFirstFinished = false;
     _playerRect = null;
   }
 

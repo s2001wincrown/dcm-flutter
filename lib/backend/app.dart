@@ -9,6 +9,7 @@ import 'package:dcm/backend/models/playitem.dart';
 import 'package:dcm/backend/models/playlist_item.dart';
 import 'package:dcm/backend/models/settings.dart';
 import 'package:dcm/backend/player_command_ext.dart';
+import 'package:dcm/backend/utils/log_utils.dart';
 import 'package:dcm/backend/xml_settings/contenttype_manager.dart';
 import 'package:dcm/pages/home.dart';
 import 'package:flutter/material.dart';
@@ -53,6 +54,7 @@ class App {
 
   Future<void> init() async {
     dataPath = (await getApplicationSupportDirectory()).path;
+    initFileLogger(dataPath);
     await DCMGlobal.loadFromIni();
     ContentTypeManager.loadContentTypes();
     await loadSettings();
