@@ -23,4 +23,16 @@ extension CaseInsensitiveString on String {
 
     return toLowerCase().contains(other.toLowerCase());
   }
+
+  bool startsWithIgnoreCase(String? other) {
+    if (other == null) return false;
+
+    return toLowerCase().startsWith(other.toLowerCase());
+  }
+
+  bool endsWithIgnoreCase(String? other) {
+    if (other == null) return false;
+
+    return toLowerCase().endsWith(other.toLowerCase());
+  }
 }

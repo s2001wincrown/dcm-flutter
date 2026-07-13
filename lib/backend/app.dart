@@ -10,6 +10,7 @@ import 'package:dcm/backend/models/playlist_item.dart';
 import 'package:dcm/backend/models/settings.dart';
 import 'package:dcm/backend/player_command_ext.dart';
 import 'package:dcm/backend/utils/log_utils.dart';
+import 'package:dcm/backend/utils/utils.dart';
 import 'package:dcm/backend/xml_settings/contenttype_manager.dart';
 import 'package:dcm/pages/home.dart';
 import 'package:flutter/material.dart';
@@ -20,6 +21,7 @@ import 'package:path_provider/path_provider.dart';
 
 class App {
   late final String dataPath;
+  late final String? uniqueKey;
 
   late AppSettings settings;
 
@@ -55,6 +57,7 @@ class App {
   Future<void> init() async {
     dataPath = (await getApplicationSupportDirectory()).path;
     initFileLogger(dataPath);
+    uniqueKey = await Utils.getUniqueKey();
     await DCMGlobal.loadFromIni();
     ContentTypeManager.loadContentTypes();
     await loadSettings();

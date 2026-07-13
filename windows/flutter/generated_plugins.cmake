@@ -5,11 +5,13 @@
 list(APPEND FLUTTER_PLUGIN_LIST
   flutter_inappwebview_windows
   flutter_libserialport
+  flutter_udid
   libmpv_dart
   media_kit_libs_windows_video
   media_kit_video
   permission_handler_windows
   screen_retriever_windows
+  unique_device_identifier
   url_launcher_windows
   window_manager
 )

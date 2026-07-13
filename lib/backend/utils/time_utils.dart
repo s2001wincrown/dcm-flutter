@@ -212,11 +212,13 @@ DateTime? addDuration(DateTime? dt1, Duration dts) {
 
 DateTime fromOleDateTime(double oleDate) {
   final epoch = DateTime(1899, 12, 30);
-  final dateTime = epoch.add(
-    Duration(microseconds: (oleDate * 86400 * 1000000).round()),
-  );
+  if (oleDate > 0) {
+    return epoch.add(
+      Duration(microseconds: (oleDate * 86400 * 1000000).round()),
+    );
+  }
 
-  return dateTime;
+  return epoch;
 }
 
 double toOleDateTime(DateTime dateTime) {

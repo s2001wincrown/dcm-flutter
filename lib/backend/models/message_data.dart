@@ -8,7 +8,7 @@
 // Date  : 03/03/2004
 
 import 'package:dcm/backend/constants.dart';
-import 'package:dcm/backend/models/ftpsite.dart';
+import 'package:dcm/backend/models/player.dart';
 import 'package:dcm/backend/models/layout_data.dart';
 import 'package:dcm/backend/models/product_data.dart';
 import 'package:dcm/backend/models/zoneext_data.dart';
@@ -90,7 +90,7 @@ class MessageData {
 
   List<ZoneData> lstZone = [];
 
-  List<FtpSite> sitesArray = [];
+  List<Player> sitesArray = [];
 
   MessageData() {
     dtStartTime = DateTime.now();
@@ -242,7 +242,7 @@ class MessageData {
     if (pItem != null) {
       pXISibling = pItem.getItem('PlayerData');
       while (pXISibling != null) {
-        FtpSite ftpSite = FtpSite();
+        Player ftpSite = Player();
 
         // get Player channel Inforamtion data
         ftpSite.getFromXML(pXISibling);

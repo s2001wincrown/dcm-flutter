@@ -38,6 +38,34 @@ int fLOBYTE(int w) => (w & 0xff);
 int fHIBYTE(int w) => ((w >> 8) & 0xff);
 bool hasFlag(int dwFlags, int dwFlag) => ((dwFlags & dwFlag) == dwFlag);
 
+String fADDSLASH(String s) {
+  if (!s.endsWith('/')) {
+    s = '$s/';
+  }
+  return s;
+}
+
+String fREMOVESLASH(String s) {
+  if (s.endsWith('/')) {
+    s = s.substring(0, s.length - 1);
+  }
+  return s;
+}
+
+String fLADDSLASH(String s) {
+  if (!s.startsWith('/')) {
+    s = '/$s';
+  }
+  return s;
+}
+
+String fLREMOVESLASH(String s) {
+  if (s.startsWith('/')) {
+    s = s.substring(1);
+  }
+  return s;
+}
+
 const String configFILENAME = 'dcm.dat';
 final String defaultBTNIMAGEPATH = 'Graphics${Platform.pathSeparator}btnImage';
 final String defaultBTNIMAGEFILE =
@@ -224,7 +252,7 @@ const String cmsDAILYLISTURL =
     'api/cm/dailyLists/xmlfilelist'; //services/api/dailyLists/xmlfilelist
 const String cmsCONTENTLISTURL =
     'api/cm/contentLists/xmlfilelist'; //services/api/contentLists/xmlfilelist
-const String cmsFTPSTATUSURL =
+const String cmsSyncSTATUSURL =
     'api/pm/ftpStatuses/create'; //services/api/ftpStatuses/create
 const String cmsPLAYERTASKURL =
     'api/pm/players/tasks'; //services/api/players/tasks
@@ -506,7 +534,7 @@ enum PlayerNotice {
   eAHMESSAGENOTICE,
   eAHDIRECTNOTICE,
   eDCMEDITORNOTICE,
-  eFTPFINISHEDNOTICE,
+  eSyncFINISHEDNOTICE,
   ePLAYLOGERNOTICE,
   ePLAYCLOSENOTICE,
   eUSBIMPFINISHEDNOTICE,

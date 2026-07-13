@@ -24,10 +24,10 @@ class XmlItem {
   XmlItem? _sibling;
   final List<XmlItem> _lstItems = [];
 
-  XmlItem(this._parent, this._name,
-      [this._value = '', this._type = XiType.element]);
+  XmlItem(this._parent,
+      [this._name = '', this._value = '', this._type = XiType.element]);
 
-  XmlItem.fromItem(XmlItem xi, XmlItem? parent) {
+  XmlItem.copy(XmlItem xi, XmlItem? parent) {
     _name = xi._name;
     _value = xi._value;
     _type = xi._type;
@@ -54,10 +54,10 @@ class XmlItem {
     }
 
     // 复制子节点
-    var pos = getFirstItemPos();
+    var pos = xi.getFirstItemPos();
     while (pos.moveNext()) {
-      XmlItem xiChild = getNextItem(pos);
-      addItemObj(XmlItem.fromItem(xiChild, this));
+      XmlItem xiChild = xi.getNextItem(pos);
+      addItemCopySiblings(xiChild, true);
     }
   }
 
@@ -212,6 +212,8 @@ class XmlItem {
         szValue = DateFormat('dd/MM/yyyy HH:mm:ss').format(value);
       } else if (value is bool) {
         szValue = value ? '1' : '0';
+      } else if (value is Enum) {
+        szValue = value.toString().split('.').last;
       } else if (value is List) {
         XmlItem? pItem = addItem(szName);
         if (pItem != null) {
@@ -249,6 +251,13 @@ class XmlItem {
     return xi;
   }
 
+  XmlItem? addItemCopySiblings(XmlItem pXI, bool bCopySiblings) {
+    XmlItem pXINew = XmlItem(this);
+    pXINew.copy(pXI, bCopySiblings);
+
+    return addItemObj(pXINew);
+  }
+
   XmlItem? setItemValue(String szName, dynamic value,
       [XiType nType = XiType.attrib]) {
     assert(nType != XiType.cdata);
@@ -257,6 +266,8 @@ class XmlItem {
       sValue = DateFormat('dd/MM/yyyy HH:mm:ss').format(value);
     } else if (value is bool) {
       sValue = value ? '1' : '0';
+    } else if (value is Enum) {
+      sValue = value.toString().split('.').last;
     } else {
       sValue = value.toString();
     }
@@ -392,6 +403,8 @@ class XmlItem {
       _value = DateFormat('dd/MM/yyyy HH:mm:ss').format(itemValue);
     } else if (itemValue is bool) {
       _value = itemValue ? '1' : '0';
+    } else if (itemValue is Enum) {
+      _value = itemValue.toString().split('.').last;
     } else if (itemValue is String) {
       _value = validateString(itemValue, ' ');
     } else {
@@ -404,6 +417,9 @@ class XmlItem {
   }
 
   bool setType(XiType nType) {
+    // some sanity checks
+    assert(
+        nType == XiType.element || _lstItems.isEmpty); // || !m_lstItems.size()
     _type = nType;
     return true;
   }

@@ -32,7 +32,7 @@ class XmlFileEx extends XmlFile {
 
     // 1. 导出根节点下的所有内容到字符串
     String sXml = '';
-    var pos = root()!.getFirstItemPos();
+    var pos = root().getFirstItemPos();
     while (pos.moveNext()) {
       // 这里需要一个内部导出方法，只导出子节点，不包括根节点本身
       var builder = xml.XmlBuilder();
@@ -67,7 +67,8 @@ class XmlFileEx extends XmlFile {
   // --- 内部导出项目辅助方法 (供加密使用) ---
   void _exportItem(XmlItem pItem, xml.XmlBuilder builder) {
     builder.element(pItem.getName(), nest: () {
-      if (pItem.getValue().isNotEmpty && pItem.isAttribute()) {
+      exportItem(pItem, builder);
+      /*if (pItem.getValue().isNotEmpty && pItem.isAttribute()) {
         builder.attribute(pItem.getName(), pItem.getValue());
       } else if (pItem.getValue().isNotEmpty && pItem.isCDATA()) {
         builder.cdata(pItem.getValue());
@@ -86,7 +87,7 @@ class XmlFileEx extends XmlFile {
             _exportItem(pos.current, builder);
           }
         }
-      }
+      }*/
     });
   }
 
@@ -173,8 +174,8 @@ class XmlFileEx extends XmlFile {
   @override
   bool loadXml(String szXML, [String? szRootItemName]) {
     String strRootItemName = szRootItemName ?? '';
-    if (strRootItemName.isEmpty && root()!.getName().isNotEmpty) {
-      strRootItemName = root()!.getName();
+    if (strRootItemName.isEmpty && root().getName().isNotEmpty) {
+      strRootItemName = root().getName();
     }
     needDecrypt = strPassword!.isNotEmpty;
 

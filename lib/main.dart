@@ -2,6 +2,7 @@ import 'package:dcm/backend/app.dart';
 import 'package:dcm/backend/keymap_helper.dart';
 import 'package:dcm/backend/models/dcm_global.dart';
 import 'package:dcm/backend/providers/player_screen_provider.dart';
+import 'package:dcm/backend/services/dcm_background_service.dart';
 import 'package:dcm/backend/services/schedulelist_impl.dart';
 import 'package:dcm/backend/utils/l10n_utils.dart';
 import 'package:dcm/backend/utils/log_utils.dart';
@@ -18,19 +19,24 @@ import 'package:provider/provider.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 import 'package:window_manager/window_manager.dart';
 import 'package:worker_manager/worker_manager.dart';
+import 'package:dcm/backend/services/app_watchdog.dart';
 
 final localhostServer = InAppLocalhostServer(documentRoot: 'assets');
 WebViewEnvironment? webViewEnvironment;
 Size primaryDisplaySize = const Size(1920, 1080);
 void main(List<String> arguments) async {
+  if (await AppWatchdog.runParentIfNeeded(arguments)) {
+    return;
+  }
+
   WidgetsFlutterBinding.ensureInitialized();
   MediaKit.ensureInitialized();
   WakelockPlus.enable();
 
   await App().init();
-  //await DcmBackgroundService.instance.init();
-  //workerManager.log = true;
-  //await workerManager.init();
+  workerManager.log = true;
+  await workerManager.init(dynamicSpawning: true);
+  await DcmBackgroundService.instance.init();
   await L10n.init();
 
   if (!kIsWeb && defaultTargetPlatform == TargetPlatform.windows) {
@@ -57,7 +63,7 @@ void main(List<String> arguments) async {
       primaryDisplaySize = primaryDisplay.size;
     }
     logD(
-        'main - windowSize: ${primaryDisplaySize.width * windowManager.getDevicePixelRatio()}x${primaryDisplaySize.height * windowManager.getDevicePixelRatio()}, DevicePixelRatio: ${windowManager.getDevicePixelRatio()}');
+        'main - uniqueKey: ${App().uniqueKey}, windowSize: ${primaryDisplaySize.width * windowManager.getDevicePixelRatio()}x${primaryDisplaySize.height * windowManager.getDevicePixelRatio()}, DevicePixelRatio: ${windowManager.getDevicePixelRatio()}');
     WindowOptions windowOptions = WindowOptions(
       //size: Size(0, 0),
       center: false,

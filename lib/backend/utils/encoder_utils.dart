@@ -33,7 +33,14 @@ class Encodes {
     sha1.update(passphraseBytes, 0, passphraseBytes.length);
     sha1.update(salt, 0, salt.length);
     final keyCheck = sha1.process(Uint8List(0)).sublist(0, 8);
-    final message = Uint8List.fromList([...keyCheck, ...plaintextBytes]);
+
+    final macKey = mash(passphraseBytes, 16, 1);
+    final hmac = HMac(SHA1Digest(), 64)..init(KeyParameter(macKey));
+    hmac.update(plaintextBytes, 0, plaintextBytes.length);
+    final mac = hmac.process(Uint8List(0));
+
+    final message =
+        Uint8List.fromList([...keyCheck, ...plaintextBytes, ...mac]);
     const blockSize = 8;
     final remainder = message.length % blockSize;
     final paddingLen = remainder == 0 ? blockSize : blockSize - remainder;
@@ -48,14 +55,11 @@ class Encodes {
     final cipher = CBCBlockCipher(DESedeEngine())
       ..init(true, ParametersWithIV(KeyParameter(expandKey(key)), iv));
     final ciphertext = processBlocks(cipher, paddedMessage);
-    final macKey = mash(passphraseBytes, 16, 1);
-    final hmac = HMac(SHA1Digest(), 64)..init(KeyParameter(macKey));
-    hmac.update(plaintextBytes, 0, plaintextBytes.length);
-    final mac = hmac.process(Uint8List(0));
-    final result = Uint8List(salt.length + ciphertext.length + mac.length);
+
+    final result = Uint8List(salt.length + ciphertext.length);
     result.setRange(0, salt.length, salt);
     result.setRange(salt.length, salt.length + ciphertext.length, ciphertext);
-    result.setRange(salt.length + ciphertext.length, result.length, mac);
+    //result.setRange(salt.length + ciphertext.length, result.length, mac);
     return bytesToHex(result);
   }
 

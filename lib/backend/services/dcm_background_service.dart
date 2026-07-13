@@ -4,7 +4,11 @@ import 'dart:io';
 import 'package:dcm/backend/app.dart';
 import 'package:dcm/backend/constants.dart';
 import 'package:dcm/backend/models/dcm_global.dart';
+import 'package:dcm/backend/models/player_global.dart';
+import 'package:dcm/backend/net/dcm_http_client.dart';
+import 'package:dcm/backend/net/player_task_file.dart';
 import 'package:dcm/backend/services/dcm_downloader.dart';
+import 'package:dcm/backend/utils/log_utils.dart';
 import 'package:dcm/backend/xmlfile/xmlfile.dart';
 import 'package:path/path.dart' as path;
 import 'package:worker_manager/worker_manager.dart';
@@ -21,15 +25,51 @@ class DcmBackgroundService {
       return;
     }
 
-    if (DCMGlobal.cmsUrl.isEmpty) {
+    if (DCMGlobal.cmsUrl.isEmpty || !DCMGlobal.autoContentUpdate) {
       return;
     }
 
+    // Ensure globalPlayer is initialized from CMS or local fallback
+    await initGlobalPlayer();
+
     final queuePath = path.join(App().dataPath, 'download_queue.json');
+    final workerConfig = DCMGlobal.snapshot();
 
     try {
       _started = true;
       unawaited(workerManager.executeGentle((_) async {
+        // Apply DCMGlobal config inside worker
+        DCMGlobal.applyWorkerConfig(
+          cmsUrl: workerConfig['cmsUrl']?.toString(),
+          cmsToken: workerConfig['cmsToken']?.toString(),
+          organization: workerConfig['organization']?.toString(),
+          enableTaskCheck: workerConfig['enableTaskCheck'] as bool?,
+          autoContentUpdate: workerConfig['autoContentUpdate'] as bool?,
+          fileTransferRetries: workerConfig['fileTransferRetries'] as int?,
+          taskTransferRetries: workerConfig['taskTransferRetries'] as int?,
+          tempFileCopyRetries: workerConfig['tempFileCopyRetries'] as int?,
+          logUploadInterval: workerConfig['logUploadInterval'] as int?,
+          logUploadPeriod: workerConfig['logUploadPeriod'] as int?,
+          statusCheckInterval: workerConfig['statusCheckInterval'] as int?,
+        );
+        dcmHttpClientFactory.dispose();
+
+        // transfer player snapshot into worker and apply
+        try {
+          final snapshot = snapshotPlayer();
+          // `executeGentle` worker closure inherits isolate-local args via captured variables
+          // but ensure applyWorkerPlayer is invoked inside the worker context.
+          applyWorkerPlayer(snapshot);
+        } catch (e) {
+          logE('Failed to apply player snapshot in worker: $e');
+        }
+
+        PlayerTaskFile.strPlayerTaskFile =
+            path.join(DCMGlobal.settingPath, 'FTPtask.xml');
+        PlayerTaskFile.init();
+
+        //PlayerLogFile.cleanLogFile();
+
         await _startPollingInWorker(
           apiUrl: DCMGlobal.cmsUrl + cmsGETFILELISTURL,
           queuePath: queuePath,
@@ -40,7 +80,7 @@ class DcmBackgroundService {
       }));
     } catch (e, stack) {
       _started = false;
-      stderr.writeln('DcmBackgroundService.init() failed: $e');
+      logE('DcmBackgroundService.init() failed: $e');
       stderr.writeln(stack);
     }
   }

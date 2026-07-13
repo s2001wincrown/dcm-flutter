@@ -264,6 +264,8 @@ class XmlFile {
 
   void exportItem(XmlItem pItem, xml.XmlBuilder builder) {
     if (pItem.getValue().isNotEmpty) {
+      //logI(
+      //    'Export current item: ${pItem.getName()}, value: ${pItem.getValue()}');
       builder.text(pItem.getValue());
     }
 
@@ -271,11 +273,36 @@ class XmlFile {
     while (pos.moveNext()) {
       String sItem = pos.current.getName();
       if (pos.current.isAttribute()) {
+        //logI('exportItem attribute: $sItem, value: ${pos.current.getValue()}');
         builder.attribute(sItem, pos.current.getValue());
-      } else {
+      } else if (pos.current.isCDATA()) {
+        //logI('exportItem CDATA: $sItem, value: ${pos.current.getValue()}');
         builder.element(sItem, nest: () {
-          exportItem(pos.current, builder);
+          builder.cdata(pos.current.getValue());
         });
+      } else {
+        XmlItem? pXIChild = pos.current;
+        while (pXIChild != null) {
+          logI(
+              'exportItem element: $sItem, value: ${pXIChild.getValue()}, item count: ${pXIChild.getItemCount()}');
+          /*TiXmlNode * pChildNode = pNode->InsertNode(nNode++, sItem);
+          CXmlNodeWrapper nodeChild(pChildNode, false);
+
+          Export(pXIChild, &nodeChild);*/
+          builder.element(sItem, nest: () {
+            exportItem(pXIChild!, builder);
+          });
+
+          // siblings
+          pXIChild = pXIChild.getSibling();
+        }
+        /*if (pos.current.getItemCount() == 0) {
+          builder.element(sItem, nest: pos.current.getValue());
+        } else {
+          builder.element(sItem, nest: () {
+            exportItem(pos.current, builder);
+          });
+        }*/
       }
     }
   }

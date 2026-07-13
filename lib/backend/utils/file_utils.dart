@@ -4,6 +4,7 @@ import 'dart:math';
 import 'package:dcm/backend/app.dart';
 import 'package:dcm/backend/models/dcm_global.dart';
 import 'package:dcm/backend/utils/extensions.dart';
+import 'package:dcm/backend/utils/log_utils.dart';
 import 'package:dcm/backend/utils/string_utils.dart';
 import 'package:intl/intl.dart';
 import 'package:mime_type/mime_type.dart';
@@ -269,6 +270,18 @@ class FileUtils {
     await Directory("$currentPath/$name").create();
   }
 
+  static Future<File> moveFile(File sourceFile, String newPath) async {
+    try {
+      // prefer using rename as it is probably faster
+      return await sourceFile.rename(newPath);
+    } on FileSystemException catch (e) {
+      // if rename fails, copy the source file and then delete it
+      final newFile = await sourceFile.copy(newPath);
+      await sourceFile.delete();
+      return newFile;
+    }
+  }
+
   /********************************************************************/
   /*																	*/
   /* Function name : makeSureDirectoryPathExists						*/
@@ -288,7 +301,7 @@ class FileUtils {
         .create(recursive: true)
         .then((Directory directory) =>
             print('Directory created: ${directory.path}'))
-        .catchError((e) => print('Error creating directory: $e'));
+        .catchError((e) => logE('Error creating directory: $e'));
 
     return true;
   }
@@ -303,7 +316,7 @@ class FileUtils {
         .create(recursive: true)
         .then((Directory directory) =>
             print('Directory created: ${directory.path}'))
-        .catchError((e) => print('Error creating directory: $e'));
+        .catchError((e) => logE('Error creating directory: $e'));
 
     return true;
   }

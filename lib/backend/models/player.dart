@@ -1,13 +1,14 @@
+import 'package:dcm/backend/app.dart';
+import 'package:dcm/backend/net/player_task_file.dart';
 import 'package:dcm/backend/utils/encoder_utils.dart';
 import 'package:dcm/backend/utils/time_utils.dart';
 import 'package:dcm/backend/xmlfile/xmlfile.dart';
 import 'package:dcm/backend/xmlfile/xmlfilepro.dart';
 import 'package:dcm/backend/xmlfile/xmlitem.dart';
 import 'package:path/path.dart' as path;
-import 'package:path_provider/path_provider.dart';
 
-// FTP站点接口定义
-abstract class IFtpSite {
+// Player接口定义
+abstract class IPlayer {
   String getFTPServer();
   String getUserName();
   String getPassword();
@@ -31,10 +32,10 @@ abstract class IFtpSite {
   String getTimeOuts();
   int getRetries();
   int getRetryDelay();
-  int getFtpPeriod();
+  int getSyncPeriod();
   int getBeforeDay();
   int getLocalPort();
-  int getFtpContent();
+  int getSyncContent();
   DateTime getRegTime();
   int getPort();
   int getConnectionType();
@@ -91,8 +92,8 @@ class PlayerOutput {
   }
 }
 
-// FTP站点类
-class FtpSite implements IFtpSite {
+// Player类
+class Player implements IPlayer {
   static const String lpszSignature =
       'DCM FTP Manager Version 1.00- StoreObject';
   String strDCMVersion = '';
@@ -100,7 +101,7 @@ class FtpSite implements IFtpSite {
 
   int nIndex = 0;
   DateTime pRegTime = DateTime.now();
-  String strOrganizationId = '';
+  String strOrganization = '';
 
   String strAddress = '';
   int nRetries = 1;
@@ -117,12 +118,12 @@ class FtpSite implements IFtpSite {
   String strChannel = '';
   String strDiskSerial = '';
   String strLocation = '';
-  int nFtpPeriod = 7; // 默认值
+  int nSyncPeriod = 7; // 默认值
   int nBeforeDay = 1;
-  int dwFtpContent = 0xFFFF; // FTP_ALLCONTENT
-  String strFtpTime = '01:00';
-  String strReFtpTime = '';
-  String strStartFtpTime = '';
+  int dwSyncContent = cSyncALLCONTENT;
+  String strSyncTime = '01:00';
+  String strReSyncTime = '';
+  String strStartSyncTime = '';
   bool bReplaceFile = false;
   bool bToday = true;
   bool bChangePlayerCmpName = false;
@@ -133,7 +134,7 @@ class FtpSite implements IFtpSite {
   int nLocalPort = 10025;
 
   bool bImmReplace = true;
-  int nImmFtpPeriod = 7;
+  int nImmSyncPeriod = 7;
   String strTimeOuts = '05:00';
 
   String strCommand = '';
@@ -167,87 +168,87 @@ class FtpSite implements IFtpSite {
   List<PlayerOutput>? pOutputs;
   int dwOutputs = 0;
 
-  FtpSite() {
+  Player() {
     initializeDefaults();
   }
 
-  FtpSite.copy(FtpSite ftpSite) {
-    nIndex = ftpSite.nIndex;
-    strOrganizationId = ftpSite.strOrganizationId;
-    strAddress = ftpSite.strAddress;
-    nRetries = ftpSite.nRetries;
-    strDescription = ftpSite.strDescription;
-    strLocalPath = ftpSite.strLocalPath;
-    strLogin = ftpSite.strLogin;
-    strName = ftpSite.strName;
-    strUniqueName = ftpSite.strUniqueName;
-    strPassword = ftpSite.strPassword;
-    nPort = ftpSite.nPort;
-    strDeviceID = ftpSite.strDeviceID;
-    strMACID = ftpSite.strMACID;
-    strPhoneNumber = ftpSite.strPhoneNumber;
-    strPhoneNumberServer = ftpSite.strPhoneNumberServer;
-    guidReg = ftpSite.guidReg;
-    strPublicIP = ftpSite.strPublicIP;
-    nRetryDelay = ftpSite.nRetryDelay;
-    bUseFirewall = ftpSite.bUseFirewall;
-    bUsePASVMode = ftpSite.bUsePASVMode;
-    strDiskSerial = ftpSite.strDiskSerial;
-    strChannel = ftpSite.strChannel;
-    strLocation = ftpSite.strLocation;
-    nFtpPeriod = ftpSite.nFtpPeriod;
-    nBeforeDay = ftpSite.nBeforeDay;
-    strFtpTime = ftpSite.strFtpTime;
-    strReFtpTime = ftpSite.strReFtpTime;
-    bReplaceFile = ftpSite.bReplaceFile;
-    bToday = ftpSite.bToday;
-    bImmReplace = ftpSite.bImmReplace;
-    bChangePlayerCmpName = ftpSite.bChangePlayerCmpName;
-    nImmFtpPeriod = ftpSite.nImmFtpPeriod;
-    strTimeOuts = ftpSite.strTimeOuts;
-    dwFtpContent = ftpSite.dwFtpContent;
-    strStartFtpTime = ftpSite.strStartFtpTime;
+  Player.copy(Player player) {
+    nIndex = player.nIndex;
+    strOrganization = player.strOrganization;
+    strAddress = player.strAddress;
+    nRetries = player.nRetries;
+    strDescription = player.strDescription;
+    strLocalPath = player.strLocalPath;
+    strLogin = player.strLogin;
+    strName = player.strName;
+    strUniqueName = player.strUniqueName;
+    strPassword = player.strPassword;
+    nPort = player.nPort;
+    strDeviceID = player.strDeviceID;
+    strMACID = player.strMACID;
+    strPhoneNumber = player.strPhoneNumber;
+    strPhoneNumberServer = player.strPhoneNumberServer;
+    guidReg = player.guidReg;
+    strPublicIP = player.strPublicIP;
+    nRetryDelay = player.nRetryDelay;
+    bUseFirewall = player.bUseFirewall;
+    bUsePASVMode = player.bUsePASVMode;
+    strDiskSerial = player.strDiskSerial;
+    strChannel = player.strChannel;
+    strLocation = player.strLocation;
+    nSyncPeriod = player.nSyncPeriod;
+    nBeforeDay = player.nBeforeDay;
+    strSyncTime = player.strSyncTime;
+    strReSyncTime = player.strReSyncTime;
+    bReplaceFile = player.bReplaceFile;
+    bToday = player.bToday;
+    bImmReplace = player.bImmReplace;
+    bChangePlayerCmpName = player.bChangePlayerCmpName;
+    nImmSyncPeriod = player.nImmSyncPeriod;
+    strTimeOuts = player.strTimeOuts;
+    dwSyncContent = player.dwSyncContent;
+    strStartSyncTime = player.strStartSyncTime;
 
-    strMACAddress = ftpSite.strMACAddress;
-    strMACAddress1 = ftpSite.strMACAddress1;
-    strLocalAddress = ftpSite.strLocalAddress;
-    nLocalPort = ftpSite.nLocalPort;
+    strMACAddress = player.strMACAddress;
+    strMACAddress1 = player.strMACAddress1;
+    strLocalAddress = player.strLocalAddress;
+    nLocalPort = player.nLocalPort;
 
-    strCommand = ftpSite.strCommand;
-    strCMDTime = ftpSite.strCMDTime;
+    strCommand = player.strCommand;
+    strCMDTime = player.strCMDTime;
 
-    strDCMVersion = ftpSite.strDCMVersion;
-    bOnline = ftpSite.bOnline;
-    dtOnline = ftpSite.dtOnline;
-    dtStartup = ftpSite.dtStartup;
-    dtShutdown = ftpSite.dtShutdown;
-    dtLastSyncTime = ftpSite.dtLastSyncTime;
+    strDCMVersion = player.strDCMVersion;
+    bOnline = player.bOnline;
+    dtOnline = player.dtOnline;
+    dtStartup = player.dtStartup;
+    dtShutdown = player.dtShutdown;
+    dtLastSyncTime = player.dtLastSyncTime;
 
-    pRegTime = ftpSite.pRegTime;
+    pRegTime = player.pRegTime;
 
-    bBinary = ftpSite.bBinary;
-    dbLimit = ftpSite.dbLimit;
-    dwConnectionTimeout = ftpSite.dwConnectionTimeout;
-    sUserAgent = ftpSite.sUserAgent;
-    sProxyServer = ftpSite.sProxyServer;
-    sServerName = ftpSite.sServerName;
-    connectionType = ftpSite.connectionType;
-    dwReadBufferSize = ftpSite.dwReadBufferSize;
+    bBinary = player.bBinary;
+    dbLimit = player.dbLimit;
+    dwConnectionTimeout = player.dwConnectionTimeout;
+    sUserAgent = player.sUserAgent;
+    sProxyServer = player.sProxyServer;
+    sServerName = player.sServerName;
+    connectionType = player.connectionType;
+    dwReadBufferSize = player.dwReadBufferSize;
 
-    nLastErr = ftpSite.nLastErr;
-    nRetryCount = ftpSite.nRetryCount;
-    nReason = ftpSite.nReason;
+    nLastErr = player.nLastErr;
+    nRetryCount = player.nRetryCount;
+    nReason = player.nReason;
 
-    if (ftpSite.pOutputs != null) {
-      pOutputs = ftpSite.pOutputs!.map((output) => output.copy()).toList();
-      dwOutputs = ftpSite.dwOutputs;
+    if (player.pOutputs != null) {
+      pOutputs = player.pOutputs!.map((output) => output.copy()).toList();
+      dwOutputs = player.dwOutputs;
     }
   }
 
-  FtpSite.fromInstance(FtpSite? pSite) {
+  Player.fromInstance(Player? pSite) {
     if (pSite != null) {
       nIndex = pSite.nIndex;
-      strOrganizationId = pSite.strOrganizationId;
+      strOrganization = pSite.strOrganization;
       strAddress = pSite.strAddress;
       nRetries = pSite.nRetries;
       strDescription = pSite.strDescription;
@@ -269,18 +270,18 @@ class FtpSite implements IFtpSite {
       strDiskSerial = pSite.strDiskSerial;
       strChannel = pSite.strChannel;
       strLocation = pSite.strLocation;
-      nFtpPeriod = pSite.nFtpPeriod;
+      nSyncPeriod = pSite.nSyncPeriod;
       nBeforeDay = pSite.nBeforeDay;
-      strFtpTime = pSite.strFtpTime;
-      strReFtpTime = pSite.strReFtpTime;
+      strSyncTime = pSite.strSyncTime;
+      strReSyncTime = pSite.strReSyncTime;
       bReplaceFile = pSite.bReplaceFile;
       bToday = pSite.bToday;
       bImmReplace = pSite.bImmReplace;
       bChangePlayerCmpName = pSite.bChangePlayerCmpName;
-      nImmFtpPeriod = pSite.nImmFtpPeriod;
+      nImmSyncPeriod = pSite.nImmSyncPeriod;
       strTimeOuts = pSite.strTimeOuts;
-      dwFtpContent = pSite.dwFtpContent;
-      strStartFtpTime = pSite.strStartFtpTime;
+      dwSyncContent = pSite.dwSyncContent;
+      strStartSyncTime = pSite.strStartSyncTime;
 
       strMACAddress = pSite.strMACAddress;
       strMACAddress1 = pSite.strMACAddress1;
@@ -325,16 +326,16 @@ class FtpSite implements IFtpSite {
     nRetryDelay = 15;
     bUseFirewall = false;
     bUsePASVMode = false;
-    nFtpPeriod = 7; // 默认值
+    nSyncPeriod = 7; // 默认值
     nBeforeDay = 1;
-    strFtpTime = '01:00';
-    strReFtpTime = '';
-    strStartFtpTime = '';
+    strSyncTime = '01:00';
+    strReSyncTime = '';
+    strStartSyncTime = '';
     bReplaceFile = false;
     bToday = true;
-    dwFtpContent = 0xFFFF; // FTP_ALLCONTENT
+    dwSyncContent = 0xFFFF; // Sync_ALLCONTENT
     bImmReplace = true;
-    nImmFtpPeriod = 7;
+    nImmSyncPeriod = 7;
     strTimeOuts = '05:00';
     strUniqueName = '';
 
@@ -356,21 +357,21 @@ class FtpSite implements IFtpSite {
     strPhoneNumber = '';
     strPhoneNumberServer = '';
     guidReg = '';
-    strOrganizationId = '';
+    strOrganization = '';
 
     strDCMVersion = '';
     bOnline = false;
   }
 
-  Future<bool> loadFTPSetting([String? szSettingFile]) async {
+  Future<bool> loadSettings([String? szSettingFile]) async {
     strAddress = '';
-    XmlFilePro file =
-        XmlFilePro('PlayerRegisterInformation', Encodes.cDCMFILECRYPTKEY);
     String? strFilename = szSettingFile;
     if (strFilename == null || strFilename.isEmpty) {
-      final directory = await getApplicationDocumentsDirectory();
-      strFilename = path.join(directory.path, 'dcmsites.dat');
+      strFilename = path.join(App().dataPath, 'dcmsites.dat');
     }
+
+    XmlFilePro file =
+        XmlFilePro('PlayerRegisterInformation', Encodes.cDCMFILECRYPTKEY);
     if (!file.open(strFilename, XfOpen.read)) {
       return false;
     }
@@ -394,7 +395,7 @@ class FtpSite implements IFtpSite {
 
   void writeToXML(XmlItem pXmlItem) {
     pXmlItem.addItem('m_nIndex', nIndex);
-    pXmlItem.addItem('m_strOrganizationId', strOrganizationId);
+    pXmlItem.addItem('organization', strOrganization);
     pXmlItem.addItem('m_strAddress', strAddress);
     pXmlItem.addItem('m_nRetries', nRetries);
     pXmlItem.addItem('m_strDescription', strDescription);
@@ -416,18 +417,18 @@ class FtpSite implements IFtpSite {
     pXmlItem.addItem('m_strDiskSerial', strDiskSerial);
     pXmlItem.addItem('m_strChannel', strChannel);
     pXmlItem.addItem('m_strLocation', strLocation);
-    pXmlItem.addItem('m_nFtpPeriod', nFtpPeriod);
+    pXmlItem.addItem('m_nFtpPeriod', nSyncPeriod);
     pXmlItem.addItem('m_nBeforeDay', nBeforeDay);
-    pXmlItem.addItem('m_strFtpTime', strFtpTime);
-    pXmlItem.addItem('m_strReFtpTime', strReFtpTime);
+    pXmlItem.addItem('m_strFtpTime', strSyncTime);
+    pXmlItem.addItem('m_strReFtpTime', strReSyncTime);
     pXmlItem.addItem('m_bReplaceFile', bReplaceFile ? 1 : 0);
     pXmlItem.addItem('m_bToday', bToday ? 1 : 0);
     pXmlItem.addItem('m_bImmReplace', bImmReplace ? 1 : 0);
     pXmlItem.addItem('m_bChangePlayerCmpName', bChangePlayerCmpName ? 1 : 0);
-    pXmlItem.addItem('m_nImmFtpPeriod', nImmFtpPeriod);
+    pXmlItem.addItem('m_nImmFtpPeriod', nImmSyncPeriod);
     pXmlItem.addItem('m_strTimeOuts', strTimeOuts);
-    pXmlItem.addItem('m_dwFtpContent', dwFtpContent);
-    pXmlItem.addItem('m_strStartFtpTime', strStartFtpTime);
+    pXmlItem.addItem('m_dwFtpContent', dwSyncContent);
+    pXmlItem.addItem('m_strStartFtpTime', strStartSyncTime);
 
     pXmlItem.addItem('m_strMACAddress', strMACAddress);
     pXmlItem.addItem('m_strMACAddress1', strMACAddress1);
@@ -465,7 +466,7 @@ class FtpSite implements IFtpSite {
 
   void getFromXML(XmlItem pXmlItem) {
     nIndex = pXmlItem.getItemValueI('m_nIndex');
-    strOrganizationId = pXmlItem.getItemValue('m_strOrganizationId');
+    strOrganization = pXmlItem.getItemValue('organization');
     strAddress = pXmlItem.getItemValue('m_strAddress');
     nRetries = pXmlItem.getItemValueI('m_nRetries');
     strDescription = pXmlItem.getItemValue('m_strDescription');
@@ -487,18 +488,18 @@ class FtpSite implements IFtpSite {
     strDiskSerial = pXmlItem.getItemValue('m_strDiskSerial');
     strChannel = pXmlItem.getItemValue('m_strChannel');
     strLocation = pXmlItem.getItemValue('m_strLocation');
-    nFtpPeriod = pXmlItem.getItemValueI('m_nFtpPeriod');
+    nSyncPeriod = pXmlItem.getItemValueI('m_nFtpPeriod');
     nBeforeDay = pXmlItem.getItemValueI('m_nBeforeDay');
-    strFtpTime = pXmlItem.getItemValue('m_strFtpTime');
-    strReFtpTime = pXmlItem.getItemValue('m_strReFtpTime');
+    strSyncTime = pXmlItem.getItemValue('m_strFtpTime');
+    strReSyncTime = pXmlItem.getItemValue('m_strReFtpTime');
     bReplaceFile = pXmlItem.getItemValueB('m_bReplaceFile');
     bToday = pXmlItem.getItemValueB('m_bToday');
     bImmReplace = pXmlItem.getItemValueB('m_bImmReplace');
     bChangePlayerCmpName = pXmlItem.getItemValueB('m_bChangePlayerCmpName');
-    nImmFtpPeriod = pXmlItem.getItemValueI('m_nImmFtpPeriod');
+    nImmSyncPeriod = pXmlItem.getItemValueI('m_nImmFtpPeriod');
     strTimeOuts = pXmlItem.getItemValue('m_strTimeOuts');
-    dwFtpContent = pXmlItem.getItemValueI('m_dwFtpContent');
-    strStartFtpTime = pXmlItem.getItemValue('m_strStartFtpTime');
+    dwSyncContent = pXmlItem.getItemValueI('m_dwFtpContent');
+    strStartSyncTime = pXmlItem.getItemValue('m_strStartFtpTime');
     //strSystemTime = pXmlItem.getItemValue('m_strSystemTime');
 
     strMACAddress = pXmlItem.getItemValue('m_strMACAddress');
@@ -692,7 +693,7 @@ class FtpSite implements IFtpSite {
   int getRetryDelay() => nRetryDelay;
 
   @override
-  int getFtpPeriod() => nFtpPeriod;
+  int getSyncPeriod() => nSyncPeriod;
 
   @override
   int getBeforeDay() => nBeforeDay;
@@ -701,7 +702,7 @@ class FtpSite implements IFtpSite {
   int getLocalPort() => nLocalPort;
 
   @override
-  int getFtpContent() => dwFtpContent;
+  int getSyncContent() => dwSyncContent;
 
   @override
   DateTime getRegTime() => pRegTime;
@@ -848,7 +849,7 @@ class FtpSite implements IFtpSite {
     bUsePASVMode = pasv;
   }
 
-  static String getIP(FtpSite? pSite) {
+  static String getIP(Player? pSite) {
     if (pSite == null) return '';
 
     String strPublicIP = pSite.strPublicIP;
@@ -865,7 +866,7 @@ class FtpSite implements IFtpSite {
     return strPublicIP;
   }
 
-  static String getFullName(FtpSite? pSite) {
+  static String getFullName(Player? pSite) {
     if (pSite == null) return '';
 
     String strName = '${pSite.getPlayerName()} (${getIP(pSite)})';

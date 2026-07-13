@@ -102,6 +102,13 @@ class DCMGlobal {
   static late String cmsUrl; //CMS url
   static late String cmsToken; //CMS Token
   static late String organization;
+  static bool enableTaskCheck = true;
+  static bool autoContentUpdate = true;
+  static int fileTransferRetries = 3;
+  static int taskTransferRetries = 3;
+  static int tempFileCopyRetries = 100;
+  static int logUploadInterval = 10; //seconds
+  static int logUploadPeriod = 7; //days
 
   static int statusCheckInterval = 1; //minutes
 
@@ -202,8 +209,88 @@ class DCMGlobal {
     'Global Setting.StartupWallpaper': (v) => startupWallpaper = v,
     'Global Setting.nPDFViewMode': (v) => pdfViewMode = int.parse(v),
     'Global Setting.nPDFPlayMode': (v) => pdfPlayMode = int.parse(v),
+
     'Global.StatusCheckInterval': (v) => statusCheckInterval = int.parse(v),
+    'Global.EnableTaskCheck': (v) => enableTaskCheck = bool.parse(v),
+    'Global.AutoContentUpdate': (v) => autoContentUpdate = bool.parse(v),
+    'Global.FileTransferRetries': (v) => fileTransferRetries = int.parse(v),
+    'Global.TaskTransferRetries': (v) => taskTransferRetries = int.parse(v),
+    'Global.TempFileCopyRetries': (v) => tempFileCopyRetries = int.parse(v),
+    'Global.LogUploadInterval': (v) => logUploadInterval = int.parse(v),
+    'Global.LogUploadPeriod': (v) => logUploadPeriod = int.parse(v),
   };
+
+  static Map<String, dynamic> snapshot() {
+    return {
+      'cmsUrl': _readStringValue(() => cmsUrl),
+      'cmsToken': _readStringValue(() => cmsToken),
+      'organization': _readStringValue(() => organization),
+      'enableTaskCheck': enableTaskCheck,
+      'autoContentUpdate': autoContentUpdate,
+      'fileTransferRetries': fileTransferRetries,
+      'taskTransferRetries': taskTransferRetries,
+      'tempFileCopyRetries': tempFileCopyRetries,
+      'logUploadInterval': logUploadInterval,
+      'logUploadPeriod': logUploadPeriod,
+      'statusCheckInterval': statusCheckInterval,
+    };
+  }
+
+  static String _readStringValue(String Function() getter) {
+    try {
+      return getter();
+    } catch (_) {
+      return '';
+    }
+  }
+
+  static void applyWorkerConfig({
+    String? cmsUrl,
+    String? cmsToken,
+    String? organization,
+    bool? enableTaskCheck,
+    bool? autoContentUpdate,
+    int? fileTransferRetries,
+    int? taskTransferRetries,
+    int? tempFileCopyRetries,
+    int? logUploadInterval,
+    int? logUploadPeriod,
+    int? statusCheckInterval,
+  }) {
+    if (cmsUrl != null) {
+      DCMGlobal.cmsUrl = cmsUrl;
+    }
+    if (cmsToken != null) {
+      DCMGlobal.cmsToken = cmsToken;
+    }
+    if (organization != null) {
+      DCMGlobal.organization = organization;
+    }
+    if (enableTaskCheck != null) {
+      DCMGlobal.enableTaskCheck = enableTaskCheck;
+    }
+    if (autoContentUpdate != null) {
+      DCMGlobal.autoContentUpdate = autoContentUpdate;
+    }
+    if (fileTransferRetries != null) {
+      DCMGlobal.fileTransferRetries = fileTransferRetries;
+    }
+    if (taskTransferRetries != null) {
+      DCMGlobal.taskTransferRetries = taskTransferRetries;
+    }
+    if (tempFileCopyRetries != null) {
+      DCMGlobal.tempFileCopyRetries = tempFileCopyRetries;
+    }
+    if (logUploadInterval != null) {
+      DCMGlobal.logUploadInterval = logUploadInterval;
+    }
+    if (logUploadPeriod != null) {
+      DCMGlobal.logUploadPeriod = logUploadPeriod;
+    }
+    if (statusCheckInterval != null) {
+      DCMGlobal.statusCheckInterval = statusCheckInterval;
+    }
+  }
 
   static Future<bool> loadFromIni() async {
     try {

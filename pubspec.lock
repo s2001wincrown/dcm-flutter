@@ -370,6 +370,14 @@ packages:
     description: flutter
     source: sdk
     version: "0.0.0"
+  flutter_udid:
+    dependency: "direct main"
+    description:
+      name: flutter_udid
+      sha256: "3631f4535bd067f71a1d8922c710bc4a97d37d147a941a2588510a7a87feda88"
+      url: "https://pub.flutter-io.cn"
+    source: hosted
+    version: "4.1.4"
   flutter_web_plugins:
     dependency: transitive
     description: flutter
@@ -424,7 +432,7 @@ packages:
     source: hosted
     version: "0.15.6"
   http:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: http
       sha256: "87721a4a50b19c7f1d49001e51409bddc46303966ce89a65af4f4e6004896412"
@@ -719,6 +727,30 @@ packages:
       url: "https://pub.flutter-io.cn"
     source: hosted
     version: "1.0.0"
+  network_info_plus:
+    dependency: "direct main"
+    description:
+      name: network_info_plus
+      sha256: "2866dadcbee2709e20d67737a1556f5675b8b0cdcf2c1659ba74bc21bffede4f"
+      url: "https://pub.flutter-io.cn"
+    source: hosted
+    version: "7.0.0"
+  network_info_plus_platform_interface:
+    dependency: transitive
+    description:
+      name: network_info_plus_platform_interface
+      sha256: "7e7496a8a9d8136859b8881affc613c4a21304afeb6c324bcefc4bd0aff6b94b"
+      url: "https://pub.flutter-io.cn"
+    source: hosted
+    version: "2.0.2"
+  nm:
+    dependency: transitive
+    description:
+      name: nm
+      sha256: "2c9aae4127bdc8993206464fcc063611e0e36e72018696cd9631023a31b24254"
+      url: "https://pub.flutter-io.cn"
+    source: hosted
+    version: "0.5.0"
   objective_c:
     dependency: transitive
     description:
@@ -1228,6 +1260,14 @@ packages:
       url: "https://pub.flutter-io.cn"
     source: hosted
     version: "1.4.0"
+  unique_device_identifier:
+    dependency: "direct main"
+    description:
+      name: unique_device_identifier
+      sha256: "1a097d18cebeb890451665b4336f851736464b9a0517d202ceb50c284a32b516"
+      url: "https://pub.flutter-io.cn"
+    source: hosted
+    version: "2.0.4"
   universal_platform:
     dependency: transitive
     description:

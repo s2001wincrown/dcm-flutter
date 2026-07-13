@@ -1,4 +1,4 @@
-import 'dart:ui';
+import 'dart:io';
 
 import 'package:dcm/backend/constants.dart';
 import 'package:dcm/backend/models/dcm_global.dart';
@@ -7,13 +7,17 @@ import 'package:dcm/backend/models/product_data.dart';
 import 'package:dcm/backend/utils/encoder_utils.dart';
 import 'package:dcm/backend/utils/extensions.dart';
 import 'package:dcm/backend/utils/file_utils.dart';
+import 'package:dcm/backend/utils/log_utils.dart';
 import 'package:dcm/backend/xml_settings/contenttype_manager.dart';
 import 'package:dcm/backend/xml_settings/dcmfile_Impl.dart';
 import 'package:dcm/backend/xmlfile/xmlfile.dart';
 import 'package:dcm/backend/xmlfile/xmlfilepro.dart';
 import 'package:dcm/backend/xmlfile/xmlitem.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_udid/flutter_udid.dart';
 import 'package:intl/intl.dart';
 import 'package:path/path.dart' as path;
+import 'package:unique_device_identifier/unique_device_identifier.dart';
 
 class Utils {
   static String getLatestFile(String strPath, [DateTime? dtToday]) {
@@ -68,7 +72,7 @@ class Utils {
         }
       }
       String strEventContentPath =
-          strRoot.isEmpty ? getBasePath(type, ptype) : strRoot;
+          strRoot.isEmpty ? getBasePath(type, ptype: ptype) : strRoot;
       strSrc = FileUtils.getShortPath(strFilePath, strEventContentPath);
     }
 
@@ -94,7 +98,7 @@ class Utils {
       }
     }
 
-    String strFilePath = getBasePath(type, nPtype);
+    String strFilePath = getBasePath(type, ptype: nPtype);
     String strName = strFileName;
     bool bExt = (strExt == '.XML');
     switch (type) {
@@ -219,94 +223,132 @@ class Utils {
     return strFilePath;
   }
 
-  static String getBasePath(int type, [int ptype = -1]) {
+  static String getBasePath(int type, {int ptype = -1, bool tempPath = false}) {
+    String basePath;
     if (ptype == cSITEPLAYLIST) {
-      return DCMGlobal.siteContentPath;
+      basePath = DCMGlobal.siteContentPath;
     } else if (ptype == cDDETYPE) {
-      return DCMGlobal.ddeDataPath;
+      basePath = DCMGlobal.ddeDataPath;
     } else {
       switch (type) {
         case cIMAGETYPE:
         case cCAROUSELTYPE:
-          if (ptype == cDCMSINGLEIMAGETYPE) // || ptype == cDIRECTPLAYTYPE
-          {
-            return DCMGlobal.imagePath;
+          if (ptype == cDCMSINGLEIMAGETYPE) {
+            // || ptype == cDIRECTPLAYTYPE
+            basePath = DCMGlobal.imagePath;
           } else {
-            return DCMGlobal.imageSettingPath;
+            basePath = DCMGlobal.imageSettingPath;
           }
+          break;
         case cVIDEOTYPE:
-          return DCMGlobal.vcdPath;
+          basePath = DCMGlobal.vcdPath;
+          break;
         case cPOWERPOINTTYPE:
-          return DCMGlobal.ppPath;
+          basePath = DCMGlobal.ppPath;
+          break;
         case cTEXTTYPE:
-          return DCMGlobal.textPath;
+          basePath = DCMGlobal.textPath;
+          break;
         case cWEATHERTYPE:
-          return DCMGlobal.weatherPath;
+          basePath = DCMGlobal.weatherPath;
+          break;
         case cCLOCKTYPE:
-          return DCMGlobal.clockPath;
+          basePath = DCMGlobal.clockPath;
+          break;
         case cEVENTTYPE:
-          return DCMGlobal.flashPath;
+          basePath = DCMGlobal.flashPath;
+          break;
         case cWEBPAGETYPE:
-          return DCMGlobal.webPath;
+          basePath = DCMGlobal.webPath;
+          break;
         case cQUEUETYPE:
-          return DCMGlobal.webPath;
+          basePath = DCMGlobal.webPath;
+          break;
         case cFLASHTYPE:
-          return DCMGlobal.flashPath;
+          basePath = DCMGlobal.flashPath;
+          break;
         case cDDETYPE:
-          return DCMGlobal.ddeDataPath;
+          basePath = DCMGlobal.ddeDataPath;
+          break;
         case cDIRECTPLAYTYPE:
-          return DCMGlobal.contentListPath;
+          basePath = DCMGlobal.contentListPath;
+          break;
         case cLINKAGETYPE:
-          return DCMGlobal.linkagePath;
+          basePath = DCMGlobal.linkagePath;
+          break;
         case cDCMMONTHTYPE:
-          return DCMGlobal.monthPath;
+          basePath = DCMGlobal.monthPath;
+          break;
         case cDCMCALENDARTYPE:
-          return DCMGlobal.calendarPath;
+          basePath = DCMGlobal.calendarPath;
+          break;
         case cDCMDAYTYPE:
-          return DCMGlobal.dayPath;
+          basePath = DCMGlobal.dayPath;
+          break;
         case cDCMAHPLAYLISTTYPE:
-          return DCMGlobal.ahPlaylistPath;
+          basePath = DCMGlobal.ahPlaylistPath;
+          break;
         case cDCMFILETYPE:
-          return DCMGlobal.openPath;
+          basePath = DCMGlobal.openPath;
+          break;
         case cDCMSETTINGTYPE:
-          return DCMGlobal.settingPath;
+          basePath = DCMGlobal.settingPath;
+          break;
         case cDCMLAYOUTTYPE:
-          return DCMGlobal.layoutImagePath;
+          basePath = DCMGlobal.layoutImagePath;
+          break;
         case cDCMGRAPHICSTYPE:
-          return DCMGlobal.graphicsPath;
+          basePath = DCMGlobal.graphicsPath;
+          break;
         case cDCMSKINSTYPE:
-          return DCMGlobal.skinsPath;
+          basePath = DCMGlobal.skinsPath;
+          break;
         case cDCMAHMESSAGETYPE:
-          return DCMGlobal.messagePath;
+          basePath = DCMGlobal.messagePath;
+          break;
         case cDCMDDEOTHERTYPE:
-          return DCMGlobal.ddeOthersPath;
+          basePath = DCMGlobal.ddeOthersPath;
+          break;
         case cDCMCONTENTLISTDATATYPE:
-          return DCMGlobal.ddeDataPath;
+          basePath = DCMGlobal.ddeDataPath;
+          break;
         case cDCMPREDATATYPE:
-          return DCMGlobal.preDataPath;
+          basePath = DCMGlobal.preDataPath;
+          break;
         case cDCMSINGLEIMAGETYPE:
-          return DCMGlobal.imagePath;
+          basePath = DCMGlobal.imagePath;
+          break;
         //for Event system - room event
         case cDCMROOMTYPE:
-          return DCMGlobal.roomPath;
+          basePath = DCMGlobal.roomPath;
+          break;
         case cDCMROOMEVENTTYPE:
-          return DCMGlobal.roomEventPath;
+          basePath = DCMGlobal.roomEventPath;
+          break;
         case cDCMLOBBYTYPE:
-          return DCMGlobal.lobbyPath;
+          basePath = DCMGlobal.lobbyPath;
+          break;
         case cDCMDYNAMICDATATYPE:
-          return DCMGlobal.dynamicDataPath;
+          basePath = DCMGlobal.dynamicDataPath;
+          break;
         case cDCMRLTCONTENTTYPE:
-          return DCMGlobal.rltContentPath;
+          basePath = DCMGlobal.rltContentPath;
+          break;
         case cDCMSITEDATATYPE:
-          return DCMGlobal.siteContentPath;
+          basePath = DCMGlobal.siteContentPath;
+          break;
         case cSITEPLAYLIST:
-          return path.join(DCMGlobal.siteContentPath, 'SitePlaylist');
+          basePath = path.join(DCMGlobal.siteContentPath, 'SitePlaylist');
+          break;
         case cDCMUPDATETYPE:
-          return path.join(DCMGlobal.updateFilePath, 'APUpdate');
+          basePath = path.join(DCMGlobal.updateFilePath, 'APUpdate');
+          break;
         default:
-          return path.join(DCMGlobal.cscPath, defaultDataPath);
+          basePath = path.join(DCMGlobal.cscPath, defaultDataPath);
       }
     }
+
+    return basePath;
   }
 
   static double getDCMTotalDuration(String strFile) {
@@ -488,6 +530,19 @@ class Utils {
     return !lprcDst.isEmpty;
   }
 
+  static bool isValidIPAddress(String ip) {
+    if (ip.isEmpty) return false;
+    try {
+      // InternetAddress 会自动识别 IPv4 和 IPv6
+      InternetAddress(ip);
+      return true;
+    } on SocketException {
+      return false;
+    } catch (e) {
+      return false;
+    }
+  }
+
   ///检查string是否为URL。
   static bool isURL(String s) => hasMatch(s,
       r"^((((H|h)(T|t)|(F|f))(T|t)(P|p)((S|s)?))://)?(www.|[a-zA-Z0-9].)[a-zA-Z0-9-.]+.[a-zA-Z]{2,6}(:[0-9]{1,5})*(/($|[a-zA-Z0-9.,;?'\+&amp;%$#=~_-]+))*$");
@@ -513,5 +568,67 @@ class Utils {
   static Color fromRGB(int color) {
     return Color.fromARGB(
         255, (color >> 16) & 0xFF, (color >> 8) & 0xFF, (color >> 0) & 0xFF);
+  }
+
+  static Future<String?> getUniqueKey() async {
+    String? udid;
+    try {
+      udid = await FlutterUdid.udid;
+    } on PlatformException {
+      logE('FlutterUdid: Failed to get UDID.');
+    }
+    if (udid == null || udid.isEmpty) {
+      try {
+        udid = await UniqueDeviceIdentifier.getUniqueIdentifier();
+      } catch (e) {
+        logE('UniqueDeviceIdentifier: Failed to get UDID. Error: $e');
+      }
+    }
+
+    return udid?.trim();
+  }
+
+  static String urlEscape(String csURL) {
+    csURL = csURL.replaceAll(' ', '+');
+    csURL = csURL.replaceAll('[', '%5B');
+    csURL = csURL.replaceAll(']', '%5D');
+    csURL = csURL.replaceAll('"', '%22');
+
+    return csURL;
+  }
+
+  static String addCMSParam(String strCMSLink, [bool bAddTokenOnly = false]) {
+    String cmsParam = '';
+    if (DCMGlobal.cmsToken.isNotEmpty) {
+      //authentication-token
+      cmsParam += ('authentication-token=${DCMGlobal.cmsToken}');
+      //strCMSLink += (strCMSLink.Find('?') != -1 ? '&authentication-token=' : '?authentication-token=');
+      //strCMSLink += Settings.CMSToken;
+    }
+    if (!bAddTokenOnly && DCMGlobal.organization.isNotEmpty) {
+      cmsParam += ('&o=${DCMGlobal.organization}');
+    }
+    if (cmsParam.isNotEmpty) {
+      strCMSLink += (strCMSLink.contains('?') ? '&' : '?');
+      strCMSLink += cmsParam;
+    }
+
+    return strCMSLink;
+  }
+
+  static String apiBaseUrl(String url) {
+    final uri = Uri.tryParse(url);
+    if (uri == null || !uri.hasScheme) {
+      return '';
+    }
+    return '${uri.scheme}://${uri.host}${uri.hasPort ? ':${uri.port}' : ''}';
+  }
+
+  static String apiPath(String url) {
+    final uri = Uri.tryParse(url);
+    if (uri == null || !uri.hasScheme) {
+      return '';
+    }
+    return uri.path.isEmpty ? '/' : uri.path;
   }
 }

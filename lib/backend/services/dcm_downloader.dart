@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:dcm/backend/models/file_info_data.dart';
+import 'package:dcm/backend/net/dcm_http_client.dart';
 import 'package:dcm/backend/utils/utils.dart';
 import 'package:dcm/backend/xmlfile/xmlfile.dart';
 import 'package:dcm/backend/xmlfile/xmlitem.dart';
@@ -141,6 +142,42 @@ class DcmDownloadTask {
   }
 }
 
+class TempFileInfo {
+  TempFileInfo({
+    required this.nContentType,
+    required this.strSourcePath,
+    required this.strDestPath,
+    required this.nPriorityFlag,
+  });
+
+  int nContentType;
+  String strSourcePath;
+  String strDestPath;
+  int nPriorityFlag;
+
+  Map<String, dynamic> toJson() {
+    return {
+      'nContentType': nContentType,
+      'strSourcePath': strSourcePath,
+      'strDestPath': strDestPath,
+      'nPriorityFlag': nPriorityFlag,
+    };
+  }
+
+  factory TempFileInfo.fromJson(Map<String, dynamic> json) {
+    return TempFileInfo(
+      nContentType: json['nContentType'] is int
+          ? json['nContentType'] as int
+          : int.tryParse(json['nContentType']?.toString() ?? '-1') ?? -1,
+      strSourcePath: json['strSourcePath']?.toString() ?? '',
+      strDestPath: json['strDestPath']?.toString() ?? '',
+      nPriorityFlag: json['nPriorityFlag'] is int
+          ? json['nPriorityFlag'] as int
+          : int.tryParse(json['nPriorityFlag']?.toString() ?? '-1') ?? -1,
+    );
+  }
+}
+
 class DcmDownloadQueue {
   DcmDownloadQueue({required this.persistencePath, this.queueMode = 'fifo'})
       : tasks = [];
@@ -148,6 +185,7 @@ class DcmDownloadQueue {
   final String persistencePath;
   final String queueMode;
   final List<DcmDownloadTask> tasks;
+  //Download temporary path
 
   Future<void> load() async {
     final file = File(persistencePath);
@@ -283,7 +321,10 @@ class DcmDownloader {
     this.onTaskComplete,
     this.pollingInterval,
     this.buildRequestBody,
-  });
+    DcmHttpClientFactory? httpClientFactory,
+  }) : _httpClientFactory = httpClientFactory ?? dcmHttpClientFactory {
+    _client = _createClient();
+  }
 
   final String apiUrl;
   final DcmDownloadQueue queue;
@@ -295,34 +336,45 @@ class DcmDownloader {
   final void Function(DcmDownloadTask task)? onTaskComplete;
   final Duration? pollingInterval;
   final Future<String> Function()? buildRequestBody;
+  final DcmHttpClientFactory _httpClientFactory;
 
-  final HttpClient _client = HttpClient();
+  late final DcmHttpClient _client;
   bool _isRunning = false;
   Timer? _pollTimer;
   bool _pollInProgress = false;
 
   Future<List<DcmDownloadTask>> fetchTasksFromApi(String xmlBody) async {
-    final uri = Uri.parse(apiUrl);
-    final request = await _client.postUrl(uri);
-    request.headers
-        .set(HttpHeaders.contentTypeHeader, 'application/xml; charset=UTF-8');
-    request.add(utf8.encode(xmlBody));
+    _client = _createClient();
 
-    final response = await request.close().timeout(timeout);
+    final response = await _client.postString(
+      _apiPath(apiUrl),
+      body: xmlBody,
+      headers: {'Content-Type': 'application/xml; charset=UTF-8'},
+    );
     if (response.statusCode != HttpStatus.ok) {
       throw HttpException(
         'Unexpected response status ${response.statusCode}',
-        uri: uri,
+        uri: Uri.parse(apiUrl),
       );
     }
 
-    final body = await response.transform(utf8.decoder).join();
+    final body = response.body;
     final fileInfoList = _parsePublishFileInformation(body);
     return fileInfoList
         .map((fileInfo) =>
             DcmDownloadTask.fromFileInfoData(fileInfo, apiUrlToCmsBase(apiUrl)))
         .where((task) => task.url.isNotEmpty && task.targetPath.isNotEmpty)
         .toList();
+  }
+
+  DcmHttpClient _createClient() {
+    return _httpClientFactory.clientFor(
+      baseUrl: apiUrlToCmsBase(apiUrl),
+      timeout: timeout,
+      defaultHeaders: {'Content-Type': 'application/xml; charset=UTF-8'},
+      maxRetries: maxRetries,
+      backoffSeconds: backoffBase.inSeconds,
+    );
   }
 
   List<FileInfoData> _parsePublishFileInformation(String xmlBody) {
@@ -495,7 +547,9 @@ class DcmDownloader {
         if (task.retryCount > maxRetries) {
           return false;
         }
-        final delay = backoffBase * task.retryCount;
+        final delay = Duration(
+          seconds: backoffBase.inSeconds * task.retryCount,
+        );
         await Future.delayed(delay);
       }
     }
@@ -512,11 +566,14 @@ class DcmDownloader {
     task.status = DcmDownloadStatus.running;
     task.lastUpdated = DateTime.now();
 
-    final request = await _client.getUrl(Uri.parse(task.url));
+    final headers = <String, String>{};
     if (currentBytes > 0) {
-      request.headers.set(HttpHeaders.rangeHeader, 'bytes=$currentBytes-');
+      headers[HttpHeaders.rangeHeader] = 'bytes=$currentBytes-';
     }
-    final response = await request.close().timeout(timeout);
+    final response = await _client.get(
+      _urlPath(task.url),
+      headers: headers,
+    );
     if (currentBytes > 0 && response.statusCode == HttpStatus.ok) {
       // server ignored the range request, restart from scratch.
       await partialFile.delete();
@@ -533,10 +590,11 @@ class DcmDownloader {
     try {
       int saveCounter = 0;
       int bytesSincePersist = 0;
-      await for (final chunk in response) {
-        await raf.writeFrom(chunk);
-        task.downloaded += chunk.length;
-        bytesSincePersist += chunk.length;
+      final bodyBytes = response.bodyBytes;
+      if (bodyBytes.isNotEmpty) {
+        await raf.writeFrom(bodyBytes);
+        task.downloaded += bodyBytes.length;
+        bytesSincePersist += bodyBytes.length;
         saveCounter += 1;
         if (bytesSincePersist >= 512 * 1024 || saveCounter % 10 == 0) {
           task.lastUpdated = DateTime.now();
@@ -585,6 +643,16 @@ class DcmDownloader {
   static String apiUrlToCmsBase(String apiUrl) {
     final uri = Uri.parse(apiUrl);
     return '${uri.scheme}://${uri.authority}';
+  }
+
+  String _apiPath(String apiUrl) {
+    final uri = Uri.parse(apiUrl);
+    return uri.path.isEmpty ? '/' : uri.path;
+  }
+
+  String _urlPath(String url) {
+    final uri = Uri.parse(url);
+    return uri.path.isEmpty ? '/' : uri.path;
   }
 }
 
