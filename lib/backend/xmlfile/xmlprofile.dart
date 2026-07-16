@@ -9,10 +9,7 @@ class XmlProfile extends XmlFile {
   String strFileName = '';
   String strRootItemName = '';
 
-  XmlProfile() {
-    strFileName = '';
-    strRootItemName = '';
-  }
+  XmlProfile({this.strFileName = '', this.strRootItemName = ''});
 
   XmlProfile.fromFile(String fileName) {
     strFileName = fileName;

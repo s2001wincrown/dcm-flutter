@@ -129,6 +129,11 @@ const int cBYTEMAX = 255;
 const int cINTMIN = -2147483648; /* minimum (signed) int value */
 const int cINTMAX = 2147483647; /* maximum (signed) int value */
 
+final BigInt cLLONGMAX =
+    BigInt.from(9223372036854775807); /* maximum signed long long int value */
+final BigInt cULLONGMAX =
+    BigInt.from(0xffffffffffffffff); /* maximum unsigned long long int value */
+
 const int cWORDMAX = 0xffff;
 
 const int cPLAYINGDURATION = 200;

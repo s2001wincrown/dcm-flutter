@@ -273,7 +273,7 @@ class PlayerPublish {
     final file = File(filePath);
     final stat = file.statSync();
 
-    final fileInfo = FileInfoData(
+    final fileInfo = FileInfoData.create(
       strFileTitle: path.basename(filePath),
       strShortPath: shortPath,
       strDestFile: destFile,
@@ -398,7 +398,7 @@ class PlayerPublish {
     if (contentType == cFLASHTYPE) {
       final ext = path.extension(strFile);
       if (ext.isNotEmpty) {
-        final flv = strFile.substring(0, strFile.length - ext.length) + '.flv';
+        final flv = '${strFile.substring(0, strFile.length - ext.length)}.flv';
         final flvPath = getFilePath(flv, contentType);
         if (!contentFile.isInFileList(flvPath, contentType) &&
             File(flvPath).existsSync()) {
@@ -419,11 +419,11 @@ class PlayerPublish {
         if (ext.isEmpty) return false;
 
         final candidate =
-            strFilePath.substring(0, strFilePath.length - ext.length) + '.flv';
+            '${strFilePath.substring(0, strFilePath.length - ext.length)}.flv';
         if (!contentFile.isInFileList(candidate, pFileInfo.nContentType) &&
             File(candidate).existsSync()) {
           final stat = File(candidate).statSync();
-          final fileInfo = FileInfoData(
+          final fileInfo = FileInfoData.create(
             strFileTitle: path.basename(candidate),
             strShortPath: path.basename(candidate),
             strDestFile: path.basename(candidate),

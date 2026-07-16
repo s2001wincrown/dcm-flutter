@@ -7,6 +7,7 @@
 //
 // Date  : 03/03/2004
 
+import 'package:dcm/backend/app.dart';
 import 'package:dcm/backend/constants.dart';
 import 'package:dcm/backend/utils/extensions.dart';
 import 'package:dcm/backend/utils/string_utils.dart';
@@ -256,5 +257,26 @@ class ContentTypeManager {
     }
 
     return strContentName;
+  }
+
+  static bool saveContentTypes(String strXml) {
+    XmlFile xmlContentTypes = XmlFile('ContentTypes');
+    if (xmlContentTypes.loadXml(strXml)) {
+      String strContentTypeFile = path.join(App().dataPath, 'ContentTypes.xml');
+
+      return xmlContentTypes.save(strContentTypeFile);
+    }
+
+    return false;
+  }
+
+  static bool validContentTypes() {
+    XmlFile xmlContentTypes = XmlFile('ContentTypes');
+    String strContentTypeFile = path.join(App().dataPath, 'ContentTypes.xml');
+    if (xmlContentTypes.loadXml(strContentTypeFile)) {
+      XmlItem? pXmlItem = xmlContentTypes.getItem('ContentType');
+      return (pXmlItem != null);
+    }
+    return false;
   }
 }

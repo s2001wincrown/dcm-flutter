@@ -256,18 +256,76 @@ class FileUtils {
     return '$formattedSize ${sizes[i]}';
   }
 
+  //type: 0-leading or 1-trailing
+  static String stripSeparators(String path, [int type = 0]) {
+    assert((type == 0) || (type == 1));
+    const String seps = '/\\';
+
+    int startIndex = 0;
+    int endIndex = path.length;
+
+    if (type == 0) {
+      // Find the start index
+      while (startIndex < endIndex && seps.contains(path[startIndex])) {
+        startIndex++;
+      }
+    }
+
+    if (type == 1) {
+      // Find the end index
+      while (endIndex > startIndex && seps.contains(path[endIndex - 1])) {
+        endIndex--;
+      }
+    }
+
+    return path.substring(startIndex, endIndex);
+  }
+
+  static String fixPathSeparators(String filePath) {
+    return filePath.replaceAll(
+        path.separator == '/' ? '\\' : '/', path.separator);
+  }
+
+  /// Returns a map of storage root -> { 'total': <bytes>, 'free': <bytes> }
+  static Future<Map<String, Map<String, int>>> getDiskUsage() async {
+    try {
+      // storage_info API differs across platforms and package versions.
+      // Return an empty map here; platforms can implement a richer
+      // implementation if needed.
+      return <String, Map<String, int>>{};
+    } catch (e) {
+      logE('Error getting disk usage: $e');
+      return <String, Map<String, int>>{};
+    }
+  }
+
+  static Future<BigInt> getFileSize(String? path) async {
+    if (path == null || path.isEmpty) return BigInt.zero;
+
+    File file = File(path);
+    if (await file.exists()) {
+      FileStat stat = await file.stat();
+      return BigInt.from(stat.size);
+    }
+
+    return BigInt.zero;
+  }
+
   /// Creates the directory if it doesn't exist.
-  static Future<bool> fileExists(String path) async {
+  static Future<bool> fileExists(String? path) async {
+    if (path == null || path.isEmpty) return false;
     return await File(path).exists();
   }
 
-  static bool fileExistsSync(String path) {
+  static bool fileExistsSync(String? path) {
+    if (path == null || path.isEmpty) return false;
     return File(path).existsSync();
   }
 
   /// Creates the directory if it doesn't exist.
   static Future<void> createFolder(String currentPath, String name) async {
-    await Directory("$currentPath/$name").create();
+    String newPath = path.join(currentPath, name);
+    await Directory(newPath).create();
   }
 
   static Future<File> moveFile(File sourceFile, String newPath) async {
@@ -279,6 +337,39 @@ class FileUtils {
       final newFile = await sourceFile.copy(newPath);
       await sourceFile.delete();
       return newFile;
+    }
+  }
+
+  static Future<bool> deleteFileEx(String strFileName, bool bRename) async {
+    return await deleteFile(File(strFileName), bRename);
+  }
+
+  static Future<bool> deleteFile(File sourceFile, bool bRename) async {
+    try {
+      await sourceFile.delete();
+      return true;
+    } catch (e) {
+      logE('Error delete file: $e');
+    }
+    if (bRename) {
+      String newFileName = path.join(path.dirname(sourceFile.path),
+          '${DateFormat('yyyyMMddHHmmss').format(DateTime.now())}.obs');
+
+      await moveFile(sourceFile, newFileName);
+      return true;
+    }
+
+    return false;
+  }
+
+  static Future<void> deleteDirectory(String path) async {
+    final directory = Directory(path);
+    try {
+      // 设置 recursive: true 以删除文件夹及其所有内容
+      await directory.delete(recursive: true);
+      logI('Delete folder successfully: ${directory.path}');
+    } catch (e) {
+      logE('''delete folder '$path' error: $e''');
     }
   }
 
@@ -440,7 +531,8 @@ class FileUtils {
           strPath = strPath.substring(7);
         }
       }
-      strPath = strPath.replaceAll('/', path.separator);
+      strPath = strPath.replaceAll(
+          path.separator == '/' ? '\\' : '/', path.separator);
       strPath = strPath.replaceAll('%20', ' ');
       if (isUNCPath(strPath)) {
         strPath = strPath.substring(2);

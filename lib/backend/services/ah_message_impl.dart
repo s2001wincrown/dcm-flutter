@@ -63,7 +63,7 @@ class AHMessageImpl {
       }
       final messageData = MessageData();
       if (serialize(entity.path, messageData, false)) {
-        final fileInfo = FileInfoData(
+        final fileInfo = FileInfoData.create(
           uiID: messageData.uiID,
           strFileTitle: messageData.strAHName,
           strShortPath: fileName,

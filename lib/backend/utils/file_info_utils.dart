@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:dcm/backend/models/file_info_data.dart';
+import 'package:dcm/backend/utils/log_utils.dart';
 import 'package:path/path.dart' as path;
 
 class FileInfoUtils {
@@ -9,7 +10,7 @@ class FileInfoUtils {
     if (file.existsSync()) {
       FileStat stat = file.statSync();
 
-      FileInfoData pFileInfo = FileInfoData(
+      FileInfoData pFileInfo = FileInfoData.create(
         nContentType: contentType,
         strFilePath: file.absolute.path,
         strFileTitle: path.basename(strFilePath),
@@ -56,7 +57,7 @@ class FileInfoUtils {
       case 2: // Assuming other types
         break;
       default:
-        print("Invalid content type for getDestPath: $contentType");
+        logE("Invalid content type for getDestPath: $contentType");
         break;
     }
 
@@ -93,7 +94,7 @@ class FileInfoUtils {
         strShortPath = "api/cm/slideshows/xmlcontent/$id";
         break;
       default:
-        print("Invalid content type for getSourcePath: $contentType");
+        logE("Invalid content type for getSourcePath: $contentType");
         break;
     }
 

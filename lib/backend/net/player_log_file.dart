@@ -37,9 +37,9 @@ class PlayerLogFile {
   // 静态变量模拟
   static DateTime dtDownloadStartTime = DateTime.now();
   static DateTime dtStartSync = DateTime.now();
-  static int nTotalBytesDownloaded = 0;
-  static int nTotalBytesToDownload = 0;
-  static int nFileDownloaded = 0;
+  static BigInt nTotalBytesDownloaded = BigInt.zero;
+  static BigInt nTotalBytesToDownload = BigInt.zero;
+  static BigInt nFileDownloaded = BigInt.zero;
   static int nUpdateCookie = 0; // 使用时间戳毫秒
   static int nUpdateInterval = 60000;
 
@@ -98,7 +98,7 @@ class PlayerLogFile {
         xmlProfile.writeProfileInt(
             'DownloadSetting', 'DownloadContent', pJob.dwSyncContent);
         xmlProfile.writeProfileInt(
-            'DownloadSetting', 'TotalSize', nTotalBytesToDownload);
+            'DownloadSetting', 'TotalSize', nTotalBytesToDownload.toInt());
         xmlProfile.writeProfileString(
             'DownloadSetting', 'TaskName', pJob.strJobItem);
         xmlProfile.writeProfileString(
@@ -137,12 +137,12 @@ class PlayerLogFile {
           'DownloadSetting', 'DownloadStatus', 'Downloading!');
       xmlProfile.writeProfileString('DownloadSetting', 'DownloadProgress', str);
       xmlProfile.writeProfileInt(
-          'DownloadSetting', 'Downloaded', nTotalBytesDownloaded);
+          'DownloadSetting', 'Downloaded', nTotalBytesDownloaded.toInt());
       xmlProfile.writeProfileInt(
-          'DownloadSetting', 'FilesDownloaded', nFileDownloaded);
-      if (nTotalBytesToDownload > 0.0) {
+          'DownloadSetting', 'FilesDownloaded', nFileDownloaded.toInt());
+      if (nTotalBytesToDownload > BigInt.zero) {
         xmlProfile.writeProfileInt(
-            'DownloadSetting', 'TotalSize', nTotalBytesToDownload);
+            'DownloadSetting', 'TotalSize', nTotalBytesToDownload.toInt());
       }
 
       XiType nXIType = XiType.attrib;

@@ -8,13 +8,16 @@
 
 //File Information Object Data
 
+import 'package:dcm/backend/constants.dart';
 import 'package:dcm/backend/xmlfile/xmlitem.dart';
 
 enum FileItemStatus {
   skip(-1),
   normal(0),
   temporary(1),
-  download(2);
+  download(2),
+  copied(3),
+  remove(4);
 
   const FileItemStatus(this.status);
 
@@ -54,7 +57,15 @@ class FileInfoData {
   int nTransferType = 1;
   FileItemStatus fileStatus = FileItemStatus.normal;
 
-  FileInfoData({
+  FileInfoData()
+      : this.create(
+            strFilePath: '',
+            strShortPath: '',
+            strDestFile: '',
+            strFileTitle: '',
+            dwFileSize: BigInt.zero);
+
+  FileInfoData.create({
     this.uiID,
     required this.strFileTitle,
     this.strFilePath,
@@ -324,5 +335,37 @@ class FileInfoData {
       }
     }
     return true;
+  }
+
+  bool ignoreFileSize() {
+    return dwFileSize == cLLONGMAX || dwFileSize == cULLONGMAX;
+  }
+
+  BigInt getFileSize() {
+    return (dwFileSize < BigInt.zero ||
+            dwFileSize == cLLONGMAX ||
+            dwFileSize == cULLONGMAX)
+        ? BigInt.zero
+        : dwFileSize;
+  }
+
+  bool isSkip() {
+    return fileStatus == FileItemStatus.skip;
+  }
+
+  bool isTemporary() {
+    return fileStatus == FileItemStatus.temporary;
+  }
+
+  bool isDowmloaded() {
+    return fileStatus == FileItemStatus.download;
+  }
+
+  bool isCopied() {
+    return fileStatus == FileItemStatus.copied;
+  }
+
+  bool needDelete() {
+    return fileStatus == FileItemStatus.remove;
   }
 }

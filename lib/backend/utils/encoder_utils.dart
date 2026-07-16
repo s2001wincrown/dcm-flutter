@@ -16,10 +16,10 @@ class Encodes {
       r'*&^K^%X威dVd56T6$M$J$#sw冠H#q1@Q@$A$&*fdNd';
   static const String cDCMFILECRYPTKEY = r'%$%###&*@~!~!?/.@#$$%^&*';
 
-  static String encryptText(String plaintext, String passphrase) {
+  static String encryptText(String plaintext, [String? passphrase]) {
     final plaintextBytes = utf8.encode(plaintext);
 
-    return encrypt(plaintextBytes, passphrase);
+    return encrypt(plaintextBytes, passphrase ?? cPASSWORDCRYPTKEY);
   }
 
   static String encrypt(Uint8List plaintextBytes, String passphrase) {

@@ -130,7 +130,7 @@ class PlayerJobItem {
   int nRetries = 3;
   int nRetryCount = 0;
   int nMaximumLimit = 0;
-  DateTime dtValidity = DateTime.now();
+  DateTime? dtValidity;
 
   int dwSyncContent = 0; // DWORD
   int nTaskAction = 0;
@@ -196,8 +196,9 @@ class PlayerJobItem {
   }
 
   bool hasExpired() {
-    // 假设 EPSINON 是一个极小值，这里简化为直接比较
-    return dtValidity.isBefore(DateTime.now());
+    return (dtValidity != null &&
+        dtValidity!.isAfter(fromOleDateTime()) &&
+        dtValidity!.compareTo(DateTime.now()) <= 0);
   }
 
   // 模拟 XML 序列化
@@ -220,7 +221,7 @@ class PlayerJobItem {
       'dwSyncContent': dwSyncContent,
       'nTaskAction': nTaskAction,
       'dwJobStatus': dwJobStatus.index,
-      'dtValidity': dtValidity.toIso8601String(),
+      'dtValidity': dtValidity?.toIso8601String(),
       'bIsCurrent': bIsCurrent ? 1 : 0,
     };
   }
@@ -400,7 +401,7 @@ class PlayerTaskFile {
     if (bIsTimeForACU) {
       String strTask =
           strFtpTime; //COleDateTime::GetCurrentTime().Format(_T("%Y%m%d"));
-      if (await NetLogImpl.isNewTaskSave(strTask)) {
+      if (await PlayerLogImpl.isNewTaskSave(strTask)) {
         PlayerJobItem task = PlayerJobItem();
         task.strJobItem =
             strTask; //COleDateTime::GetCurrentTime().Format(_T("%Y%m%d%H%M%S"));
@@ -435,14 +436,14 @@ class PlayerTaskFile {
       if (existing.bIsCurrent) {
         if (pTask.hasExpired()) {
           logE(
-              '''Task: '${pTask.strJobItem}' has expired; Valid Time: '${DateFormat('yyyy-MM-dd HH:mm:ss').format(pTask.dtValidity)}'!''');
+              '''Task: '${pTask.strJobItem}' has expired; Valid Time: '${DateFormat('yyyy-MM-dd HH:mm:ss').format(pTask.dtValidity!)}'!''');
           existing.nAction = 2; // Stop
         }
       } else {
         if (existing.strJobTime != pTask.strJobTime) {
           if (pTask.hasExpired()) {
             logE(
-                '''Task: '${pTask.strJobItem}' has expired; Valid Time: '${DateFormat('yyyy-MM-dd HH:mm:ss').format(pTask.dtValidity)}'!''');
+                '''Task: '${pTask.strJobItem}' has expired; Valid Time: '${DateFormat('yyyy-MM-dd HH:mm:ss').format(pTask.dtValidity!)}'!''');
             vTaskQueue.removeAt(index);
           } else {
             pTask.bIsCurrent = existing.bIsCurrent;
@@ -454,7 +455,7 @@ class PlayerTaskFile {
         } else {
           if (pTask.hasExpired()) {
             logE(
-                '''Task: '${pTask.strJobItem}' has expired; Valid Time: '${pTask.dtValidity.toIso8601String()}'!''');
+                '''Task: '${pTask.strJobItem}' has expired; Valid Time: '${pTask.dtValidity!.toIso8601String()}'!''');
             vTaskQueue.removeAt(index);
           }
         }
@@ -572,11 +573,11 @@ class PlayerTaskFile {
       var it = taskQueues.first;
       if (it.hasExpired()) {
         logE(
-            '''Task: '${it.strJobItem}' has expired; Validity: '${DateFormat('yyyy-MM-dd HH:mm:ss').format(it.dtValidity)}'!''');
+            '''Task: '${it.strJobItem}' has expired; Validity: '${DateFormat('yyyy-MM-dd HH:mm:ss').format(it.dtValidity!)}'!''');
         taskQueues.remove(it);
         continue;
       }
-      if (!NetLogImpl.isNewTask(it.strJobItem)) {
+      if (!PlayerLogImpl.isNewTask(it.strJobItem)) {
         /*CPlayerLogFile::Message(MSG_ERROR, ''%s' is repetitive tasks; Validity: '%s'!',
               it.current.strJobItem, it.current.dtValidity.Format('%Y-%m-%d %H:%M:%S'));*/
         taskQueues.remove(it);
@@ -603,7 +604,7 @@ class PlayerTaskFile {
       taskQueues.remove(it);
     }
 
-    NetLogImpl.saveTaskLog();
+    PlayerLogImpl.saveTaskLog();
     if (bSave) {
       writeTaskFile();
     }
@@ -755,22 +756,15 @@ class PlayerTaskFile {
   }
 
   static Future<void> synLocalTime() async {
-    final service = PlayLogPostService(
-      uniqueName: globalPlayer.strUniqueName,
-      playerName: globalPlayer.strName,
-    );
-    if (service.isEnabled(PlayLogPostFlag.playerLog2) &&
+    if (PlayLogPostService.isEnabled(PlayLogPostFlag.playerLog2) &&
         DCMGlobal.cmsUrl.isNotEmpty) {
-      final request = service.buildPlayerLogRequest(
-        '$cHTTPUNIQUEKEY=${globalPlayer.strUniqueName}',
-        DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now()),
-        PlayLogPostFlag.playerLog2,
-      );
-      await service.updatePlayerLog(
-        url: DCMGlobal.cmsUrl,
-        request: request,
-        flag: PlayLogPostFlag.playerLog2,
-      );
+      final request = PlayLogPostService.buildPlayerLogRequest(
+          '$cHTTPUNIQUEKEY=${globalPlayer.strUniqueName}',
+          DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now()),
+          PlayLogPostFlag.playerLog2,
+          globalPlayer.strUniqueName,
+          globalPlayer.strName);
+      await PlayLogPostService.updatePlayerLog(request: request);
     }
   }
 

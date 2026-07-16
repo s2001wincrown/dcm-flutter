@@ -4,21 +4,24 @@ import 'dart:io';
 
 import 'package:dcm/backend/app.dart';
 import 'package:dcm/backend/constants.dart';
+import 'package:dcm/backend/utils/encoder_utils.dart';
 import 'package:dcm/backend/utils/file_utils.dart';
 import 'package:dcm/backend/xmlfile/inifile.dart';
+import 'package:dcm/backend/xmlfile/xmlfile.dart';
+import 'package:dcm/backend/xmlfile/xmlitem.dart';
 import 'package:path/path.dart' as path;
 
 class DCMGlobal {
   // File Paths
   static String configFile = '';
   static String cscPath = '';
+  static String appDataPath = '';
   static String ddServerPath = '';
   static String openPath = '';
   static String bgFile = '';
   static String loginFile = '';
   static String imagePath = '';
   static String vcdPath = '';
-  static String dvdPath = '';
   static String ppPath = '';
   static String flashPath = '';
   static String webPath = '';
@@ -109,6 +112,9 @@ class DCMGlobal {
   static int tempFileCopyRetries = 100;
   static int logUploadInterval = 10; //seconds
   static int logUploadPeriod = 7; //days
+  static bool fileIntegrityCheck = true;
+
+  static int httpRetryTimes = 10; //HTTP Post Retry Times
 
   static int statusCheckInterval = 1; //minutes
 
@@ -128,7 +134,6 @@ class DCMGlobal {
     'File Path.Login Image': (v) => loginFile = v,
     'File Path.Image Data': (v) => imagePath = v,
     'File Path.VCD Data': (v) => vcdPath = v,
-    'File Path.DVD Data': (v) => dvdPath = v,
     'File Path.Powerpoint Data': (v) => ppPath = v,
     'File Path.Flash Data': (v) => flashPath = v,
     'File Path.WebPage Data': (v) => webPath = v,
@@ -210,18 +215,26 @@ class DCMGlobal {
     'Global Setting.nPDFViewMode': (v) => pdfViewMode = int.parse(v),
     'Global Setting.nPDFPlayMode': (v) => pdfPlayMode = int.parse(v),
 
-    'Global.StatusCheckInterval': (v) => statusCheckInterval = int.parse(v),
-    'Global.EnableTaskCheck': (v) => enableTaskCheck = bool.parse(v),
-    'Global.AutoContentUpdate': (v) => autoContentUpdate = bool.parse(v),
-    'Global.FileTransferRetries': (v) => fileTransferRetries = int.parse(v),
-    'Global.TaskTransferRetries': (v) => taskTransferRetries = int.parse(v),
-    'Global.TempFileCopyRetries': (v) => tempFileCopyRetries = int.parse(v),
-    'Global.LogUploadInterval': (v) => logUploadInterval = int.parse(v),
-    'Global.LogUploadPeriod': (v) => logUploadPeriod = int.parse(v),
+    'ContentSync.StatusCheckInterval': (v) =>
+        statusCheckInterval = int.parse(v),
+    'ContentSync.EnableTaskCheck': (v) => enableTaskCheck = bool.parse(v),
+    'ContentSync.AutoContentUpdate': (v) => autoContentUpdate = bool.parse(v),
+    'ContentSync.FileTransferRetries': (v) =>
+        fileTransferRetries = int.parse(v),
+    'ContentSync.TaskTransferRetries': (v) =>
+        taskTransferRetries = int.parse(v),
+    'ContentSync.TempFileCopyRetries': (v) =>
+        tempFileCopyRetries = int.parse(v),
+    'ContentSync.LogUploadInterval': (v) => logUploadInterval = int.parse(v),
+    'ContentSync.LogUploadPeriod': (v) => logUploadPeriod = int.parse(v),
+    'ContentSync.HTTPRetryTimes': (v) => httpRetryTimes = int.parse(v),
+    'ContentSync.FileIntegrityCheck': (v) => fileIntegrityCheck = bool.parse(v),
   };
 
   static Map<String, dynamic> snapshot() {
     return {
+      'cscPath': _readStringValue(() => cscPath),
+      'appDataPath': _readStringValue(() => appDataPath),
       'cmsUrl': _readStringValue(() => cmsUrl),
       'cmsToken': _readStringValue(() => cmsToken),
       'organization': _readStringValue(() => organization),
@@ -233,6 +246,7 @@ class DCMGlobal {
       'logUploadInterval': logUploadInterval,
       'logUploadPeriod': logUploadPeriod,
       'statusCheckInterval': statusCheckInterval,
+      'httpRetryTimes': httpRetryTimes,
     };
   }
 
@@ -245,6 +259,8 @@ class DCMGlobal {
   }
 
   static void applyWorkerConfig({
+    String? cscPath,
+    String? appDataPath,
     String? cmsUrl,
     String? cmsToken,
     String? organization,
@@ -256,7 +272,14 @@ class DCMGlobal {
     int? logUploadInterval,
     int? logUploadPeriod,
     int? statusCheckInterval,
+    int? httpRetryTimes,
   }) {
+    if (cscPath != null) {
+      DCMGlobal.cscPath = cscPath;
+    }
+    if (appDataPath != null) {
+      DCMGlobal.appDataPath = appDataPath;
+    }
     if (cmsUrl != null) {
       DCMGlobal.cmsUrl = cmsUrl;
     }
@@ -290,12 +313,16 @@ class DCMGlobal {
     if (statusCheckInterval != null) {
       DCMGlobal.statusCheckInterval = statusCheckInterval;
     }
+    if (httpRetryTimes != null) {
+      DCMGlobal.httpRetryTimes = httpRetryTimes;
+    }
   }
 
   static Future<bool> loadFromIni() async {
+    appDataPath = FileUtils.removeBackslash(App().dataPath);
     try {
       if (configFile.isEmpty) {
-        configFile = path.join(App().dataPath, configFILENAME);
+        configFile = path.join(appDataPath, configFILENAME);
       }
 
       final file = File(configFile);
@@ -304,6 +331,10 @@ class DCMGlobal {
       }
 
       var iniFile = IniFile(configFile);
+      if (iniFile.sections.isEmpty) {
+        return false;
+      }
+
       for (var entry in _setters.entries) {
         if ('Global Setting.CombSettings' == entry.key) {
           entry.value.call(loadCombSettings(iniFile));
@@ -321,7 +352,7 @@ class DCMGlobal {
       // Handle error
     }
 
-    return validGlobalSetting(App().dataPath);
+    return validGlobalSetting(appDataPath);
   }
 
   static String loadPlaybackSettings(IniFile iniFile) {
@@ -428,12 +459,11 @@ class DCMGlobal {
     processAHConflict = 0;
   }
 
-  static Future<bool> validGlobalSetting(String szAppPath) async {
-    szAppPath = FileUtils.removeBackslash(szAppPath);
+  static Future<bool> validGlobalSetting(String szAppDataPath) async {
     if (cscPath.isEmpty) {
-      cscPath = szAppPath;
+      cscPath = szAppDataPath;
     } else {
-      cscPath = cscPath.replaceAll('\$(AppPath)', szAppPath);
+      cscPath = cscPath.replaceAll('\$(AppPath)', szAppDataPath);
     }
     cscPath = FileUtils.removeBackslash(cscPath);
 
@@ -442,13 +472,11 @@ class DCMGlobal {
       return false;
     }
 
-    String strSavePath = path.join(cscPath, defaultSAVEPATH); //cscPath;
     String strOpenPath = path.join(cscPath, defaultOPENPATH);
     //String strHtml = szAppPath;
     String strImagePath = path.join(cscPath, defaultDataPath);
     String strImageSettingPath = path.join(cscPath, 'data', 'image');
     String strVCDPath = path.join(cscPath, defaultDataPath);
-    String strDVDPath = path.join(cscPath, defaultDataPath); //cscPath;
     String strPPPath = path.join(cscPath, defaultDataPath);
     String strFlashPath = path.join(cscPath, defaultDataPath);
     String strWebPath = path.join(cscPath, defaultDataPath);
@@ -467,7 +495,6 @@ class DCMGlobal {
 
     imagePath = await FileUtils.validFilePath(imagePath, strImagePath, false);
     vcdPath = await FileUtils.validFilePath(vcdPath, strVCDPath, false);
-    dvdPath = await FileUtils.validFilePath(dvdPath, strDVDPath, false);
     ppPath = await FileUtils.validFilePath(ppPath, strPPPath, false);
     flashPath = await FileUtils.validFilePath(flashPath, strFlashPath, false);
     webPath = await FileUtils.validFilePath(webPath, strWebPath, false);
@@ -508,7 +535,8 @@ class DCMGlobal {
         await FileUtils.validFilePath(graphicsPath, strGraphicsPath, false);
 
     copyFileQueueSize = 4 * copyFileBuffer * 1024 * 1024;
-    ppViewPath = FileUtils.replaceDCMWildcard(ppViewPath, appPath: szAppPath);
+    ppViewPath =
+        FileUtils.replaceDCMWildcard(ppViewPath, appPath: szAppDataPath);
 
     String strDayPath = path.join(cscPath, defaultSCHEDULEDAYPATH);
     String strMonthPath = path.join(cscPath, defaultSCHEDULEMONTHPATH);
@@ -583,7 +611,7 @@ class DCMGlobal {
   }
 
   static String getAppPath() {
-    return App().dataPath;
+    return appDataPath;
   }
 
   static String getString(String pszPath, [String? defaultValue]) {
@@ -606,5 +634,37 @@ class DCMGlobal {
     return (((DCMGlobal.globalSetting & settingMUTEALL) > 0)
         ? cVOLUMESILENCE
         : (bMute ? cVOLUMESILENCE : nVolume));
+  }
+
+  static bool loadGlobalSetting(XmlFile pXmlFile) {
+    bool bLoaded = false;
+    if (configFile.isEmpty) {
+      configFile = path.join(App().dataPath, configFILENAME);
+    }
+    IniFile settingsFile = IniFile(configFile);
+
+    XmlItem? pGroup = pXmlFile.getItem('SettingsGroup');
+    while (pGroup != null) {
+      String strGroup = pGroup.getItemValue('Name');
+      XmlItem? pItem = pGroup.getItem('Item');
+      while (pItem != null) {
+        String strName = pItem.getItemValue('Name');
+        String strValue = pItem.getItemValue('Value');
+        if (strValue.isNotEmpty) {
+          bLoaded = true;
+          int nType = pItem.getItemValueI('Type');
+          if (nType == 4) {
+            settingsFile.writeString(
+                strGroup, strName, Encodes.encryptText(strValue));
+          } else {
+            settingsFile.writeString(strGroup, strName, strValue);
+          }
+        }
+        pItem = pItem.getSibling();
+      }
+      pGroup = pGroup.getSibling();
+    }
+
+    return bLoaded;
   }
 }

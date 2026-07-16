@@ -203,6 +203,33 @@ class PlayerRegisterImpl {
     }
   }
 
+  static ({
+    String? pPlayerName,
+    String? pLocation,
+    String? pOrganization,
+    int? pSettingsGroup,
+    String? pHttpLink
+  }) getPlayerInformation(String strPath) {
+    final serverFile = IniFile(path.join(strPath, 'Server.txt'));
+    final pPlayerName =
+        serverFile.readString('PlayerInformation', 'PlayerName', '');
+    final pLocation =
+        serverFile.readString('PlayerInformation', 'Location', '');
+    final pOrganization =
+        serverFile.readString('PlayerInformation', 'Organization', '');
+    final pSettingsGroup =
+        serverFile.readInt('PlayerInformation', 'SettingsGroup', 1);
+    final pHttpLink = serverFile.readString('Server', 'HTTPRootLink', '');
+
+    return (
+      pPlayerName: pPlayerName,
+      pLocation: pLocation,
+      pOrganization: pOrganization,
+      pSettingsGroup: pSettingsGroup,
+      pHttpLink: pHttpLink
+    );
+  }
+
   /// Get Network Info (IP/MAC)
   static Future<void> updateNetworkInfo(Player player) async {
     final info = NetworkInfo();
@@ -233,6 +260,17 @@ class PlayerRegisterImpl {
     }
   }
 
+  static Future<String> getDeviceIDUrlEscape() async {
+    // Get Device ID
+    String? deviceId = await Utils.getUniqueKey();
+    if (deviceId == null || deviceId.isEmpty) {
+      logE('Failed to get device ID. Please try again.');
+      return '';
+    }
+
+    return Utils.urlEscape(deviceId);
+  }
+
   /// Auto Register Logic
   static Future<bool> autoRegister(bool commit) async {
     final strDCMSites = path.join(App().dataPath, _dcmsitesFileName);
@@ -243,18 +281,10 @@ class PlayerRegisterImpl {
     serializePlayer(player, strDCMSites, false);
 
     // Get Device ID
-    final deviceInfo = DeviceInfoPlugin();
     String? deviceId = await Utils.getUniqueKey();
     if (deviceId == null || deviceId.isEmpty) {
-      if (Platform.isAndroid) {
-        final androidInfo = await deviceInfo.androidInfo;
-        deviceId = androidInfo.id;
-      } else if (Platform.isIOS) {
-        final iosInfo = await deviceInfo.iosInfo;
-        deviceId = iosInfo.identifierForVendor ?? '';
-      } else {
-        deviceId = 'Desktop-ID';
-      }
+      logE('Failed to get device ID. Please try again.');
+      return false;
     }
 
     player.strUniqueName = deviceId;

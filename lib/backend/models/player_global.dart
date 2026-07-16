@@ -7,11 +7,15 @@ import 'package:dcm/backend/models/player.dart';
 import 'package:dcm/backend/net/dcm_http_client.dart';
 import 'package:dcm/backend/net/play_log_post.dart';
 import 'package:dcm/backend/net/player_log_file.dart';
+import 'package:dcm/backend/net/player_log_impl.dart';
 import 'package:dcm/backend/net/player_task_file.dart';
 import 'package:dcm/backend/services/player_register_impl.dart';
 import 'package:dcm/backend/utils/log_utils.dart';
 import 'package:dcm/backend/utils/utils.dart';
+import 'package:dcm/backend/xml_settings/contenttype_manager.dart';
+import 'package:dcm/backend/xml_settings/settings_impl.dart';
 import 'package:dcm/backend/xmlfile/xmlfile.dart';
+import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as path;
 
 /// Global player instance shared across the app.
@@ -250,4 +254,101 @@ void applyWorkerPlayer(Map<String, dynamic>? m) {
   } catch (_) {
     // ignore malformed data.
   }
+}
+
+//********************************************************************/
+/*																	*/
+/* Function name : LoadPathSetting									*/
+/* Description   : Load App Setting for FTP.                      	*/
+/*																	*/
+//********************************************************************/
+Future<bool> loadAppSetting(String? deviceId) async {
+  var bResult = await loadPlaybackSettings(deviceId);
+  logI('CFtpManagerApp::LoadAppSetting()!');
+
+  if (bResult.status) {
+    //Settings.AdjustSettingsByLicense();
+    await loadContentTypeSettings(deviceId!);
+    ContentTypeManager.loadContentTypes();
+  } else {
+    logE(
+        'CFtpManagerApp::LoadAppSetting; Get playback settings from server failure!');
+  }
+  if (!kDebugMode && bResult.isNeedRestart) {
+    await PlayerLogImpl.restartAction();
+  }
+
+  return bResult.status;
+}
+
+Future<({bool status, bool isNeedRestart})> loadPlaybackSettings(
+    String? deviceId) async {
+  String strAppPath = App().dataPath;
+  if (!await SettingsImpl.settingsIsOk(dcmPath: strAppPath)) {
+    int nSettingsGroup = 1;
+    var result = PlayerRegisterImpl.getPlayerInformation(strAppPath);
+    if (result.pHttpLink != null && result.pHttpLink!.isNotEmpty) {
+      if (deviceId == null || deviceId.isEmpty) {
+        logE(
+            'loadPlaybackSettings - Failed to get device ID. Please try again.');
+        return (status: false, isNeedRestart: false);
+      }
+      String strGetSettings = result.pHttpLink!;
+      nSettingsGroup = result.pSettingsGroup ?? 1;
+      String strRequest =
+          'uiType=3&strUniqueName=${Utils.urlEscape(deviceId)}&uiGroupID=$nSettingsGroup';
+      strGetSettings = fADDSLASH(strGetSettings);
+      strGetSettings += cmsGETSETTINGSURL;
+      strGetSettings += '?';
+      strGetSettings += strRequest;
+      strRequest = '';
+      strGetSettings = Utils.addCMSParam(strGetSettings);
+      var httpResult = await httpGet(strGetSettings);
+      if (httpResult.status) {
+        if (SettingsImpl.loadFromXml(httpResult.result!)) {
+          if (await DCMGlobal.loadFromIni()) {
+            return (status: true, isNeedRestart: true);
+          }
+        }
+      }
+    } else {
+      logE(
+          '''loadPlaybackSettings - 'server.txt' file not found or invalid'.''');
+    }
+  } else {
+    return (status: await DCMGlobal.loadFromIni(), isNeedRestart: false);
+  }
+
+  return (status: false, isNeedRestart: false);
+}
+
+Future<bool> loadContentTypeSettings(String deviceId) async {
+  if (ContentTypeManager.validContentTypes()) {
+    return true;
+  }
+
+  int nSettingsGroup = 1;
+  String strAppPath = App().dataPath;
+  var result = PlayerRegisterImpl.getPlayerInformation(strAppPath);
+  if (result.pHttpLink != null && result.pHttpLink!.isNotEmpty) {
+    String strGetSettings = result.pHttpLink!;
+    nSettingsGroup = result.pSettingsGroup ?? 1;
+    String strRequest =
+        'uiType=99&strUniqueName=${Utils.urlEscape(deviceId)}&uiGroupID=$nSettingsGroup';
+    strGetSettings = fADDSLASH(strGetSettings);
+    strGetSettings += cmsGETSETTINGSURL;
+    strGetSettings += '?';
+    strGetSettings += strRequest;
+    strRequest = '';
+    strGetSettings = Utils.addCMSParam(strGetSettings);
+    String strResult = '';
+    var httpResult = await httpGet(strGetSettings);
+    if (httpResult.status) {
+      return ContentTypeManager.saveContentTypes(strResult);
+    }
+  } else {
+    return true;
+  }
+
+  return false;
 }

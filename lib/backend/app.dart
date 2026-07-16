@@ -5,6 +5,7 @@ import 'dart:math';
 import 'package:dcm/backend/keymap_helper.dart';
 import 'package:dcm/backend/library_helper.dart';
 import 'package:dcm/backend/models/dcm_global.dart';
+import 'package:dcm/backend/models/player_global.dart';
 import 'package:dcm/backend/models/playitem.dart';
 import 'package:dcm/backend/models/playlist_item.dart';
 import 'package:dcm/backend/models/settings.dart';
@@ -22,6 +23,7 @@ import 'package:path_provider/path_provider.dart';
 class App {
   late final String dataPath;
   late final String? uniqueKey;
+  late final DateTime dtStartup;
 
   late AppSettings settings;
 
@@ -55,11 +57,18 @@ class App {
   }
 
   Future<void> init() async {
+    dtStartup = DateTime.now();
     dataPath = (await getApplicationSupportDirectory()).path;
     initFileLogger(dataPath);
+    // Get Device ID
     uniqueKey = await Utils.getUniqueKey();
-    await DCMGlobal.loadFromIni();
-    ContentTypeManager.loadContentTypes();
+    //await DCMGlobal.loadFromIni();
+    //ContentTypeManager.loadContentTypes();
+    await loadAppSetting(uniqueKey);
+    if (DCMGlobal.autoContentUpdate) {
+      // Ensure globalPlayer is initialized from CMS or local fallback
+      await initGlobalPlayer();
+    }
     await loadSettings();
     bool needsUpdate = false;
     if (settings.screenshotPath == '') {

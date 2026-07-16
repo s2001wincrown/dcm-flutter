@@ -18,6 +18,7 @@ dependencies:
   mime_type: ^1.0.0
   device_info_plus: ^9.0.3
   network_info_plus: ^7.0.0
+  storage_info: ^1.0.0
   permission_handler: ^12.0.1
   package_info_plus: ^8.3.0
   intl: ^0.20.2

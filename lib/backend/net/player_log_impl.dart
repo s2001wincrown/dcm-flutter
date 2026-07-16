@@ -4,8 +4,10 @@ import 'package:dcm/backend/models/dcm_global.dart';
 import 'package:dcm/backend/net/netdef.dart';
 import 'package:dcm/backend/utils/extensions.dart';
 import 'package:dcm/backend/utils/log_utils.dart';
+import 'package:dcm/backend/utils/time_utils.dart';
 import 'package:dcm/backend/xmlfile/xmlfile.dart';
 import 'package:dcm/backend/xmlfile/xmlitem.dart';
+import 'package:dcm/backend/xmlfile/xmlprofile.dart';
 import 'package:intl/intl.dart';
 import 'package:path/path.dart' as path;
 
@@ -27,15 +29,15 @@ class TaskInfo {
 }
 
 // --------------------------------------------------------------------------
-// CNetLogImpl 实现
+// PlayerLogImpl 实现
 // --------------------------------------------------------------------------
-class NetLogImpl {
+class PlayerLogImpl {
   // 静态变量
   static DateTime dtFileList = DateTime.now();
   static DateTime dtLastReSync = DateTime(0);
   static DateTime dtLastSync = DateTime(0);
   static DateTime dtCMDTime = DateTime.now().subtract(Duration(days: 1));
-  static DateTime dtShutdown = DateTime(0);
+  static DateTime? dtShutdown;
   static bool bIsDirty = false;
 
   // 任务列表
@@ -163,53 +165,160 @@ class NetLogImpl {
   }
 
   // 重启动作
-  static Future<bool> restartAction(int dwAction) async {
+  static Future<bool> restartAction() async {
     logI(
-        'CNetLogImpl::RestartAction - Try to restart or power off system ... Action: $dwAction');
+        'CPlayerLogImpl::RestartAction - Try to restart or power off system ...');
 
     bool success = false;
-
-    // Dart 无法直接执行系统关机/重启，除非通过 Platform Channel 调用原生代码
-    // 这里仅做逻辑模拟
-
-    if (Platform.isWindows) {
-      // Windows: shutdown /s /t 0, shutdown /r /t 0, etc.
-      // Process.run('shutdown', ['/s', '/t', '0']);
-      logI('Simulating Windows Shutdown/Restart');
+    try {
+      if (Platform.isAndroid) {
+        await _rebootAndroid();
+      } else if (Platform.isIOS) {
+        _showIOSAlert();
+      } else if (Platform.isWindows) {
+        await _rebootWindows();
+      } else if (Platform.isMacOS) {
+        await _rebootMacOS();
+      } else if (Platform.isLinux) {
+        await _rebootLinux();
+      }
       success = true;
-    } else if (Platform.isLinux || Platform.isMacOS) {
-      // Linux/Mac: sudo shutdown -h now, sudo reboot
-      logI('Simulating Linux/Mac Shutdown/Restart');
-      success = true;
-    } else if (Platform.isAndroid || Platform.isIOS) {
-      // Mobile: Cannot shutdown via app usually
-      logI('Mobile platform: Cannot perform system shutdown/restart directly');
-      success = false;
+    } catch (e) {
+      logE('RestartAction failed: $e');
     }
 
     return success;
   }
 
+  static Future<void> _rebootAndroid() async {
+    try {
+      // 方案 1: 使用插件 (需要系统权限)
+      // await DeviceReboot.reboot();
+
+      // 方案 2: 尝试通过 Runtime.exec (需要 Root 权限)
+      // 这在普通应用中会失败
+      await Process.run('su', ['-c', 'reboot']);
+    } catch (e) {
+      throw Exception('Android 重启失败: 需要 Root 或系统签名权限。错误: $e');
+    }
+  }
+
+  static void _showIOSAlert() {
+    // iOS 无法通过代码重启，只能提示用户
+    throw Exception('iOS 不支持应用内重启设备。请手动重启。');
+  }
+
+  static Future<void> _rebootWindows() async {
+    try {
+      await Process.run('shutdown', ['/r', '/t', '0']);
+    } catch (e) {
+      throw Exception('Windows 重启失败: $e');
+    }
+  }
+
+  static Future<void> _rebootMacOS() async {
+    try {
+      // macOS 重启通常需要 sudo 权限，这里假设应用有权限或通过其他方式授权
+      await Process.run('sudo', ['shutdown', '-r', 'now']);
+    } catch (e) {
+      throw Exception('macOS 重启失败: $e');
+    }
+  }
+
+  static Future<void> _rebootLinux() async {
+    try {
+      await Process.run('sudo', ['reboot']);
+    } catch (e) {
+      throw Exception('Linux 重启失败: $e');
+    }
+  }
+
   // 关机动作
   static Future<bool> shutdownAction() async {
     // 检查关机时间是否有效 (模拟 IsDCMInvalidTime)
-    if (dtShutdown.millisecondsSinceEpoch == 0) {
+    if (dtShutdown == null || dtShutdown!.isBefore(fromOleDateTime())) {
       return false;
     }
 
     DateTime now = DateTime.now();
-    Duration diff = now.difference(dtShutdown);
+    Duration diff = now.difference(dtShutdown!);
 
     // C++ 逻辑: dts < 5 mins AND dts > -5 mins (即绝对值小于5分钟)
     // 注意: C++ COleDateTimeSpan 比较逻辑可能不同，这里简化为最近5分钟内
     if (diff.inMinutes.abs() < 5) {
       String strFileName = path.join(DCMGlobal.ftpSettingPath, 'tasklog.xml');
+      XmlProfile xmlProfile = XmlProfile.fromFile(strFileName);
+      if (xmlProfile.loadProfile(szRootItemName: 'PlayerTasks')) {
+        xmlProfile.writeProfileDateTime(
+            'FTPLog', 'LastShutdown', fromOleDateTime(0.00));
+        xmlProfile.saveProfile();
+      }
 
       // 更新 XML 中的 LastShutdown 为 0
       // 这里简化：直接调用 RestartAction
-      return await restartAction(cSTATSWOFF);
+      return await shutdownDevice();
     }
 
     return false;
+  }
+
+  static Future<bool> shutdownDevice() async {
+    logI('CPlayerLogImpl::ShutdownDevice - Try to power off system ...');
+    try {
+      if (Platform.isAndroid) {
+        await _shutdownAndroid();
+      } else if (Platform.isIOS) {
+        _showIOSShutdownAlert();
+      } else if (Platform.isWindows) {
+        await _shutdownWindows();
+      } else if (Platform.isMacOS) {
+        await _shutdownMacOS();
+      } else if (Platform.isLinux) {
+        await _shutdownLinux();
+      }
+      return true;
+    } catch (e) {
+      logE('ShutdownDevice failed: $e');
+    }
+    return false;
+  }
+
+  static Future<void> _shutdownAndroid() async {
+    try {
+      // 尝试使用 Root 权限关机
+      // 注意：普通应用没有权限执行此操作，会抛出异常
+      await Process.run('su', ['-c', 'reboot -p']);
+    } catch (e) {
+      throw Exception('Android 关机失败: 需要 Root 权限或系统签名。错误: $e');
+    }
+  }
+
+  static void _showIOSShutdownAlert() {
+    throw Exception('iOS 不支持应用内关机。请手动长按电源键。');
+  }
+
+  static Future<void> _shutdownWindows() async {
+    try {
+      await Process.run('shutdown', ['/s', '/t', '0']);
+    } catch (e) {
+      throw Exception('Windows 关机失败: $e');
+    }
+  }
+
+  static Future<void> _shutdownMacOS() async {
+    try {
+      // macOS 关机通常需要管理员密码，这里假设环境已授权或使用 sudo
+      await Process.run('sudo', ['shutdown', '-h', 'now']);
+    } catch (e) {
+      throw Exception('macOS 关机失败: $e');
+    }
+  }
+
+  static Future<void> _shutdownLinux() async {
+    try {
+      await Process.run('sudo', ['poweroff']);
+    } catch (e) {
+      throw Exception('Linux 关机失败: $e');
+    }
   }
 }

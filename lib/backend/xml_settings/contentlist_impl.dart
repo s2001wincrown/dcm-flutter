@@ -192,7 +192,7 @@ class ContentListImpl {
 
         if (bExisted) continue;
 
-        FileInfoData fileData = FileInfoData(
+        FileInfoData fileData = FileInfoData.create(
             strFilePath: file.path,
             strShortPath: destFile,
             strDestFile: destFile,

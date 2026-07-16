@@ -202,6 +202,18 @@ Duration differenceTime(DateTime? dt1, DateTime? dt2) {
   return dt2.difference(dt1);
 }
 
+bool equalsTime(DateTime? dt1, DateTime? dt2) {
+  if (dt1 == null && dt2 == null) {
+    return true;
+  }
+
+  if (dt1 == null || dt2 == null) {
+    return false;
+  }
+
+  return dt2.compareTo(dt1) == 0;
+}
+
 DateTime? addDuration(DateTime? dt1, Duration dts) {
   if (dt1 == null) {
     return null;
@@ -210,9 +222,9 @@ DateTime? addDuration(DateTime? dt1, Duration dts) {
   return dt1.add(dts);
 }
 
-DateTime fromOleDateTime(double oleDate) {
+DateTime fromOleDateTime([double? oleDate]) {
   final epoch = DateTime(1899, 12, 30);
-  if (oleDate > 0) {
+  if (oleDate != null && oleDate > 0) {
     return epoch.add(
       Duration(microseconds: (oleDate * 86400 * 1000000).round()),
     );

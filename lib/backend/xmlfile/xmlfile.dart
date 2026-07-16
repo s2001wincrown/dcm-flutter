@@ -20,6 +20,11 @@ enum XflError {
   unknownEncryption
 }
 
+const String cDCMXMLHEADER = 'version="1.0" encoding="UTF-8"';
+const String cDCMXMLHEADEREX = '<?xml version="1.0" encoding="UTF-8"?>';
+const String cDCMXMLSTYLESHEET =
+    '''<?xml-stylesheet href='%s' type='text/xsl'?>''';
+
 /// XML文件基础类
 class XmlFile {
   String strDocVersion = '7.0.0.1';

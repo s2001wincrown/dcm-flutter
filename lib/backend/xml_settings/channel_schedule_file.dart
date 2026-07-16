@@ -133,15 +133,13 @@ class ChannelScheduleFile extends XmlFile {
     final String fullPath = filePath ?? monthlyScheduleFile(scheduleMonth);
 
     final XmlFilePro file = XmlFilePro(_scheduleRoot);
-    if (root() == null) return false;
-
-    root()!.addItem(_scheduleMonth, scheduleMonth);
+    root().addItem(_scheduleMonth, scheduleMonth);
     if (description != null) {
-      root()!.addItem(_scheduleDesc, description);
+      root().addItem(_scheduleDesc, description);
     }
 
     for (final channelSchedule in lstSchedule) {
-      final XmlItem? xiChannel = root()!.addItem(_scheduleChannelItem);
+      final XmlItem? xiChannel = root().addItem(_scheduleChannelItem);
       if (xiChannel == null) continue;
 
       xiChannel.addItem(_scheduleChannel, channelSchedule.channelName);
@@ -178,23 +176,20 @@ class ChannelScheduleFile extends XmlFile {
   }
 
   bool clear() {
-    root()?.reset();
-    root()?.setName(_scheduleRoot);
+    root().reset();
+    root().setName(_scheduleRoot);
     _nextUniqueId = 1;
     return true;
   }
 
   bool copy(ChannelScheduleFile source) {
     clear();
-    if (source.root() == null) {
-      return false;
-    }
 
-    final Iterator<XmlItem> pos = source.root()!.getFirstItemPos();
+    final Iterator<XmlItem> pos = source.root().getFirstItemPos();
     while (pos.moveNext()) {
       final XmlItem child = pos.current;
       final XmlItem copy = _duplicateItem(child, root());
-      root()?.addItemObj(copy);
+      root().addItemObj(copy);
     }
 
     _nextUniqueId = source._nextUniqueId;
@@ -258,10 +253,7 @@ class ChannelScheduleFile extends XmlFile {
   }
 
   XmlItem? newChannelSchedule(int nDay, [XmlItem? parent, int? id]) {
-    final XmlItem? pXIParent = parent ?? root();
-    if (pXIParent == null) {
-      return null;
-    }
+    final XmlItem pXIParent = parent ?? root();
 
     final XmlItem pXINew = newItem(_scheduleDayItem);
     pXIParent.addItemObj(pXINew);
@@ -277,10 +269,7 @@ class ChannelScheduleFile extends XmlFile {
   }
 
   XmlItem? newChannelItem(String title, [XmlItem? parent, int? id]) {
-    final XmlItem? pXIParent = parent ?? root();
-    if (pXIParent == null) {
-      return null;
-    }
+    final XmlItem pXIParent = parent ?? root();
 
     final XmlItem pXINew = newItem(_scheduleChannelItem);
     pXIParent.addItemObj(pXINew);
@@ -304,7 +293,7 @@ class ChannelScheduleFile extends XmlFile {
       return bNew ? newChannelItem(channelName) : null;
     }
 
-    final XmlItem? pXI = root()?.findItem(_scheduleChannel, channelName, true);
+    final XmlItem? pXI = root().findItem(_scheduleChannel, channelName, true);
     if (pXI == null) {
       return bNew ? newChannelItem(channelName) : null;
     }
@@ -339,8 +328,7 @@ class ChannelScheduleFile extends XmlFile {
   }
 
   XmlItem? getFirstChannelSchedule([XmlItem? parent]) {
-    final XmlItem? pXIParent = parent ?? root();
-    if (pXIParent == null) return null;
+    final XmlItem pXIParent = parent ?? root();
 
     return parent == null
         ? pXIParent.getItem(_scheduleChannelItem)

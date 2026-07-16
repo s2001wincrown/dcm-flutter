@@ -1188,6 +1188,14 @@ packages:
       url: "https://pub.flutter-io.cn"
     source: hosted
     version: "1.12.1"
+  storage_info:
+    dependency: "direct main"
+    description:
+      name: storage_info
+      sha256: adbf5fd1a7c2ca977dd828573820db0a0a16f4aa317e0ab72e9b3282eb5bbe42
+      url: "https://pub.flutter-io.cn"
+    source: hosted
+    version: "1.0.0"
   stream_channel:
     dependency: transitive
     description:

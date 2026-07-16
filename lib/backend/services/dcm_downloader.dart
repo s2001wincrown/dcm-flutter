@@ -386,7 +386,7 @@ class DcmDownloader {
     final List<FileInfoData> fileInfoList = [];
     XmlItem? item = xmlFile.getItem('FileItem');
     while (item != null) {
-      final fileInfo = FileInfoData(
+      final fileInfo = FileInfoData.create(
         strFileTitle: '',
         strShortPath: '',
         strDestFile: '',

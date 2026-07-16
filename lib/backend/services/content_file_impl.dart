@@ -83,7 +83,7 @@ class ContentFileImpl {
 
     XmlItem? item = xmlFile.getItem('FileItem');
     while (item != null) {
-      final fileInfo = FileInfoData(
+      final fileInfo = FileInfoData.create(
         strFileTitle: '',
         strShortPath: '',
         strDestFile: '',
@@ -385,7 +385,6 @@ class ContentFileImpl {
     _addContentPath(DCMGlobal.clockPath, contentPaths);
     _addContentPath(DCMGlobal.ddeDataPath, contentPaths);
     _addContentPath(DCMGlobal.ddeXmlPath, contentPaths);
-    _addContentPath(DCMGlobal.dvdPath, contentPaths);
     _addContentPath(DCMGlobal.flashPath, contentPaths);
     _addContentPath(DCMGlobal.imageSettingPath, contentPaths);
     _addContentPath(DCMGlobal.linkagePath, contentPaths);

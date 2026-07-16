@@ -223,7 +223,7 @@ class Utils {
     return strFilePath;
   }
 
-  static String getBasePath(int type, {int ptype = -1, bool tempPath = false}) {
+  static String getBasePath(int type, {int ptype = -1}) {
     String basePath;
     if (ptype == cSITEPLAYLIST) {
       basePath = DCMGlobal.siteContentPath;
@@ -630,5 +630,10 @@ class Utils {
       return '';
     }
     return uri.path.isEmpty ? '/' : uri.path;
+  }
+
+  String getImportVersion() {
+    logI('Checking for USB plugin');
+    return '';
   }
 }
