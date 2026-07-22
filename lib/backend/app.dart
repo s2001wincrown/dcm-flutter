@@ -26,6 +26,7 @@ class App {
   late final DateTime dtStartup;
 
   late AppSettings settings;
+  final ContentTypeManager contentTypeManager = ContentTypeManager();
 
   final contentKey = GlobalKey<NavigatorState>();
   void dialog(Widget Function(BuildContext) builder) {

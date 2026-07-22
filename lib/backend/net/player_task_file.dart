@@ -119,7 +119,7 @@ class PlayerJobItem {
   String strFtpTime = '';
   String strTimeOuts = '';
   String strStartFtpTime = '';
-  String strFtpContent = '';
+  String strSyncContent = '';
   String strOtherInfo = '';
 
   bool bReplaceFile = false;
@@ -152,7 +152,7 @@ class PlayerJobItem {
     strFtpTime = other.strFtpTime;
     strTimeOuts = other.strTimeOuts;
     strStartFtpTime = other.strStartFtpTime;
-    strFtpContent = other.strFtpContent;
+    strSyncContent = other.strSyncContent;
     strOtherInfo = other.strOtherInfo;
     bReplaceFile = other.bReplaceFile;
     dwJobType = other.dwJobType;
@@ -209,7 +209,7 @@ class PlayerJobItem {
       'strFtpTime': strFtpTime,
       'strTimeOuts': strTimeOuts,
       'strStartFtpTime': strStartFtpTime,
-      'strFtpContent': strFtpContent,
+      'strSyncContent': strSyncContent,
       'strOtherInfo': strOtherInfo,
       'bReplaceFile': bReplaceFile ? 1 : 0,
       'dwJobType': dwJobType.index,
@@ -233,7 +233,7 @@ class PlayerJobItem {
     //pXmlItem.addItem('m_strReFtpTime', strReFtpTime);
     pXmlItem.addItem('m_strTimeOuts', strTimeOuts);
     pXmlItem.addItem('m_strStartFtpTime', strStartFtpTime);
-    pXmlItem.addItem('m_strFtpContent', strFtpContent);
+    pXmlItem.addItem('m_strFtpContent', strSyncContent);
     pXmlItem.addItem('m_strOtherInfo', strOtherInfo);
     pXmlItem.addItem('m_bReplaceFile', bReplaceFile ? 1 : 0);
     pXmlItem.addItem('m_dwJobType', dwJobType);
@@ -256,7 +256,7 @@ class PlayerJobItem {
     //pXmlItem.setItemValue('m_strReFtpTime', strReFtpTime);
     pXmlItem.setItemValue('m_strTimeOuts', strTimeOuts);
     pXmlItem.setItemValue('m_strStartFtpTime', strStartFtpTime);
-    pXmlItem.setItemValue('m_strFtpContent', strFtpContent);
+    pXmlItem.setItemValue('m_strFtpContent', strSyncContent);
     pXmlItem.setItemValue('m_strOtherInfo', strOtherInfo);
     pXmlItem.setItemValue('m_bReplaceFile', bReplaceFile ? 1 : 0);
     pXmlItem.setItemValue('m_dwJobType', dwJobType);
@@ -283,7 +283,7 @@ class PlayerJobItem {
     }
 
     strStartFtpTime = pXmlItem.getItemValue('m_strStartFtpTime');
-    strFtpContent = pXmlItem.getItemValue('m_strFtpContent');
+    strSyncContent = pXmlItem.getItemValue('m_strFtpContent');
     strOtherInfo = pXmlItem.getItemValue('m_strOtherInfo');
     bReplaceFile = pXmlItem.getItemValueB('m_bReplaceFile');
     dwJobType = JobItemType.values.firstWhere(
@@ -356,6 +356,33 @@ class PlayerTaskFile {
     bReplaceFile = globalPlayer.bReplaceFile;
   }
 
+  Future<bool> isTaskTimeout(String szTask) async {
+    //m_nStartupTimeoutDuration: 240
+    String strRequest =
+        '$cHTTPUNIQUEKEY=${globalPlayer.strUniqueName}&strTask=$szTask&strStatus=GetStatus&nTimeout=240';
+
+    String strResult = '';
+    var contentSyncStatusUpdateUrl = DCMGlobal.cmsUrl;
+    contentSyncStatusUpdateUrl = fADDSLASH(contentSyncStatusUpdateUrl);
+    contentSyncStatusUpdateUrl += cmsSyncSTATUSURL;
+    String strCMSLink =
+        '$contentSyncStatusUpdateUrl?${Utils.urlEscape(strRequest)}';
+    strCMSLink = Utils.addCMSParam(strCMSLink);
+    var httpResult = await PlayerLogFile.httpPostAction(strCMSLink, '');
+    if (httpResult.status) {
+      strResult = httpResult.result!;
+      if (strResult.equalsIgnoreCase('Downloading')) {
+        return false;
+      } else {
+        logE('''Task:'$szTask' timeout\n''');
+      }
+    } else {
+      logE('Task timeout check HTTP Conection failure\n');
+    }
+
+    return true;
+  }
+
   static Future<bool> getTaskFromServer() async {
     // 检查是否启用任务检查
     if (!DCMGlobal.enableTaskCheck) return true;
@@ -400,11 +427,11 @@ class PlayerTaskFile {
   static Future<void> checkForAutoDownload() async {
     if (bIsTimeForACU) {
       String strTask =
-          strFtpTime; //COleDateTime::GetCurrentTime().Format(_T("%Y%m%d"));
+          strFtpTime; //COleDateTime::GetCurrentTime().Format('%Y%m%d');
       if (await PlayerLogImpl.isNewTaskSave(strTask)) {
         PlayerJobItem task = PlayerJobItem();
         task.strJobItem =
-            strTask; //COleDateTime::GetCurrentTime().Format(_T("%Y%m%d%H%M%S"));
+            strTask; //COleDateTime::GetCurrentTime().Format('%Y%m%d%H%M%S');
         task.strJobTime =
             DateFormat('dd/MM/yyyy HH:mm:ss').format(DateTime.now());
         task.strFtpTime = ''; //m_strFtpTime;
@@ -586,7 +613,7 @@ class PlayerTaskFile {
 
       if (it.dwSyncContent == cSyncAHMESSAGE) {
         MessageInfo pMessage = MessageInfo();
-        var strAHMessages = it.strFtpContent.split(';');
+        var strAHMessages = it.strSyncContent.split(';');
         String strAHMessageName = strAHMessages[0];
         pMessage.messageID = int.tryParse(strAHMessages[1]) ?? -1;
         pMessage.messageName = strAHMessageName;
@@ -768,7 +795,7 @@ class PlayerTaskFile {
     }
   }
 
-  String genHTTPRequest(List<String> arrContent, int type, int nPeriod,
+  static String genHTTPRequest(List<String> arrContent, int type, int nPeriod,
       int dwSyncContent, String strTask,
       [DateTime? dtStartFtpTime]) {
     if (arrContent.isEmpty) {
@@ -788,7 +815,7 @@ class PlayerTaskFile {
     return strRequest;
   }
 
-  String genHTTPRequestByType(
+  static String genHTTPRequestByType(
       int type, int nPeriod, int dwSyncContent, String strTask) {
     DateTime dtGMT = DateTime.now().toUtc();
     String strRequest =

@@ -61,6 +61,9 @@ arguments:
    - 检查目标文件是否已存在且 `m_tmFileModify` 已更新；如果仅部分下载，则使用 HTTP `Range` 续传。
    - 使用临时文件（例如 `*.part`）写入下载数据，并在完成后重命名为最终目标文件。
    - 如果服务器不支持 `Range`，则退回到单连接完整下载。
+   - 当某个任务下载失败时，不中断整体调度流程；将该任务重新加入队列尾部，`retryCount + 1`，并继续处理下一个任务。
+   - 每个任务最多重试 `DCMGlobal.fileTransferRetries` 次；若重试次数超过该上限，则从队列中移除，并记录为最终失败。
+   - 直到所有任务都被处理完成或全部失败退出，调度流程结束。
 7. 任务完成后记录状态，包括 `success`、`failed`、`retryCount`、`downloadedBytes`、`totalBytes`。
 
 ## DCM 特定流程
@@ -100,7 +103,9 @@ arguments:
 
 - 队列类型可选：FIFO、LIFO、优先级队列。
 - 每个 worker 从队列中取出任务并开始下载。
-- 失败任务按 `retryPolicy` 重试，支持指数退避。
+- 当任务下载失败时，将其重新加入队列尾部，同时将 `retryCount` 加一，并继续处理下一个任务。
+- 每个任务最多重试 `DCMGlobal.fileTransferRetries` 次；若已超过该次数，则从队列中移除并标记为最终失败。
+- 失败重试可结合 `retryPolicy` 进行指数退避；在所有任务处理完成前，调度器持续轮询队列直到队列为空。
 - 可选地实现任务优先级和分批调度。
 
 ## 持久化建议

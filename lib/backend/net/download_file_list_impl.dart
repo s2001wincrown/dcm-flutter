@@ -61,7 +61,7 @@ class DownloadFileListImpl {
     for (var iter in _lstFileInfo) {
       var bValid = await PlayerPathService.validDownloadedFile(iter);
       if (!bValid.status) {
-        fileReplace.addDownloadFile(iter, isTemp: true);
+        fileReplace.addDownloadFile(iter, true);
       }
     }
     return fileReplace.saveFileInfo();
@@ -80,7 +80,7 @@ class DownloadFileListImpl {
       for (var iter in _lstFileInfo) {
         if (isInDownloadFileList(
             lstFileInfo, iter.strDestFile, iter.nContentType)) {
-          fileReplace.addDownloadFile(iter, isTemp: true);
+          fileReplace.addDownloadFile(iter, true);
         } else {
           fileReplace.addDownloadFile(iter);
         }
@@ -90,8 +90,7 @@ class DownloadFileListImpl {
   }
 
   /// Corresponds to ValidDownloadedFile
-  Future<bool> validDownloadedFile(
-      List<DownloadFileInfoData> targetList) async {
+  Future<bool> validDownloadedFile(List<FileInfoData> targetList) async {
     bool bValid = true;
     if (DCMGlobal.fileIntegrityCheck) {
       for (var iter in _lstFileInfo) {

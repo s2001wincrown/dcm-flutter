@@ -121,6 +121,14 @@ bool comparePlayDateTime(DateTime dtDateTime1, DateTime dtDateTime2) {
   return (dbTest < cPLAYINGINTERVAL * 2);
 }
 
+bool isDCMInvalidTime(DateTime? dtTime) {
+  if (dtTime != null) {
+    return (dtTime.compareTo(fromOleDateTime()) <= 0);
+  }
+
+  return true;
+}
+
 ///      ICU Name                   Skeleton
 ///      --------                   --------
 ///      DAY                          d

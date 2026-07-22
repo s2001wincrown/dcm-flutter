@@ -6,6 +6,7 @@
 import 'dart:io';
 import 'dart:ui';
 
+import 'package:dcm/backend/app.dart';
 import 'package:dcm/backend/constants.dart';
 import 'package:dcm/backend/models/dcmfile_data.dart';
 import 'package:dcm/backend/models/layout_data.dart';
@@ -840,7 +841,8 @@ class DCMFileImpl {
 
   static bool addContent(DCMFileData pDCMFile, String strContent,
       [double? dbDuration]) {
-    int nContentType = ContentTypeManager.getContentTypeByFileName(strContent);
+    int nContentType =
+        App().contentTypeManager.getContentTypeByFileName(strContent);
     if (nContentType != -1) {
       int pType = -1;
       if (nContentType == cIMAGETYPE) {

@@ -91,4 +91,25 @@ class IniFile {
     sections[section]?[name] = value ? 'true' : 'false';
     return true;
   }
+
+  Future<bool> save(String strFName) async {
+    final textfile = File(strFName);
+    String content = '';
+    for (var i in sections.keys) {
+      content += '[$i]';
+      content += '\n';
+      for (var isec in sections[i]!.keys) {
+        content += '$isec=${sections[i]![isec]!}';
+        content += '\n';
+      }
+    }
+    try {
+      await textfile.writeAsString(content);
+      return true;
+    } catch (e) {
+      logE('Error saving ini file: $e');
+    }
+
+    return false;
+  }
 }

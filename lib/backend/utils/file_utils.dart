@@ -256,6 +256,11 @@ class FileUtils {
     return '$formattedSize ${sizes[i]}';
   }
 
+  static String formatBytesToMb(BigInt bytes) {
+    double mb = bytes / BigInt.from(1024 * 1024);
+    return mb.toStringAsFixed(2); // Keeps 2 decimal places
+  }
+
   //type: 0-leading or 1-trailing
   static String stripSeparators(String path, [int type = 0]) {
     assert((type == 0) || (type == 1));
@@ -284,6 +289,33 @@ class FileUtils {
   static String fixPathSeparators(String filePath) {
     return filePath.replaceAll(
         path.separator == '/' ? '\\' : '/', path.separator);
+  }
+
+  // Append paths without duplicating separator
+  static String appendPaths(String p1, String p2, [String? sep]) {
+    String filePath = p1;
+    if (!p1.endsWith('\\') &&
+        !p1.endsWith('/') &&
+        !p2.startsWith('\\') &&
+        !p2.startsWith('/')) {
+      filePath += (sep ?? path.separator);
+    }
+    filePath += p2;
+
+    return fixPathSeparators(filePath);
+  }
+
+  static String appendUrls(String p1, String p2) {
+    String filePath = p1;
+    if (!p1.endsWith('\\') &&
+        !p1.endsWith('/') &&
+        !p2.startsWith('\\') &&
+        !p2.startsWith('/')) {
+      filePath += '/';
+    }
+    filePath += p2;
+
+    return filePath.replaceAll('\\', '/');
   }
 
   /// Returns a map of storage root -> { 'total': <bytes>, 'free': <bytes> }

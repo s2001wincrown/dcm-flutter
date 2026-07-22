@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:dcm/backend/app.dart';
 import 'package:dcm/backend/constants.dart';
 import 'package:dcm/backend/models/dcm_global.dart';
 import 'package:dcm/backend/models/file_info_data.dart';
@@ -183,7 +184,8 @@ class ContentFileImpl {
     bool bSave = false;
     for (final fileName in fileLists.keys) {
       final source = path.join(strPath, fileName);
-      final contentType = ContentTypeManager.getContentTypeByFileName(source);
+      final contentType =
+          App().contentTypeManager.getContentTypeByFileName(source);
       if (contentType == -1) {
         continue;
       }

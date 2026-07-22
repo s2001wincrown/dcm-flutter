@@ -1,39 +1,26 @@
 import 'dart:io';
 
+import 'package:crypto/crypto.dart';
 import 'package:dcm/backend/app.dart';
 import 'package:dcm/backend/constants.dart';
 import 'package:dcm/backend/models/dcm_global.dart';
 import 'package:dcm/backend/models/download_file_info_data.dart';
 import 'package:dcm/backend/models/file_info_data.dart';
 import 'package:dcm/backend/net/download_file_list_impl.dart';
+import 'package:dcm/backend/net/file_replace_service.dart';
 import 'package:dcm/backend/net/player_log_file.dart';
 import 'package:dcm/backend/utils/extensions.dart';
 import 'package:dcm/backend/utils/file_utils.dart';
 import 'package:dcm/backend/utils/log_utils.dart';
 import 'package:dcm/backend/utils/string_utils.dart';
 import 'package:dcm/backend/utils/time_utils.dart';
+import 'package:dcm/backend/xml_settings/contenttype_manager.dart';
 import 'package:dcm/backend/xmlfile/xmlfile.dart';
 import 'package:dcm/backend/xmlfile/xmlfilepro.dart';
 import 'package:dcm/backend/xmlfile/xmlitem.dart';
 import 'package:dcm/backend/xmlfile/xmlprofile.dart';
 import 'package:path/path.dart' as p;
 import 'package:uuid/uuid.dart';
-import 'package:pointycastle/export.dart';
-
-// ============================================================================
-// 1. Constants & Enums (对应 C++ 中的宏定义和枚举)
-// ============================================================================
-
-class FtpStatus {
-  static const String cmsPlayerLogUrl = "api/pm/players/log";
-  static const String cmsPlaylistLogUrl = "api/pm/players/playlistlog";
-  static const String cmsEventDisplayUrl = "api/book/myCalendars/eventdisplay";
-  static const String cmsDailyListUrl = "api/cm/dailyLists/xmlfilelist";
-  static const String cmsContentListUrl = "api/cm/contentLists/xmlfilelist";
-  static const String cmsFtpStatusUrl = "api/pm/ftpStatuses/create";
-  static const String cmsGetPlaylistUrl = "api/pm/players/playlists";
-  static const String cmsGetFileListUrl = "api/pm/players/filelist";
-}
 
 const String cFLSignature =
     'DCM FTP Manager Version 1.00 - Publish File Information List';
@@ -72,6 +59,8 @@ class PlayerPathService {
 
   static bool bCopyTempFile = false;
   static int nCopyCount = 0;
+
+  static final ContentTypeManager contentTypeManager = ContentTypeManager();
 
   // Lock simulation (Dart is single-threaded for logic, but async IO needs care)
   // For complex concurrency, use Compute or Isolates, but for file lists, a simple list is usually fine
@@ -324,12 +313,11 @@ class PlayerPathService {
   }
 
   Future<void> copyFileFinish(bool bSuccess) async {
-    bool bDownload = false; //((int)_lstFileInfo.length > 0);
+//((int)_lstFileInfo.length > 0);
     if (bSuccess) {
       DownloadFileListImpl downloadFileList = DownloadFileListImpl();
       if (await downloadFileList.loadDownloadFileList(_strBatch)) {
         //_lstFileInfo.length > 0 &&
-        bDownload = downloadFileList.fileList.isNotEmpty;
         downloadFileList.saveToFileList(_lstFileInfo);
       }
     }
@@ -560,7 +548,7 @@ class PlayerPathService {
   }
 
   /// Validate Hash (MD5/SHA1)
-  /// Corresponds to CFTPPathImpl::ValidHashData
+  /// Corresponds to ValidHashData
   static Future<({bool status, String? strMd5})> validHashData(
       String filePath, FileInfoData pFileInfo) async {
     if ((DCMGlobal.globalSetting & settingCHECKSUM) > 0) {
@@ -762,6 +750,102 @@ class PlayerPathService {
 
       file.save(strFileName);
     }
+  }
+
+  Future<void> removeAllTempFile(String strBatch) async {
+    if (DCMGlobal.deleteContentIfFTPFail) {
+      DownloadFileListImpl downloadFileList = DownloadFileListImpl(strBatch);
+      downloadFileList.loadDownloadFileList(strBatch);
+      downloadFileList.removeFileList();
+    }
+    /*else
+    {
+      CDownloadFileListImpl DownloadFileList;
+      DownloadFileList.LoadDownloadFileList(strBatch);
+      DownloadFileList.SaveToTempFile();
+    }*/
+
+    String strFileName =
+        p.join(DCMGlobal.ftpSettingPath, 'Filelog', '$strBatch.xml');
+    var logFile = File(strFileName);
+    if (await logFile.exists()) await logFile.delete();
+  }
+
+  Future<bool> saveDownloadFileList() async {
+    DownloadFileListImpl downloadFileList = DownloadFileListImpl();
+    downloadFileList.copyFrom(_lstFileInfo);
+    return await downloadFileList.saveDownloadFileList(_strBatch);
+  }
+
+  Future<bool> loadDownloadFileList(String strBatch) async {
+    _strBatch = strBatch;
+
+    DownloadFileListImpl downloadFileList = DownloadFileListImpl();
+    downloadFileList.loadDownloadFileList(strBatch);
+    if (await downloadFileList.validDownloadedFile(_lstFileInfo)) {
+      return true;
+    }
+
+    return false;
+  }
+
+  static Future<void> initLocalFiles() async {
+    String strFileName =
+        p.join(DCMGlobal.ftpSettingPath, 'FileList.xml'); // + '\\FileList.xml';
+    if (await File(strFileName).exists()) {
+      return;
+    }
+
+    FileReplaceService fileImpl = FileReplaceService();
+    Map<String, FileInfoData> mapFiles = {};
+    /*for (int i = 0; i < contentTypeManager.contentTypeList.length; i++) {
+      String strFilePath = await getLocalPath(i);
+      if (strFilePath.isNotEmpty) {
+        fileImpl.findLocalFiles(i, strFilePath, mapFiles);
+      }
+    }*/
+    for (var contentType in contentTypeManager.contentTypeList) {
+      String strFilePath = await getLocalPath(contentType.uiContentType);
+      if (strFilePath.isNotEmpty) {
+        fileImpl.findLocalFiles(
+            contentType.uiContentType, strFilePath, mapFiles);
+      }
+    }
+    fileImpl.saveFileInfo();
+    mapFiles.clear();
+  }
+
+  static bool availableForACU() {
+    if (isBlank(DCMGlobal.availableACUStart) &&
+        isBlank(DCMGlobal.availableACUEnd)) {
+      return true;
+    }
+
+    DateTime dtStart = DateTime.now();
+    if (isNotBlank(DCMGlobal.availableACUStart)) {
+      dtStart = stringToTime(dtStart, DCMGlobal.availableACUStart!, ':');
+      if (DateTime.now().isBefore(dtStart)) {
+        logI(
+            'Auto content update is unavailable, Start time for auto content update: ${DCMGlobal.availableACUStart}');
+
+        return false;
+      }
+    }
+
+    DateTime dtEnd = DateTime.now();
+    if (isNotBlank(DCMGlobal.availableACUEnd)) {
+      dtEnd = stringToTime(dtEnd, DCMGlobal.availableACUEnd!, ':');
+      if (DateTime.now().isAfter(dtEnd)) {
+        logI(
+            'Auto content update is unavailable, End time for auto content update: ${DCMGlobal.availableACUEnd}');
+
+        return false;
+      }
+    }
+    logI(
+        'It is time for auto content update, Available time: ${DCMGlobal.availableACUStart} - ${DCMGlobal.availableACUEnd}');
+
+    return true;
   }
 
   bool get isLoaded => _isLoaded;

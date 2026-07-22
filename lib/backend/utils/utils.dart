@@ -1,6 +1,8 @@
 import 'dart:io';
 
+import 'package:dcm/backend/app.dart';
 import 'package:dcm/backend/constants.dart';
+import 'package:dcm/backend/models/day_info_data.dart';
 import 'package:dcm/backend/models/dcm_global.dart';
 import 'package:dcm/backend/models/eventitem_data.dart';
 import 'package:dcm/backend/models/product_data.dart';
@@ -10,16 +12,22 @@ import 'package:dcm/backend/utils/file_utils.dart';
 import 'package:dcm/backend/utils/log_utils.dart';
 import 'package:dcm/backend/xml_settings/contenttype_manager.dart';
 import 'package:dcm/backend/xml_settings/dcmfile_Impl.dart';
+import 'package:dcm/backend/xml_settings/eventfile_impl.dart';
 import 'package:dcm/backend/xmlfile/xmlfile.dart';
 import 'package:dcm/backend/xmlfile/xmlfilepro.dart';
 import 'package:dcm/backend/xmlfile/xmlitem.dart';
+import 'package:dcm/backend/xmlfile/xmlprofile.dart';
+import 'package:device_info_plus/device_info_plus.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_udid/flutter_udid.dart';
 import 'package:intl/intl.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:path/path.dart' as path;
 import 'package:unique_device_identifier/unique_device_identifier.dart';
 
 class Utils {
+  static int osVersion = -1;
   static String getLatestFile(String strPath, [DateTime? dtToday]) {
     int nDay = 0;
     DateTime dtCurr = dtToday ?? DateTime.now();
@@ -58,7 +66,7 @@ class Utils {
       [int type = -1, int ptype = -1, String strRoot = '']) {
     String strSrc = '';
     if (type < 0) {
-      type = ContentTypeManager.getContentTypeByFileName(pszFileName);
+      type = App().contentTypeManager.getContentTypeByFileName(pszFileName);
       if (type == cIMAGETYPE) {
         ptype = cDCMSINGLEIMAGETYPE;
       }
@@ -210,7 +218,7 @@ class Utils {
           return getLatestFile(strFilePath);
         }
       default:
-        strName = ContentTypeManager.fixContentFileName(strName, type);
+        strName = App().contentTypeManager.fixContentFileName(strName, type);
         break;
       //return strFileName;
     }
@@ -561,6 +569,15 @@ class Utils {
   static bool isDateTime(String s) =>
       hasMatch(s, r'^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}:\d{2}.\d{3}Z?$');
 
+  static bool isValidUuid(String? value) {
+    if (value == null) return false;
+    // 标准的 UUID v4 正则表达式
+    final regex = RegExp(
+        r'^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$',
+        caseSensitive: false);
+    return regex.hasMatch(value);
+  }
+
   static bool hasMatch(String? value, String pattern) {
     return (value == null) ? false : RegExp(pattern).hasMatch(value);
   }
@@ -632,8 +649,140 @@ class Utils {
     return uri.path.isEmpty ? '/' : uri.path;
   }
 
-  String getImportVersion() {
+  static String getImportVersion() {
     logI('Checking for USB plugin');
     return '';
+  }
+
+  static Future<int> getOSVersion() async {
+    if (osVersion > 0) return osVersion;
+
+    final deviceInfo = DeviceInfoPlugin();
+    if (kIsWeb) {
+      // Web 平台
+      final webInfo = await deviceInfo.webBrowserInfo;
+      logI('Web Browser: ${webInfo.browserName}');
+      logI('User Agent: ${webInfo.userAgent}');
+      // Web 平台通常无法直接获取宿主 OS 版本，只能获取浏览器信息
+    } else if (Platform.isAndroid) {
+      // Android 平台
+      final androidInfo = await deviceInfo.androidInfo;
+      logI('Android SDK Version: ${androidInfo.version.sdkInt}');
+      logI(
+          'Android Release Version: ${androidInfo.version.release}'); // 例如 "13"
+      osVersion = int.tryParse(androidInfo.version.release) ?? -1;
+    } else if (Platform.isIOS) {
+      // iOS 平台
+      final iosInfo = await deviceInfo.iosInfo;
+      logI('iOS System Version: ${iosInfo.systemVersion}'); // 例如 "16.4"
+      osVersion = int.tryParse(iosInfo.systemVersion) ?? -1;
+      for (var match in RegExp(r'\d+').allMatches(iosInfo.systemVersion)) {
+        osVersion = int.tryParse(match.group(0)!) ?? -1;
+        break;
+      }
+    } else if (Platform.isMacOS) {
+      // macOS 平台
+      final macOsInfo = await deviceInfo.macOsInfo;
+      logI('macOS Version: ${macOsInfo.osRelease}'); // 例如 "13.3.1"
+      osVersion = macOsInfo.majorVersion;
+    } else if (Platform.isWindows) {
+      // Windows 平台
+      final windowsInfo = await deviceInfo.windowsInfo;
+      logI('Windows Version: ${windowsInfo.buildNumber}'); // 例如 "19045"
+      osVersion = windowsInfo.majorVersion;
+    } else if (Platform.isLinux) {
+      // Linux 平台
+      final linuxInfo = await deviceInfo.linuxInfo;
+      logI(
+          'Linux Version: ${linuxInfo.version}'); // 例如 "22.04.2 LTS (Jammy Jellyfish)"
+      if (linuxInfo.version != null) {
+        for (var match in RegExp(r'\d+').allMatches(linuxInfo.version!)) {
+          osVersion = int.tryParse(match.group(0)!) ?? -1;
+          break;
+        }
+      }
+    }
+
+    return osVersion;
+  }
+
+  static Future<({String strVerInfo, String strPlaylistVersion})>
+      uploadVersionInfo() async {
+    PackageInfo packageInfo = await PackageInfo.fromPlatform();
+
+    String strFTPVersion = packageInfo.version;
+    String strDCMVersion = packageInfo.version;
+
+    String strCurrMonth = DateFormat('yyyyMM').format(DateTime.now());
+    String strPlaylist = '';
+
+    String strVerInfo = '';
+    String strPlaylistVersion = '';
+    String strFileName1 = path.join(DCMGlobal.monthPath, '$strCurrMonth.xml');
+    if (await File(strFileName1).exists()) {
+      XmlProfile xmlProfile = XmlProfile.fromFile(strFileName1);
+      if (xmlProfile.loadProfile()) {
+        int nToday = DateTime.now().day;
+        var lstDayInfo = DayInfoData.readDayInfoList(xmlProfile);
+        for (var iter in lstDayInfo) {
+          DayInfoData pData = iter;
+          if (pData.day == nToday) {
+            if (pData.arrEvent.isNotEmpty) {
+              strPlaylist = pData.arrEvent[0].value;
+            } else {
+              strPlaylist = pData.event;
+            }
+            break;
+          }
+        }
+      }
+    }
+
+    if (strPlaylist.isEmpty) {
+      List<String> arrEvent = ['Default1', 'Default2', 'Default3'];
+      for (int i = 0; i < arrEvent.length; i++) {
+        String strFtpSettingFile =
+            path.join(DCMGlobal.dayPath, '${arrEvent[i]}.xml');
+        if (await File(strFtpSettingFile).exists()) {
+          strPlaylist = arrEvent[i];
+          break;
+        }
+      }
+    } else {
+      String strFileName = path.join(DCMGlobal.dayPath, '$strPlaylist.xml');
+      strPlaylistVersion = getPlaylistVersion(strFileName) ?? '';
+    }
+
+    //m_strVerInfo = strDCMVersion + '\n' + strFTPVersion + '\n' + m_FtpSite.m_strMACAddress + '\n' + m_FtpSite.m_strMACAddress1 + '\n' + strPlaylist;
+    //strVerInfo = strDCMVersion + '<br>' + strFTPVersion + '<br>' + strPlaylist;
+    strVerInfo = '["$strDCMVersion", "$strFTPVersion", "$strPlaylist"]';
+    //FTPMisc::SendStatusToMonitor(DCMVERSION_STATUS, 0, m_strVerInfo);
+    return (strPlaylistVersion: strPlaylistVersion, strVerInfo: strVerInfo);
+  }
+
+  static String? getPlaylistVersion(String strFilename) {
+    XmlFilePro file = XmlFilePro('EventDocument', null);
+    if (!file.open(strFilename, XfOpen.read, false)) {
+      return null;
+    }
+
+    if (file.loadEx()) {
+      // file header info
+      String sXmlHeader = file.getSignature();
+      if (sXmlHeader == EventFileImpl.lpszEventSignature) {
+        return file.getItemValue('m_strScheduleDesc');
+      }
+    }
+    file.close();
+
+    try {
+      XmlProfile xmlProfile = XmlProfile.fromFile(strFilename);
+      if (xmlProfile.loadProfile(szRootItemName: 'PlayListAndSetting')) {
+        return xmlProfile.getProfileString(
+            'PlaySetting', 'm_strScheduleDesc', '');
+      }
+    } catch (_) {}
+
+    return null;
   }
 }

@@ -12,6 +12,7 @@ const String cEVENTROOT = 'EventDocument';
 const String cLTCONTENTROOT = 'LTContentDocument';
 const String cPLOGROOT = 'PlayLogList';
 
+const String cDCMID = 'ID';
 const String cDCMLASTMODIFIED = 'LASTMODIFIED';
 const String cDCMPROJECTNAME = 'DCMPlayer';
 const String cDCMSIGNATURE = 'Signature';
@@ -202,6 +203,10 @@ const int cDCMDYNAMICDATATYPE = 301;
 const int cDCMOTHERTYPE = 302;
 const int cDCMRLTCONTENTTYPE = 303;
 const int cDCMUPDATETYPE = 304;
+const int cDCMPLAYERLOGTYPE = 305;
+const int cDCMTRANSFERLOGTYPE = 306;
+
+const int cDCMDATATYPE = 999;
 
 const int cTRANSPARENTZONETYPE = 1200;
 const int cPOPUPWINDOWTYPE = 1110;
@@ -270,6 +275,7 @@ const String cmsPLAYLOGURL = 'api/log/playLogs/create';
 const String cmsGETPLAYLISTURL = 'api/pm/players/playlists';
 const String cmsGETFILELISTURL = 'api/pm/players/filelist';
 const String cmsGETSETTINGSURL = 'api/pm/settings';
+const String cmsAPPUPDATEURL = 'api/pm/appupdate';
 const String cmsCONTENTLOGURL = 'api/log/contentLogs/create';
 
 //volume for MediaKit

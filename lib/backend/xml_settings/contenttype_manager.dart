@@ -7,7 +7,6 @@
 //
 // Date  : 03/03/2004
 
-import 'package:dcm/backend/app.dart';
 import 'package:dcm/backend/constants.dart';
 import 'package:dcm/backend/utils/extensions.dart';
 import 'package:dcm/backend/utils/string_utils.dart';
@@ -20,9 +19,9 @@ import '../models/dcm_global.dart';
 
 /// Class for ContentType manager
 class ContentTypeManager {
-  static List<ContentTypeData> contentTypeList = [];
+  List<ContentTypeData> contentTypeList = [];
 
-  static void loadContentTypes() {
+  void loadContentTypes() {
     contentTypeList.clear();
     XmlFile xmlContentTypes = XmlFile('ContentTypes');
     String strContentTypeFile =
@@ -43,7 +42,7 @@ class ContentTypeManager {
     _loadOtherContentTypes();
   }
 
-  static void loadBuiltinContentTypes() {
+  void loadBuiltinContentTypes() {
     int i = 0;
     int nContentTypes = contentTypeTable.length;
     for (i = 0; i < nContentTypes; i++) {
@@ -62,7 +61,7 @@ class ContentTypeManager {
     }
   }
 
-  static void _loadOtherContentTypes() {
+  void _loadOtherContentTypes() {
     int nContentTypes = contentTypeList.length;
     ContentTypeData contentTypeData;
     if (!contentTypeList.any((c) => c.uiContentType == cDCMFILETYPE)) {
@@ -204,7 +203,7 @@ class ContentTypeManager {
     contentType.strSettingsKey = xmlItem.getItemValue('m_strSettingsKey');
   }
 
-  static int getContentTypeByFileName(String strFileName) {
+  int getContentTypeByFileName(String strFileName) {
     String strExt = path.extension(strFileName);
     for (var contentType in contentTypeList) {
       if (isNotBlank(contentType.strFilter) &&
@@ -221,7 +220,20 @@ class ContentTypeManager {
     return -1;
   }
 
-  static ContentTypeData? findByType(int nContentType) {
+  bool isContentType(String strContent, int nContentType) {
+    ContentTypeData? pContentType = findByType(nContentType);
+    if (pContentType != null) {
+      String strExt = path.extension(strContent);
+      if (isNotBlank(pContentType.strFilter) &&
+          pContentType.strFilter!.containsIgnoreCase(strExt)) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  ContentTypeData? findByType(int nContentType) {
     ContentTypeData? contentTypeData;
     for (var contentType in contentTypeList) {
       if (contentType.uiContentType == nContentType) {
@@ -233,7 +245,7 @@ class ContentTypeManager {
     return contentTypeData;
   }
 
-  static String fixContentFileName(String strContentName, int nContentType) {
+  String fixContentFileName(String strContentName, int nContentType) {
     String strExt = path.extension(strContentName);
     ContentTypeData? contentTypeData = findByType(nContentType);
     if (contentTypeData != null && isNotBlank(contentTypeData.strFilter)) {
@@ -262,7 +274,8 @@ class ContentTypeManager {
   static bool saveContentTypes(String strXml) {
     XmlFile xmlContentTypes = XmlFile('ContentTypes');
     if (xmlContentTypes.loadXml(strXml)) {
-      String strContentTypeFile = path.join(App().dataPath, 'ContentTypes.xml');
+      String strContentTypeFile =
+          path.join(DCMGlobal.appDataPath, 'ContentTypes.xml');
 
       return xmlContentTypes.save(strContentTypeFile);
     }
@@ -272,7 +285,8 @@ class ContentTypeManager {
 
   static bool validContentTypes() {
     XmlFile xmlContentTypes = XmlFile('ContentTypes');
-    String strContentTypeFile = path.join(App().dataPath, 'ContentTypes.xml');
+    String strContentTypeFile =
+        path.join(DCMGlobal.appDataPath, 'ContentTypes.xml');
     if (xmlContentTypes.loadXml(strContentTypeFile)) {
       XmlItem? pXmlItem = xmlContentTypes.getItem('ContentType');
       return (pXmlItem != null);

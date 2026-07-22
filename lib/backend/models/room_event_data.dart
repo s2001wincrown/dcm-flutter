@@ -506,7 +506,7 @@ class SectionContentData {
     XmlItem? pContents = pXmlItem.getItem('Contents');
     if (pContents != null) {
       XmlFilePro fileLocal = XmlFilePro('Contents', null);
-      fileLocal.root()!.copy(pContents, false);
+      fileLocal.root().copy(pContents, false);
       content = fileLocal.export();
       fileLocal.close();
     }

@@ -148,6 +148,7 @@ Future<({bool status, String? result})> httpGet(String url) async {
 }
 
 Future<String?> httpGetPublicIP() async {
+  //todo retrieve Mobile network information
   String strResult = '';
   if (DCMGlobal.cmsUrl.isEmpty) {
     return null;
@@ -269,7 +270,7 @@ Future<bool> loadAppSetting(String? deviceId) async {
   if (bResult.status) {
     //Settings.AdjustSettingsByLicense();
     await loadContentTypeSettings(deviceId!);
-    ContentTypeManager.loadContentTypes();
+    App().contentTypeManager.loadContentTypes();
   } else {
     logE(
         'CFtpManagerApp::LoadAppSetting; Get playback settings from server failure!');

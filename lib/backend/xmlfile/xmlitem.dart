@@ -96,8 +96,8 @@ class XmlItem {
     return null;
   }
 
-  XmlItem? findItem(
-      String szItemName, dynamic itemValue, bool bSearchChildren) {
+  XmlItem? findItem(String szItemName, dynamic itemValue,
+      [bool bSearchChildren = true]) {
     if (itemValue is DateTime) {
       return findItemEx(szItemName,
           DateFormat('dd/MM/yyyy HH:mm:ss').format(itemValue), bSearchChildren);

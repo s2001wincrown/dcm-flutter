@@ -109,10 +109,17 @@ class DCMGlobal {
   static bool autoContentUpdate = true;
   static int fileTransferRetries = 3;
   static int taskTransferRetries = 3;
-  static int tempFileCopyRetries = 100;
+  static int tempFileCopyRetries = 100; //times
+  static int retryInterval = 60; //seconds
   static int logUploadInterval = 10; //seconds
   static int logUploadPeriod = 7; //days
   static bool fileIntegrityCheck = true;
+  static bool deleteContentIfFTPFail = true;
+  static bool autoSyncTime = false;
+
+  static String?
+      availableACUStart; //available start time for auto content update
+  static String? availableACUEnd; //available end time for auto content update
 
   static int httpRetryTimes = 10; //HTTP Post Retry Times
 
@@ -229,6 +236,13 @@ class DCMGlobal {
     'ContentSync.LogUploadPeriod': (v) => logUploadPeriod = int.parse(v),
     'ContentSync.HTTPRetryTimes': (v) => httpRetryTimes = int.parse(v),
     'ContentSync.FileIntegrityCheck': (v) => fileIntegrityCheck = bool.parse(v),
+    'ContentSync.DeleteContentIfFTPFail': (v) =>
+        deleteContentIfFTPFail = bool.parse(v),
+    'ContentSync.AvailableACUStart': (v) => availableACUStart = v,
+    'ContentSync.AvailableACUEnd': (v) => availableACUEnd = v,
+    //retryInterval
+    'ContentSync.TaskRetryInterval': (v) => retryInterval = int.parse(v),
+    'ContentSync.AutoSyncTime': (v) => autoSyncTime = bool.parse(v),
   };
 
   static Map<String, dynamic> snapshot() {

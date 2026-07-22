@@ -31,6 +31,10 @@ class ChannelScheduleFile extends XmlFile {
   String monthlyScheduleFile(String month) =>
       path.join(DCMGlobal.calendarPath, '$month.xml');
 
+  int getChannelScheduleCount() {
+    return getItemCount();
+  }
+
   String channelMonthScheduleFile(String channelName, String month) {
     return path.join(DCMGlobal.monthPath, '$channelName$month.xml');
   }
@@ -284,13 +288,13 @@ class ChannelScheduleFile extends XmlFile {
     return pXINew;
   }
 
-  XmlItem? getChannelScheduleItem(String channelName, {bool bNew = true}) {
-    if (channelName.isEmpty) {
+  XmlItem? getChannelScheduleItem(String? channelName, {bool bNew = true}) {
+    if (channelName == null || channelName.isEmpty) {
       final XmlItem? first = getFirstChannelSchedule();
       if (first != null) {
         return first;
       }
-      return bNew ? newChannelItem(channelName) : null;
+      return bNew ? newChannelItem(channelName ?? '') : null;
     }
 
     final XmlItem? pXI = root().findItem(_scheduleChannel, channelName, true);
@@ -507,7 +511,7 @@ class ChannelScheduleFile extends XmlFile {
   }
 
   bool setArray(String tag, List<String> values) {
-    deleteItem(tag);
+    deleteItem(itemName: tag);
 
     if (values.isEmpty) {
       return true;

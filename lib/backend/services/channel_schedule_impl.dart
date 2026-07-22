@@ -86,7 +86,7 @@ class ChannelScheduleImpl {
     return lstDayInfo;
   }
 
-  bool loadScheduleFile(
+  static bool loadScheduleFile(
       String channelName, String scheduleFile, ChannelScheduleFile file) {
     if (file.loadScheduleFile(scheduleFile) &&
         file.getFirstChannelSchedule() != null) {

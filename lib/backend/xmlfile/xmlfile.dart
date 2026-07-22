@@ -316,6 +316,10 @@ class XmlFile {
     _xiRoot.reset();
   }
 
+  int getItemCount() {
+    return _xiRoot.getItemCount();
+  }
+
   XmlItem root() {
     return _xiRoot;
   }
@@ -339,8 +343,8 @@ class XmlFile {
     return _xiRoot.setItemValue(szName, value, nType);
   }
 
-  bool deleteItem(String szItemName) {
-    return _xiRoot.deleteItem(szItemName: szItemName);
+  bool deleteItem({String? itemName, XmlItem? pXI}) {
+    return _xiRoot.deleteItem(szItemName: itemName, pXI: pXI);
   }
 
   String getItemValue(String szItemName, [String szSubItemName = '']) {
@@ -407,13 +411,11 @@ class XmlFile {
   }
 
   void setRootItemName(String szRootItemName) {
-    if (_xiRoot != null) _xiRoot?.setName(szRootItemName);
+    _xiRoot.setName(szRootItemName);
   }
 
   String getRootItemName() {
-    if (_xiRoot != null) return _xiRoot?.getName() ?? '';
-
-    return '';
+    return _xiRoot.getName();
   }
 
   String getStylesheet() {

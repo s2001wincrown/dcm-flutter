@@ -8,24 +8,48 @@ class FileInfoUtils {
   static FileInfoData? loadFileInfo(String strFilePath, int contentType) {
     File file = File(strFilePath);
     if (file.existsSync()) {
-      FileStat stat = file.statSync();
-
-      FileInfoData pFileInfo = FileInfoData.create(
-        nContentType: contentType,
-        strFilePath: file.absolute.path,
-        strFileTitle: path.basename(strFilePath),
-        strShortPath:
-            getSourcePath(path.basename(strFilePath), null, contentType),
-        strDestFile: path.basename(strFilePath),
-        dwFileSize: BigInt.from(stat.size),
-        tmFileCreate: stat.changed,
-        tmFileModify: stat.modified,
-      );
-
-      return pFileInfo;
+      return loadFileSync(file, contentType);
     }
 
     return null;
+  }
+
+  static FileInfoData? loadFileSync(File file, int contentType) {
+    FileStat stat = file.statSync();
+
+    String strFilePath = file.path;
+    FileInfoData pFileInfo = FileInfoData.create(
+      nContentType: contentType,
+      strFilePath: strFilePath,
+      strFileTitle: path.basename(strFilePath),
+      strShortPath:
+          getSourcePath(path.basename(strFilePath), null, contentType),
+      strDestFile: path.basename(strFilePath),
+      dwFileSize: BigInt.from(stat.size),
+      tmFileCreate: stat.changed,
+      tmFileModify: stat.modified,
+    );
+
+    return pFileInfo;
+  }
+
+  static Future<FileInfoData?> loadFile(File file, int contentType) async {
+    FileStat stat = await file.stat();
+
+    String strFilePath = file.path;
+    FileInfoData pFileInfo = FileInfoData.create(
+      nContentType: contentType,
+      strFilePath: strFilePath,
+      strFileTitle: path.basename(strFilePath),
+      strShortPath:
+          getSourcePath(path.basename(strFilePath), null, contentType),
+      strDestFile: path.basename(strFilePath),
+      dwFileSize: BigInt.from(stat.size),
+      tmFileCreate: stat.changed,
+      tmFileModify: stat.modified,
+    );
+
+    return pFileInfo;
   }
 
   static Future<List<FileInfoData>> publishFilePath(

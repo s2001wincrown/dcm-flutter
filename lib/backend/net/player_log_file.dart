@@ -56,7 +56,7 @@ class PlayerLogFile {
 
   // 打开日志文件并初始化
   static Future<bool> openLogFile(PlayerJobItem pJob,
-      {bool bClear = false}) async {
+      [bool bClear = false]) async {
     if (pJob.nRetryCount == 0) {
       logI('Starting download!');
     }
@@ -104,7 +104,7 @@ class PlayerLogFile {
         xmlProfile.writeProfileString(
             'DownloadSetting', 'TaskTime', pJob.strJobTime);
         xmlProfile.writeProfileString(
-            'DownloadSetting', 'FTPContent', pJob.strFtpContent);
+            'DownloadSetting', 'FTPContent', pJob.strSyncContent);
         xmlProfile.writeProfileString(
             'DownloadSetting', 'OtherInfo', pJob.strOtherInfo);
 

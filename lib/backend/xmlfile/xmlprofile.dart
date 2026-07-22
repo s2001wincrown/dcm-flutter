@@ -143,7 +143,7 @@ class XmlProfile extends XmlFile {
 
   bool deleteSection(XmlItem? pItem) {
     if (pItem != null) {
-      deleteItem(pItem.getName());
+      deleteItem(itemName: pItem.getName());
     } else {
       reset();
     }
@@ -154,7 +154,7 @@ class XmlProfile extends XmlFile {
     if (lpszSection == null) {
       reset();
     } else {
-      return deleteItem(lpszSection);
+      return deleteItem(itemName: lpszSection);
     }
     return true;
   }

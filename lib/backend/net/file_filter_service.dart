@@ -8,6 +8,8 @@ import 'package:dcm/backend/net/file_replace_service.dart';
 import 'package:dcm/backend/net/player_log_file.dart';
 import 'package:dcm/backend/net/player_path_service.dart';
 import 'package:dcm/backend/utils/encoder_utils.dart';
+import 'package:dcm/backend/utils/extensions.dart';
+import 'package:dcm/backend/utils/file_info_utils.dart';
 import 'package:dcm/backend/utils/file_utils.dart';
 import 'package:dcm/backend/utils/string_utils.dart';
 import 'package:dcm/backend/xmlfile/xmlfile.dart';
@@ -20,7 +22,7 @@ import 'package:path/path.dart' as path;
 /// 对应 CChannelPlayerImpl 和 CEventListImpl 的部分文件管理逻辑
 class FileFilterService {
   int _nFtpImm = 0;
-  bool _bGenSitePlaylist = false;
+  bool bGenSitePlaylist = false;
 
   int _nFtpPeriod = 7;
 
@@ -51,7 +53,7 @@ class FileFilterService {
           pData.getFromXML(pXISibling);
 
           // add File Information data to list
-          addFileList(pData);
+          addFileList(pData: pData);
 
           pXISibling = pXISibling.getSibling();
         }
@@ -92,7 +94,7 @@ class FileFilterService {
           pData.getFromXML(pXISibling);
 
           // add File Information data to list
-          addFileList(pData);
+          addFileList(pData: pData);
 
           pXISibling = pXISibling.getSibling();
         }
@@ -114,50 +116,109 @@ class FileFilterService {
     ); //false;
   }
 
-  bool addFileList(FileInfoData pData) {
-    if (pData.fileStatus == FileItemStatus.skip) {
-      _lstFileInfo1.add(pData);
-      return false;
-    }
-
-    if (pData.dtEffDateFr != null && pData.dtEffDateTo != null) {
-      if (pData.dtEffDateTo!.compareTo(DateTime.now()) <= 0) {
+  bool addFileList(
+      {FileInfoData? pData,
+      String? tempFile,
+      int? contentType,
+      String? shortPath}) {
+    if (pData != null) {
+      if (pData.fileStatus == FileItemStatus.skip) {
         _lstFileInfo1.add(pData);
         return false;
       }
-    }
-    pData.strDestFile = FileUtils.stripSeparators(pData.strDestFile);
-    if (_bGenSitePlaylist) {
-      if (pData.nContentType == cSITEPLAYLIST &&
-          pData.fileStatus != FileItemStatus.temporary &&
-          pData.fileStatus != FileItemStatus.remove) {
-        for (var iter in _lstSitePlaylist) {
-          if (pData.isSameAs(pFileInfo: iter)) {
-            _lstFileInfo1.add(pData);
-            return false;
-          }
-        }
-        _lstSitePlaylist.add(pData);
 
+      if (pData.dtEffDateFr != null && pData.dtEffDateTo != null) {
+        if (pData.dtEffDateTo!.compareTo(DateTime.now()) <= 0) {
+          _lstFileInfo1.add(pData);
+          return false;
+        }
+      }
+      pData.strDestFile = FileUtils.stripSeparators(pData.strDestFile);
+      if (bGenSitePlaylist) {
+        if (pData.nContentType == cSITEPLAYLIST &&
+            pData.fileStatus != FileItemStatus.temporary &&
+            pData.fileStatus != FileItemStatus.remove) {
+          for (var iter in _lstSitePlaylist) {
+            if (pData.isSameAs(pFileInfo: iter)) {
+              _lstFileInfo1.add(pData);
+              return false;
+            }
+          }
+          _lstSitePlaylist.add(pData);
+
+          return true;
+        }
+      }
+
+      for (var iter in _lstSitePlaylist) {
+        if (pData.isSameAs(pFileInfo: iter)) {
+          _lstFileInfo1.add(pData);
+          return false;
+        }
+      }
+
+      // add File Information data to list
+      _lstFileInfo.add(pData);
+
+      return true;
+    } else {
+      FileInfoData? pFileInfo =
+          FileInfoUtils.loadFileInfo(tempFile!, contentType!);
+      if (pFileInfo != null) {
+        if (shortPath != null) {
+          pFileInfo.strDestFile = shortPath;
+          pFileInfo.strShortPath = shortPath;
+        }
+
+        pFileInfo.fileStatus = FileItemStatus.temporary;
+        pFileInfo.strMD5 = '';
+        _lstFileInfo.add(pFileInfo);
+
+        return true;
+      }
+
+      return false;
+    }
+  }
+
+  List<String> getAddonText() {
+    List<String> arrAddonText = [];
+    for (var iter in _lstFileInfo) {
+      if (iter.nContentType == cLINKAGETYPE) {
+        String strAddonText = iter.strFileTitle;
+        if (iter.strFileTitle.endsWithIgnoreCase('.XML')) {
+          strAddonText =
+              iter.strFileTitle.substring(0, iter.strFileTitle.indexOf('.'));
+        }
+        arrAddonText.add(strAddonText);
+      }
+    }
+
+    return arrAddonText;
+  }
+
+  bool fileInList(String strDestFile, int nContentType) {
+    for (var iter in _lstFileInfo) {
+      if (iter.isSameAs(strFileInfo: strDestFile, nContentType: nContentType)) {
         return true;
       }
     }
 
+    return false;
+  }
+
+  List<String> getSitePlaylist() {
+    List<String> arrSitePlaylist = [];
     for (var iter in _lstSitePlaylist) {
-      if (pData.isSameAs(pFileInfo: iter)) {
-        _lstFileInfo1.add(pData);
-        return false;
-      }
+      arrSitePlaylist.add(iter.strFilePath!);
     }
 
-    // add File Information data to list
-    _lstFileInfo.add(pData);
-    return true;
+    return arrSitePlaylist;
   }
 
   /// 过滤已下载的文件 (对应 FilterDownloadedFile)
   /// 注意：在 Flutter 中，检查文件是否存在需要异步 IO
-  Future<void> filterDownloadedFiles(String localBasePath) async {
+  Future<void> filterDownloadedFile() async {
     for (int i = _lstFileInfo.length - 1; i >= 0; i--) {
       FileInfoData pFileInfo = _lstFileInfo[i];
       String strShortPath = pFileInfo.strDestFile;
@@ -420,7 +481,7 @@ class FileFilterService {
             pData.getFromXML(pXISibling);
 
             // add File Information data to list
-            addFileList(pData);
+            addFileList(pData: pData);
 
             pXISibling = pXISibling.getSibling();
           }
@@ -436,4 +497,6 @@ class FileFilterService {
     _fileReplaceImpl.saveFileInfo();
     return true;
   }
+
+  List<FileInfoData> get fileList => _lstFileInfo;
 }

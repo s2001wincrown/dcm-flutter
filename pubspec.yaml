@@ -46,6 +46,7 @@ dependencies:
   webview_flutter_wkwebview: ^3.22.0
   flutter_inappwebview: ^6.1.5
   pointycastle: ^3.7.3
+  crypto: ^3.0.6
   xml: ^6.3.0
   # print colorful logs
   # logger: ^2.7.0

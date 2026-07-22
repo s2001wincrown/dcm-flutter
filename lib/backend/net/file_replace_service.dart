@@ -1,15 +1,20 @@
 import 'dart:io';
-import 'dart:convert';
+
+import 'package:crypto/crypto.dart';
 import 'package:dcm/backend/constants.dart';
 import 'package:dcm/backend/models/dcm_global.dart';
 import 'package:dcm/backend/models/file_info_data.dart';
+import 'package:dcm/backend/net/player_path_service.dart';
 import 'package:dcm/backend/utils/extensions.dart';
+import 'package:dcm/backend/utils/file_info_utils.dart';
+import 'package:dcm/backend/utils/file_utils.dart';
+import 'package:dcm/backend/utils/log_utils.dart';
+import 'package:dcm/backend/utils/string_utils.dart';
 import 'package:dcm/backend/utils/time_utils.dart';
+import 'package:dcm/backend/utils/utils.dart';
 import 'package:dcm/backend/xmlfile/xmlfilepro.dart';
 import 'package:dcm/backend/xmlfile/xmlitem.dart';
 import 'package:path/path.dart' as p;
-import 'package:xml/xml.dart';
-import 'package:crypto/crypto.dart';
 
 import '../xmlfile/xmlfile.dart';
 
@@ -20,10 +25,6 @@ import '../xmlfile/xmlfile.dart';
 class FileReplaceService {
   final String lpszSignature = 'DCM Player - FTP FileList Log';
   final List<FileInfoData> _lstFileInfo = [];
-
-  // Configuration
-  String _settingsPath = '';
-  bool _enableChecksum = false;
 
   // Bad file names list
   static const List<String> _badFileNames = [
@@ -37,11 +38,6 @@ class FileReplaceService {
     'signons.sqlite',
     'key3.db',
   ];
-
-  void init(String settingsPath, bool enableChecksum) {
-    _settingsPath = settingsPath;
-    _enableChecksum = enableChecksum;
-  }
 
   // --------------------------------------------------------------------------
   // File Discovery
@@ -69,29 +65,24 @@ class FileReplaceService {
         String key = entity.path.toLowerCase();
         if (mapFiles.containsKey(key)) continue;
 
-        FileStat stat = await entity.stat();
+        FileInfoData? info = await FileInfoUtils.loadFile(entity, contentType);
+        if (info != null) {
+          info.strShortPath = p.relative(entity.path, from: contentPath);
+          info.strDestFile = p.relative(entity.path, from: contentPath);
+          if ((DCMGlobal.globalSetting & settingCHECKSUM) > 0) {
+            await _calculateHash(info);
+          }
 
-        FileInfoData info = FileInfoData(
-          filePath: entity.path,
-          fileTitle: fileName,
-          shortPath: p.relative(entity.path, from: contentPath),
-          destFile: p.relative(entity.path, from: contentPath),
-          fileSize: stat.size,
-          contentType: contentType,
-          fileCreate: stat.changed, // Approximation
-          fileModify: stat.modified,
-        );
-
-        if (_enableChecksum) {
-          await _calculateHash(info);
+          mapFiles[key] = info;
+          _lstFileInfo.add(info);
         }
-
-        mapFiles[key] = info;
-        _lstFileInfo.add(info);
       } else if (entity is Directory) {
         String dirName = p.basename(entity.path);
         // Skip folders starting with { and ending with }
-        if (dirName.startsWith('{') && dirName.endsWith('}')) continue;
+        if (Utils.isValidUuid(dirName) ||
+            (dirName.startsWith('{') && dirName.endsWith('}'))) {
+          continue;
+        }
 
         await findLocalFiles(contentType, entity.path, mapFiles,
             rootPath: contentPath);
@@ -100,21 +91,33 @@ class FileReplaceService {
   }
 
   bool _isContentTypeValid(int contentType, String filePath) {
-    // Simplified logic. In C++, specific types like Skins/Graphics were exempt from strict checking.
-    // Here we assume all files are valid for discovery unless filtered by extension elsewhere.
+    if (cDCMSKINSTYPE != contentType &&
+        cDCMGRAPHICSTYPE != contentType &&
+        cDCMLAYOUTTYPE != contentType &&
+        cIMAGETYPE != contentType) {
+      int nCType = contentType;
+      if (contentType == cDCMSINGLEIMAGETYPE) {
+        nCType = cIMAGETYPE;
+      }
+      if (!PlayerPathService.contentTypeManager
+          .isContentType(filePath, nCType)) {
+        return false;
+      }
+    }
+
     return true;
   }
 
   Future<void> _calculateHash(FileInfoData info) async {
     try {
-      File file = File(info.filePath);
+      File file = File(info.strFilePath!);
       if (await file.exists()) {
         var bytes = await file.readAsBytes();
-        info.md5 = md5.convert(bytes).toString();
-        info.sha1 = sha1.convert(bytes).toString();
+        info.strMD5 = md5.convert(bytes).toString();
+        info.strSHA1 = sha1.convert(bytes).toString();
       }
     } catch (e) {
-      print("Error calculating hash for ${info.filePath}: $e");
+      logE('Error calculating hash for ${info.strFilePath}: $e');
     }
   }
 
@@ -170,10 +173,8 @@ class FileReplaceService {
             FileInfoData pData = FileInfoData();
             // get File List Inforamtion data
             pData.getFromXML(pXISibling);
-            if (IsLocalFileExists(pData)) {
-              m_lstFileInfo.push_back(pData);
-            } else {
-              SAFE_DELETE(pData);
+            if (await _isLocalFileExists(pData)) {
+              _lstFileInfo.add(pData);
             }
 
             pXISibling = pXISibling.getSibling();
@@ -202,19 +203,19 @@ class FileReplaceService {
   // --------------------------------------------------------------------------
 
   /// Corresponds to IsLocalFileExists
-  Future<bool> _isLocalFileExists(FileInfoData fileInfo) async {
-    // Simulate FTPPathImpl.GetLocalPath
-    String basePath = '/data/local'; // Placeholder
-    String destPath = p.join(basePath, fileInfo.destFile);
-
-    if (await File(destPath).exists()) {
-      fileInfo.status = FileStatus.normal;
+  Future<bool> _isLocalFileExists(FileInfoData pFileInfo) async {
+    String strDest = p.join(
+        await PlayerPathService.getLocalPath(pFileInfo.nContentType),
+        pFileInfo.strDestFile);
+    if (await File(strDest).exists()) {
+      pFileInfo.fileStatus = FileItemStatus.normal;
       return true;
     } else {
-      // Check temp path
-      String tempPath = p.join(basePath, 'temp', fileInfo.destFile);
-      if (await File(tempPath).exists()) {
-        fileInfo.fileStatus = FileItemStatus.temporary;
+      strDest = p.join(
+          await PlayerPathService.getLocalPath(pFileInfo.nContentType, true),
+          pFileInfo.strDestFile);
+      if (await File(strDest).exists()) {
+        pFileInfo.fileStatus = FileItemStatus.temporary;
         return true;
       }
     }
@@ -230,7 +231,7 @@ class FileReplaceService {
         if (strFilePath.equalsIgnoreCase(strPreDataFile)) {
           if (equalsTime(pFileInfo.tmFileModify, pFileInfo1.tmFileModify) &&
               pFileInfo.dwFileSize == pFileInfo1.dwFileSize) {
-            //m_lstFileInfo.push_back(new CFileInfoData(*pFileInfo));
+            //_lstFileInfo.add(new CFileInfoData(*pFileInfo));
             return true;
           }
         }
@@ -240,116 +241,167 @@ class FileReplaceService {
     return false;
   }
 
-  /// Corresponds to IsCanDownload
-  Future<bool> isCanDownload(FileInfoData fileInfo) async {
-    // Simulate FTPPathImpl.GetLocalPath
-    String basePath = '/data/local';
-    String destPath = p.join(basePath, fileInfo.destFile);
-
-    File file = File(destPath);
+  Future<bool> isCanDownload(FileInfoData pFileInfo) async {
+    /*String strDest = p.join(await PlayerPathService.getLocalPath(pFileInfo.nContentType), pFileInfo.strDestFile);
+    var file = File(strDest);
     if (await file.exists()) {
-      FileStat stat = await file.stat();
-      // Check if hidden or system (Dart doesn't have direct attribute check like Windows,
-      // but we can check if name starts with dot for Unix-like systems)
-      if (p.basename(destPath).startsWith('.')) {
+      if (file.IsSystem() || file.IsHidden())
+      {
         return false;
       }
-    }
+    }*/
+
     return true;
   }
 
-  /// Corresponds to IsReplace
-  Future<bool> isReplace(FileInfoData newFileInfoData, bool bReplace) async {
-    if (isBadFile(p.basename(newFileInfoData.destFile))) return false;
+  bool isReplace(FileInfoData pFileInfo, bool bReplace) {
+    if (isBadFile(p.basename(pFileInfo.strDestFile))) {
+      return false;
+    }
 
     if (bReplace) {
-      // Specific types might always replace or never replace depending on C++ logic
-      // C++: if not Layout/Database/Graphics/Skins, return bReplace
-      const List<int> specialTypes = [10, 11, 12, 13]; // Placeholder enums
-      if (!specialTypes.contains(newFileInfoData.contentType)) {
+      if (pFileInfo.nContentType != cDCMLAYOUTTYPE &&
+          pFileInfo.nContentType != cDCMGRAPHICSTYPE &&
+          pFileInfo.nContentType != cDCMSKINSTYPE) {
         return bReplace;
       }
     }
 
-    // Check against existing list
-    for (var existing in _lstFileInfo) {
-      if (_isSameFile(newFileInfoData, existing)) {
-        if (!newFileInfoData.isModified(existing)) {
-          newFileInfoData.status = existing.status;
+    for (var iter in _lstFileInfo) {
+      FileInfoData pFileInfo1 = iter;
+      if (isSameFile(pFileInfo, pFileInfo1)) {
+        if (!isModified(pFileInfo, pFileInfo1)) {
+          if (bReplace) {
+            logI(
+                '''File: '${pFileInfo.strDestFile}'; content Type:'${pFileInfo.nContentType}' need to download''');
+          }
 
-          // Special types logic
-          const List<int> noReplaceTypes = [10, 11, 12, 13];
-          if (noReplaceTypes.contains(newFileInfoData.contentType)) {
+          pFileInfo.fileStatus = pFileInfo1.fileStatus;
+          if (pFileInfo.nContentType == cDCMLAYOUTTYPE &&
+              pFileInfo.nContentType == cDCMGRAPHICSTYPE &&
+              pFileInfo.nContentType == cDCMSKINSTYPE) {
             return false;
           }
+
           return bReplace;
         }
+
         break;
       }
     }
-
-    // PreData logic omitted for brevity, similar comparison
+    if (pFileInfo.nContentType == cDCMPREDATATYPE) {
+      for (var iter in _lstFileInfo) {
+        FileInfoData pFileInfo1 = iter;
+        String strFileName = pFileInfo.strFilePath!;
+        strFileName = FileUtils.fixPathSeparators(strFileName);
+        strFileName = p.basename(strFileName);
+        String strFileName1 = pFileInfo1.strFilePath!;
+        strFileName1 = FileUtils.fixPathSeparators(strFileName1);
+        strFileName1 = p.basename(strFileName1);
+        if (strFileName.equalsIgnoreCase(strFileName1)) {
+          if (pFileInfo.tmFileModify == pFileInfo1.tmFileModify &&
+              pFileInfo.dwFileSize == pFileInfo1.dwFileSize) {
+            return bReplace;
+          }
+        }
+      }
+    }
+    logI(
+        '''File: '${pFileInfo.strDestFile}'; content Type:'${pFileInfo.nContentType}' need to download''');
 
     return true;
   }
 
-  bool _isSameFile(FileInfoData f1, FileInfoData f2) {
-    return f1.destFile == f2.destFile && f1.contentType == f2.contentType;
-  }
-
-  /// Corresponds to ClearFileList
   Future<void> clearFileList() async {
-    List<FileInfoData> toRemove = [];
-    for (var fileInfo in _lstFileInfo) {
-      String basePath = '/data/local';
-      String destPath = p.join(basePath, fileInfo.destFile);
-      if (!await File(destPath).exists()) {
-        toRemove.add(fileInfo);
+    for (int i = _lstFileInfo.length - 1; i >= 0; i--) {
+      FileInfoData pFileInfo = _lstFileInfo[i];
+
+      String strDest = p.join(
+          await PlayerPathService.getLocalPath(pFileInfo.nContentType),
+          pFileInfo.strDestFile);
+      if (!await File(strDest).exists()) {
+        _lstFileInfo.removeAt(i);
       }
     }
-    _lstFileInfo.removeWhere((item) => toRemove.contains(item));
   }
 
-  /// Corresponds to RemoveFileInfoData
-  bool removeFileInfoData(String destFile, int contentType) {
-    int index =
-        _lstFileInfo.indexWhere((f) => f.isSameAs(destFile, contentType));
-    if (index != -1) {
-      _lstFileInfo.removeAt(index);
-      return true;
+  bool removeFileInfo(String strDestFile, int nContentType) {
+    for (int i = _lstFileInfo.length - 1; i >= 0; i--) {
+      FileInfoData pFileInfo1 = _lstFileInfo[i];
+      if (pFileInfo1.isSameAs(
+          strFileInfo: strDestFile, nContentType: nContentType)) {
+        _lstFileInfo.removeAt(i);
+        return true;
+      }
     }
     return false;
   }
 
-  /// Corresponds to AddDownloadFile
-  void addDownloadFile(FileInfoData fileInfo, {bool isTemp = false}) {
-    bool existed = false;
-    for (var existing in _lstFileInfo) {
-      if (_isSameFile(fileInfo, existing)) {
-        existed = true;
-        existing.fileCreate = fileInfo.fileCreate;
-        existing.fileModify = fileInfo.fileModify;
-        existing.fileSize = fileInfo.fileSize;
-        existing.md5 = fileInfo.md5;
-        existing.sha1 = fileInfo.sha1;
-        existing.status = isTemp ? FileStatus.temporary : FileStatus.normal;
-        existing.transferType = fileInfo.transferType;
+  void addDownloadFile(FileInfoData pFileInfo, [bool isTemp = false]) {
+    bool bExisted = false;
+    for (var iter in _lstFileInfo) {
+      FileInfoData pFileInfo1 = iter;
+
+      if (isSameFile(pFileInfo, pFileInfo1)) {
+        bExisted = true;
+        pFileInfo1.tmFileCreate = pFileInfo.tmFileCreate;
+        pFileInfo1.tmFileModify = pFileInfo.tmFileModify;
+        pFileInfo1.dwFileSize = pFileInfo.dwFileSize;
+        pFileInfo1.strMD5 = pFileInfo.strMD5;
+        pFileInfo1.strSHA1 = pFileInfo.strSHA1;
+        pFileInfo1.fileStatus =
+            isTemp ? FileItemStatus.temporary : FileItemStatus.normal;
+        pFileInfo1.nTransferType = pFileInfo.nTransferType;
         break;
       }
     }
-
-    if (!existed) {
-      FileInfoData newFile = FileInfoData.copyFrom(
-          fileInfo); // Need to implement copyFrom in FileInfoData
-      newFile.status = isTemp ? FileStatus.temporary : FileStatus.normal;
-      _lstFileInfo.add(newFile);
+    if (!bExisted) {
+      FileInfoData pFileInfo1 = FileInfoData.copy(pFileInfo);
+      pFileInfo1.fileStatus =
+          isTemp ? FileItemStatus.temporary : FileItemStatus.normal;
+      _lstFileInfo.add(pFileInfo1);
     }
   }
 
-  void addToFileList(List<FileInfoData> sourceList, {bool isTemp = false}) {
-    for (var file in sourceList) {
-      addDownloadFile(file, isTemp: isTemp);
+  void setTempFileFlag(String strDestFile, int nContentType) {
+    var it = _lstFileInfo.iterator;
+    while (it.moveNext()) {
+      FileInfoData pFileInfo1 = it.current;
+      if (pFileInfo1.isSameAs(
+          strFileInfo: strDestFile, nContentType: nContentType)) {
+        pFileInfo1.fileStatus = FileItemStatus.temporary;
+        break;
+      }
     }
+  }
+
+  bool addToFileList(List<FileInfoData> lstFileInfo, [bool bIsTemp = false]) {
+    for (var iter in lstFileInfo) {
+      addDownloadFile(iter, bIsTemp);
+    }
+
+    return true;
+  }
+
+  bool isSameFile(FileInfoData pFileInfo1, FileInfoData pFileInfo2) {
+    return ((pFileInfo1.strDestFile.equalsIgnoreCase(pFileInfo2.strDestFile)) &&
+        pFileInfo2.nContentType == pFileInfo1.nContentType);
+  }
+
+  bool isModified(FileInfoData pServer, FileInfoData pLocal) {
+    if (isNotBlank(pServer.strMD5) && isNotBlank(pLocal.strMD5)) {
+      if (pServer.strMD5!.equalsIgnoreCase(pLocal.strMD5)) {
+        return false;
+      }
+    } else {
+      if (pLocal.tmFileModify == pServer.tmFileModify &&
+          (pLocal.dwFileSize == pServer.dwFileSize ||
+              pServer.ignoreFileSize())) {
+        return false;
+      }
+    }
+
+    return true;
   }
 
   List<FileInfoData> get fileList => _lstFileInfo;

@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:dcm/backend/models/dcm_global.dart';
 import 'package:dcm/backend/xmlfile/xmlfiledata.dart';
 import 'package:dcm/backend/xmlfile/xmlitem.dart';
+import 'package:dcm/backend/xmlfile/xmlprofile.dart';
 import 'package:pair/pair.dart';
 import 'package:path/path.dart' as path;
 
@@ -119,5 +120,35 @@ class DayInfoData extends XmlFileData {
 
     String fileName = path.join(dir, '$event.xml');
     return File(fileName).existsSync();
+  }
+
+  static List<DayInfoData> readDayInfoList(XmlProfile xmlProfile) {
+    XmlItem? pXItem = xmlProfile.getItem('DayInfoList');
+    List<DayInfoData> lstDayInfo = [];
+    if (pXItem != null) {
+      var pos = pXItem.getFirstItemPos();
+      while (pos.moveNext()) {
+        XmlItem? xiDayItem = pos.current;
+        DayInfoData pObject = DayInfoData();
+        lstDayInfo.add(pObject);
+        pObject.getFromXML(xiDayItem);
+      }
+    }
+
+    return lstDayInfo;
+  }
+
+  static bool writeDayInfoList(
+      XmlProfile xmlProfile, List<DayInfoData> lstDayInfo) {
+    XmlItem? xi = xmlProfile.root().newItem('DayInfoList'); //
+    if (xi != null) {
+      for (var iter in lstDayInfo) {
+        iter.writeToXML(xi);
+      }
+
+      return true;
+    }
+
+    return false;
   }
 }
