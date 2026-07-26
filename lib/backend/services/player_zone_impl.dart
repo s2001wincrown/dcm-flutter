@@ -631,24 +631,24 @@ class PlayerZoneImpl {
 
   void _initContentList(int nType, String strZoneFile, Rect rectWin) {
     if (_contentListPlayer == null) {
-      logD('''Zone $_zoneId play '$strZoneFile' step 21, TID $pid.''');
+      //logD('''Zone $_zoneId play '$strZoneFile' step 21, TID $pid.''');
       _contentListPlayer = ContentListPlayerImpl(nType, _zoneId);
     } else {
-      logD('''Zone $_zoneId play '$strZoneFile' step 22, TID $pid.''');
+      //logD('''Zone $_zoneId play '$strZoneFile' step 22, TID $pid.''');
       _contentListPlayer!.resetFirstFinished();
       _contentListPlayer!.setTimeForStop(true);
       _contentListPlayer!.release();
     }
 
     if (_contentListPlayer != null) {
-      logD('''Zone $_zoneId play '$strZoneFile' step 23, TID $pid.''');
+      //logD('''Zone $_zoneId play '$strZoneFile' step 23, TID $pid.''');
       _contentListPlayer!.loadContentList(contentList: strZoneFile);
       if (_contentListPlayer!.isValidForPlay()) {
-        logD('''Zone $_zoneId play '$strZoneFile' step 24, TID $pid.''');
+        //logD('''Zone $_zoneId play '$strZoneFile' step 24, TID $pid.''');
         _rtDuration = _contentListPlayer!.getDuration() -
             _contentListPlayer!.getDuration(_nStart);
         _contentListPlayer!.setPlayerRect(_rect!);
-        logD('''Zone $_zoneId play '$strZoneFile' step 25, TID $pid.''');
+        //logD('''Zone $_zoneId play '$strZoneFile' step 25, TID $pid.''');
         _contentListPlayer!.setAHPlaying(_bIsAHPlaylist);
         _contentListPlayer!.setParentContentType(_nPType);
         //CString strCompany = PlayList.GetCurrCompany();
@@ -685,7 +685,7 @@ class PlayerZoneImpl {
         _bShowMessageNext = _contentListPlayer!.isShowMessageNext();
       }
     } catch (e) {
-      logD('playNextContentListItem error: $e');
+      logE('PlayerZoneImpl - playNextContentListItem error: $e');
     }
   }
 
@@ -763,11 +763,9 @@ class PlayerZoneImpl {
     if (pZoneData == null || _rtDuration < cEPSILON || _rtAct < cEPSILON) {
       return (status: true, nFinish: nFinish);
     }
-    logD(
-        'Zone $_zoneId CPlayerZoneDlg::IsPlayerFinish ${DateFormat('yyyy-MM-dd HH:mm:ss').format(_dtStartPlay)}.');
 
     logD(
-        '''CPlayerZoneDlg::IsPlayerFinish; Zone: $_zoneId; _nPType: $_nPType; _rtDuration:'$_rtDuration'; _rtAct:'$_rtAct'; rtCurrPos:'$rtCurrPos'; _rtLine:'$_rtLine'; _rtPlaying:'$_rtPlaying'.''');
+        '''PlayerZoneImpl - Zone: '$_zoneId' isPlayerFinish; _dtStartPlay: ${DateFormat('yyyy-MM-dd HH:mm:ss').format(_dtStartPlay)}; _nPType: $_nPType; _rtDuration:'$_rtDuration'; _rtAct:'$_rtAct'; rtCurrPos:'$rtCurrPos'; _rtLine:'$_rtLine'; _rtPlaying:'$_rtPlaying'.''');
     if (pZoneData.isMixedContent() && _contentListPlayer != null) {
       //return _contentListPlayer!.IsPlayFinish();
       var result = _contentListPlayer!.isPlayFinish(nFinish);
@@ -865,7 +863,7 @@ class PlayerZoneImpl {
 
     double rtAct = _rtAct;
     logI(
-        '''CPlayerZoneImpl::IsPlayerFinish; Zone '$_zoneId'; _nPType: '$_nPType'; _rtDuration:'$_rtDuration'; _rtAct:'$_rtAct'; rtCurrPos:'$rtCurrPos'; _rtLine:'$_rtLine'.''');
+        '''PlayerZoneImpl - Zone '$_zoneId' isPlayerFinish;  _nPType: '$_nPType'; _rtDuration:'$_rtDuration'; _rtAct:'$_rtAct'; rtCurrPos:'$rtCurrPos'; _rtLine:'$_rtLine'.''');
     if (!_bIsRendering && pZoneData.nZoneType == cVIDEOTYPE) {
       if (_player != null) {
         if (_rtDuration - rtAct < cPLAYINGINTERVAL) {

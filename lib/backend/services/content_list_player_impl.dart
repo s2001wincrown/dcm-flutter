@@ -446,12 +446,12 @@ class ContentListPlayerImpl {
     //g_pPlayerWnd->DetachMZThread(m_nZone);
     _bIsPlaying = false;
     logD(
-        '''CContentListPlayer::StopCurrProduct; Zone:'$_nZone'; ${PlatformUtils().getMemoryLog()}; TID: '$pid'.''');
+        '''ContentListPlayerImpl - StopCurrProduct; Zone:'$_nZone'; ${PlatformUtils().getMemoryLog()}; TID: '$pid'.''');
   }
 
   void playNextProduct() {
     //StopCurrProduct();
-    //WriteMessage(MSG_INFO, _T("CContentListPlayer::PlayNextProduct; m_nPlayAHItem:%d; m_dwPlayADItem: %d, Thread ID %d!!!"), m_nPlayAHItem, m_dwPlayADItem, GetCurrentThreadId());
+    //WriteMessage(MSG_INFO, _T("ContentListPlayerImpl - PlayNextProduct; m_nPlayAHItem:%d; m_dwPlayADItem: %d, Thread ID %d!!!"), m_nPlayAHItem, m_dwPlayADItem, GetCurrentThreadId());
     if (_nPlayAHItem == -1 || _dwPlayADItem == 0) {
       if (getCount() <= _nCurrProduct + 1) {
         _nCurrProduct = 0;
@@ -693,8 +693,8 @@ class ContentListPlayerImpl {
       }
 
       var nResult = pPlayer.isPlayerFinished(rtPos);
-      logD(
-          '''CContentListPlayer::IsPlayFinish; Zone:'${pPlayer.getZone()}'; _dwSecondTime:'${DateFormat('yyyy-MM-dd HH:mm:ss').format(dwSecondTime)}'; rtCurrPos1:'$rtCurrPos1'; rtPos:'$rtPos'; nResult: '$nResult'.''');
+      /*logD(
+          '''ContentListPlayerImpl - IsPlayFinish; Zone:'${pPlayer.getZone()}'; _dwSecondTime:'${DateFormat('yyyy-MM-dd HH:mm:ss').format(dwSecondTime)}'; rtCurrPos1:'$rtCurrPos1'; rtPos:'$rtPos'; nResult: '$nResult'.''');*/
       if (nResult == 1) {
         pPlayer.setPlayingDuration(rtPos);
         pPlayer.setStartPlayTime(dwSecondTime);

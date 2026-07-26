@@ -1,6 +1,7 @@
 import 'package:mixin_logger/mixin_logger.dart';
 
 const String _tag = "dcm";
+const String syncTag = "content sync";
 void initFileLogger(String dataPath) {
   // init logger with dir. then all logs will be saved to this dir.
   initLogger(
@@ -11,26 +12,26 @@ void initFileLogger(String dataPath) {
   logI('log_utils: after initLogger');
 }
 
-void logV(String msg) {
-  v("$_tag :: $msg");
+void logV(String msg, [String tag = _tag]) {
+  v("$tag :: $msg");
 }
 
-void logD(String msg) {
-  d("$_tag :: $msg");
+void logD(String msg, [String tag = _tag]) {
+  d("$tag :: $msg");
 }
 
-void logI(String msg) {
-  i("$_tag :: $msg");
+void logI(String msg, [String tag = _tag]) {
+  i("$tag :: $msg");
 }
 
-void logW(String msg) {
-  w("$_tag :: $msg");
+void logW(String msg, [String tag = _tag]) {
+  w("$tag :: $msg");
 }
 
-void logE(String msg) {
-  e("$_tag :: $msg");
+void logE(String msg, [String tag = _tag]) {
+  e("$tag :: $msg");
 }
 
-void logWTF(String msg) {
-  wtf("$_tag :: $msg");
+void logWTF(String msg, [String tag = _tag]) {
+  wtf("$tag :: $msg");
 }

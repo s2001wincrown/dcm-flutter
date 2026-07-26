@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:dcm/backend/models/dcm_global.dart';
 import 'package:dcm/backend/models/file_info_data.dart';
 import 'package:dcm/backend/net/dcm_http_client.dart';
 import 'package:dcm/backend/utils/utils.dart';
@@ -185,6 +186,9 @@ class DcmDownloadQueue {
   final String persistencePath;
   final String queueMode;
   final List<DcmDownloadTask> tasks;
+  int finalFailedTaskCount = 0;
+  int finalSuccessTaskCount = 0;
+  String lastTaskOutcome = 'unknown';
   //Download temporary path
 
   Future<void> load() async {
@@ -194,12 +198,31 @@ class DcmDownloadQueue {
     }
     try {
       final raw = await file.readAsString();
-      final decoded = jsonDecode(raw) as List<dynamic>;
+      final decoded = jsonDecode(raw);
       tasks.clear();
-      tasks.addAll(decoded
-          .cast<Map<String, dynamic>>()
-          .map(DcmDownloadTask.fromJson)
-          .toList());
+      if (decoded is List<dynamic>) {
+        tasks.addAll(decoded
+            .cast<Map<String, dynamic>>()
+            .map(DcmDownloadTask.fromJson)
+            .toList());
+      } else if (decoded is Map<String, dynamic>) {
+        tasks.addAll((decoded['tasks'] as List<dynamic>?)
+                ?.cast<Map<String, dynamic>>()
+                .map(DcmDownloadTask.fromJson)
+                .toList() ??
+            []);
+        finalFailedTaskCount = decoded['finalFailedTaskCount'] is int
+            ? decoded['finalFailedTaskCount'] as int
+            : int.tryParse(
+                    decoded['finalFailedTaskCount']?.toString() ?? '0') ??
+                0;
+        finalSuccessTaskCount = decoded['finalSuccessTaskCount'] is int
+            ? decoded['finalSuccessTaskCount'] as int
+            : int.tryParse(
+                    decoded['finalSuccessTaskCount']?.toString() ?? '0') ??
+                0;
+        lastTaskOutcome = decoded['lastTaskOutcome']?.toString() ?? 'unknown';
+      }
     } catch (e) {
       stderr.writeln('DcmDownloadQueue.load() failed: $e');
     }
@@ -208,7 +231,12 @@ class DcmDownloadQueue {
   Future<void> save() async {
     final file = File(persistencePath);
     await file.parent.create(recursive: true);
-    final payload = jsonEncode(tasks.map((task) => task.toJson()).toList());
+    final payload = jsonEncode({
+      'tasks': tasks.map((task) => task.toJson()).toList(),
+      'finalFailedTaskCount': finalFailedTaskCount,
+      'finalSuccessTaskCount': finalSuccessTaskCount,
+      'lastTaskOutcome': lastTaskOutcome,
+    });
     await file.writeAsString(payload, flush: true);
   }
 
@@ -222,6 +250,20 @@ class DcmDownloadQueue {
         tasks.add(task);
       }
     }
+  }
+
+  void addTask(DcmDownloadTask task) {
+    if (!containsUrl(task.url)) {
+      tasks.add(task);
+    }
+  }
+
+  void removeTaskById(String id) {
+    tasks.removeWhere((task) => task.id == id);
+  }
+
+  void removeTasksByIds(List<String> ids) {
+    tasks.removeWhere((task) => ids.contains(task.id));
   }
 
   DcmDownloadTask? nextPendingTask() {
@@ -240,6 +282,83 @@ class DcmDownloadQueue {
     }
     return pending.first;
   }
+
+  bool handleTaskFailure(DcmDownloadTask task, {required int maxRetries}) {
+    final existingTask = tasks.cast<DcmDownloadTask?>().firstWhere(
+          (candidate) => candidate?.id == task.id,
+          orElse: () => null,
+        );
+    if (existingTask == null) {
+      return false;
+    }
+
+    existingTask.retryCount = task.retryCount + 1;
+    existingTask.status = DcmDownloadStatus.failed;
+    existingTask.errorMessage = task.errorMessage;
+    existingTask.lastUpdated = DateTime.now();
+
+    if (existingTask.retryCount > maxRetries) {
+      tasks.removeWhere((candidate) => candidate.id == existingTask.id);
+      finalFailedTaskCount += 1;
+      lastTaskOutcome = 'failure';
+      return false;
+    }
+
+    tasks.removeWhere((candidate) => candidate.id == existingTask.id);
+    tasks.add(existingTask);
+    return true;
+  }
+
+  void reset({bool persist = true}) {
+    tasks.clear();
+    lastTaskOutcome = 'reset';
+    if (persist) {
+      save();
+    }
+  }
+
+  DcmDownloadQueueStatus getStatus() {
+    final successCount =
+        tasks.where((task) => task.status == DcmDownloadStatus.success).length;
+    final failedCount =
+        tasks.where((task) => task.status == DcmDownloadStatus.failed).length;
+    final pendingCount = tasks
+        .where((task) =>
+            task.status == DcmDownloadStatus.pending ||
+            task.status == DcmDownloadStatus.running)
+        .length;
+    final runningCount =
+        tasks.where((task) => task.status == DcmDownloadStatus.running).length;
+    return DcmDownloadQueueStatus(
+      totalCount: tasks.length + finalFailedTaskCount,
+      successCount: successCount + finalSuccessTaskCount,
+      failedCount: failedCount + finalFailedTaskCount,
+      pendingCount: pendingCount,
+      runningCount: runningCount,
+      allTasksFinished: pendingCount == 0,
+      lastOutcome: lastTaskOutcome,
+    );
+  }
+}
+
+class DcmDownloadQueueStatus {
+  DcmDownloadQueueStatus({
+    required this.totalCount,
+    required this.successCount,
+    required this.failedCount,
+    required this.pendingCount,
+    required this.runningCount,
+    required this.allTasksFinished,
+    required this.lastOutcome,
+  });
+
+  final int totalCount;
+  final int successCount;
+  final int failedCount;
+  final int pendingCount;
+  final int runningCount;
+  final bool allTasksFinished;
+  final String lastOutcome;
 }
 
 class DcmDownloadWorkerPayload {
@@ -315,14 +434,15 @@ class DcmDownloader {
     required this.queue,
     this.concurrency = 4,
     this.timeout = const Duration(seconds: 30),
-    this.maxRetries = 3,
+    int? maxRetries,
     this.backoffBase = const Duration(seconds: 2),
     this.onProgress,
     this.onTaskComplete,
     this.pollingInterval,
     this.buildRequestBody,
     DcmHttpClientFactory? httpClientFactory,
-  }) : _httpClientFactory = httpClientFactory ?? dcmHttpClientFactory {
+  })  : maxRetries = maxRetries ?? DCMGlobal.fileTransferRetries,
+        _httpClientFactory = httpClientFactory ?? dcmHttpClientFactory {
     _client = _createClient();
   }
 
@@ -418,8 +538,10 @@ class DcmDownloader {
 
   Future<void> startPolling() async {
     if (pollingInterval == null || buildRequestBody == null) {
-      throw ArgumentError(
-          'pollingInterval and buildRequestBody must be provided to start polling');
+      //disable polling
+      return;
+      /*throw ArgumentError(
+          'pollingInterval and buildRequestBody must be provided to start polling');*/
     }
     if (_pollTimer != null) {
       return;
@@ -435,6 +557,43 @@ class DcmDownloader {
   }
 
   bool get isPolling => _pollTimer != null;
+
+  Future<void> resetQueue() async {
+    _isRunning = false;
+    await stopPolling();
+    queue.reset();
+    await queue.save();
+  }
+
+  DcmDownloadQueueStatus getQueueStatus() {
+    return queue.getStatus();
+  }
+
+  Future<void> addTask(DcmDownloadTask task) async {
+    queue.addTask(task);
+    await queue.save();
+    if (!_isRunning && queue.nextPendingTask() != null) {
+      await start();
+    }
+  }
+
+  Future<void> addTasksToQueue(List<DcmDownloadTask> tasksList) async {
+    queue.addTasks(tasksList);
+    await queue.save();
+    if (!_isRunning && queue.nextPendingTask() != null) {
+      await start();
+    }
+  }
+
+  Future<void> removeTask(String id) async {
+    queue.removeTaskById(id);
+    await queue.save();
+  }
+
+  Future<void> removeTasks(List<String> ids) async {
+    queue.removeTasksByIds(ids);
+    await queue.save();
+  }
 
   Future<void> _pollTick() async {
     if (_pollInProgress) {
@@ -481,13 +640,28 @@ class DcmDownloader {
         task.status = processedTask.status;
         task.errorMessage = processedTask.errorMessage;
         task.lastUpdated = processedTask.lastUpdated;
-        await queue.save();
-        onProgress?.call(task);
-        onTaskComplete?.call(task);
+
+        if (task.status == DcmDownloadStatus.success) {
+          queue.finalSuccessTaskCount += 1;
+          queue.lastTaskOutcome = 'success';
+          await queue.save();
+          onProgress?.call(task);
+          onTaskComplete?.call(task);
+        } else {
+          final shouldRetry =
+              queue.handleTaskFailure(task, maxRetries: maxRetries);
+          await queue.save();
+          onProgress?.call(task);
+          onTaskComplete?.call(task);
+          if (!shouldRetry) {
+            continue;
+          }
+        }
       } catch (e) {
         task.status = DcmDownloadStatus.failed;
         task.errorMessage = e.toString();
         task.lastUpdated = DateTime.now();
+        queue.handleTaskFailure(task, maxRetries: maxRetries);
         await queue.save();
         onTaskComplete?.call(task);
       }
@@ -532,28 +706,18 @@ class DcmDownloader {
 
   Future<bool> _attemptDownload(DcmDownloadTask task,
       {bool persistState = true}) async {
-    while (task.retryCount <= maxRetries) {
-      try {
-        await _downloadTask(task);
-        return true;
-      } catch (e) {
-        task.retryCount += 1;
-        task.errorMessage = e.toString();
-        task.status = DcmDownloadStatus.failed;
-        task.lastUpdated = DateTime.now();
-        if (persistState) {
-          await queue.save();
-        }
-        if (task.retryCount > maxRetries) {
-          return false;
-        }
-        final delay = Duration(
-          seconds: backoffBase.inSeconds * task.retryCount,
-        );
-        await Future.delayed(delay);
+    try {
+      await _downloadTask(task);
+      return true;
+    } catch (e) {
+      task.errorMessage = e.toString();
+      task.status = DcmDownloadStatus.failed;
+      task.lastUpdated = DateTime.now();
+      if (persistState) {
+        await queue.save();
       }
+      return false;
     }
-    return false;
   }
 
   Future<void> _downloadTask(DcmDownloadTask task) async {

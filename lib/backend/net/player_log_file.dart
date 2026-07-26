@@ -14,7 +14,7 @@ import 'package:dcm/backend/xmlfile/xmlprofile.dart';
 import 'package:intl/intl.dart';
 import 'package:path/path.dart' as path;
 
-const String cHTTPUNIQUEKEY = 'UniqueKey';
+const String cHTTPUNIQUEKEY = 'strUniqueName';
 const int cTRANSFERSTATUS = -5;
 const int cTRANSFERERR = -1;
 const int cTRANSFEROTHERERR = -2;
@@ -47,7 +47,7 @@ class PlayerLogFile {
 
   // 重置日志文件
   static void reset() {
-    String strTaskFile = path.join(DCMGlobal.settingPath, 'FTPtask.xml');
+    String strTaskFile = path.join(DCMGlobal.settingPath, 'synctask.xml');
     File file = File(strTaskFile);
     if (file.existsSync()) {
       file.deleteSync();
@@ -58,7 +58,7 @@ class PlayerLogFile {
   static Future<bool> openLogFile(PlayerJobItem pJob,
       [bool bClear = false]) async {
     if (pJob.nRetryCount == 0) {
-      logI('Starting download!');
+      logI('Starting download!', syncTag);
     }
 
     String strFileName = path.join(DCMGlobal.ftpSettingPath, 'ftperror.xml');
@@ -317,7 +317,7 @@ class PlayerLogFile {
         return true;
       }
     }
-    logE('Ftp log update failure\n');
+    logE('Sync log update failure\n', syncTag);
 
     return false;
   }
@@ -347,14 +347,15 @@ class PlayerLogFile {
           },
         );
         logI(
-            '''httpPostAction '$url', response: ${response.statusCode} - ${response.body}''');
+            '''httpPostAction '$url', response: ${response.statusCode} - ${response.body}''',
+            syncTag);
         return (
           status: response.statusCode >= 200 && response.statusCode < 300,
           result: response.body
         );
       } else {
         final response = await client.get(
-          _path(url),
+          url,
           headers: {
             'Content-Type': contentType ??
                 'application/x-www-form-urlencoded; charset=UTF-8'
@@ -368,7 +369,7 @@ class PlayerLogFile {
         );
       }
     } catch (e) {
-      logE('''httpPostAction '$url' error: $e''');
+      logE('''httpPostAction '$url' error: $e''', syncTag);
       return (status: false, result: null);
     }
   }

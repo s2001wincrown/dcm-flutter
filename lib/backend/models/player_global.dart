@@ -44,10 +44,10 @@ Future<bool> getPlayerRegInfo() async {
   final strUniqueName = globalPlayer.strUniqueName;
   final strRequest =
       guidReg.isEmpty ? '$cHTTPUNIQUEKEY=$strUniqueName' : 'guidReg=$guidReg';
-  logI('''Http link: '$strGetRegInfoHttpLink'; Request: '$strRequest'.''');
 
-  String strLink = '$strGetRegInfoHttpLink?$strRequest';
+  String strLink = '$strGetRegInfoHttpLink?${Utils.urlEscape(strRequest)}';
   strLink = Utils.addCMSParam(strLink);
+  logI('''Http link: '$strLink'; Request: '$strRequest'.''');
 
   final result = await httpGet(strLink);
   if (result.status) {
@@ -119,22 +119,27 @@ Future<bool> getPublicIP() async {
   return globalPlayer.strPublicIP.isNotEmpty;
 }
 
-Future<({bool status, String? result})> httpGet(String url) async {
+Future<({bool status, String? result})> httpGet(String url,
+    [String? contentType]) async {
   final client = DcmHttpClient(
     baseUrl: Utils.apiBaseUrl(url),
     timeout: const Duration(seconds: 15),
     defaultHeaders: {
-      'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+      'Content-Type':
+          contentType ?? 'application/x-www-form-urlencoded; charset=UTF-8',
     },
   );
 
   try {
     final response = await client.get(
-      Utils.apiPath(url),
+      url,
       headers: {
-        'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+        'Content-Type':
+            contentType ?? 'application/x-www-form-urlencoded; charset=UTF-8',
       },
     );
+    logI(
+        '''httpGet '$url' statusCode: ${response.statusCode}, body: ${response.body}''');
     return (
       status: response.statusCode >= 200 && response.statusCode < 300,
       result: response.body,
@@ -265,7 +270,7 @@ void applyWorkerPlayer(Map<String, dynamic>? m) {
 //********************************************************************/
 Future<bool> loadAppSetting(String? deviceId) async {
   var bResult = await loadPlaybackSettings(deviceId);
-  logI('CFtpManagerApp::LoadAppSetting()!');
+  logI('player_global - LoadAppSetting()!');
 
   if (bResult.status) {
     //Settings.AdjustSettingsByLicense();
@@ -273,7 +278,7 @@ Future<bool> loadAppSetting(String? deviceId) async {
     App().contentTypeManager.loadContentTypes();
   } else {
     logE(
-        'CFtpManagerApp::LoadAppSetting; Get playback settings from server failure!');
+        'player_global - LoadAppSetting; Get playback settings from server failure!');
   }
   if (!kDebugMode && bResult.isNeedRestart) {
     await PlayerLogImpl.restartAction();
@@ -297,11 +302,11 @@ Future<({bool status, bool isNeedRestart})> loadPlaybackSettings(
       String strGetSettings = result.pHttpLink!;
       nSettingsGroup = result.pSettingsGroup ?? 1;
       String strRequest =
-          'uiType=3&strUniqueName=${Utils.urlEscape(deviceId)}&uiGroupID=$nSettingsGroup';
+          'uiType=3&strUniqueName=$deviceId&uiGroupID=$nSettingsGroup';
       strGetSettings = fADDSLASH(strGetSettings);
       strGetSettings += cmsGETSETTINGSURL;
       strGetSettings += '?';
-      strGetSettings += strRequest;
+      strGetSettings += Utils.urlEscape(strRequest);
       strRequest = '';
       strGetSettings = Utils.addCMSParam(strGetSettings);
       var httpResult = await httpGet(strGetSettings);
@@ -335,16 +340,17 @@ Future<bool> loadContentTypeSettings(String deviceId) async {
     String strGetSettings = result.pHttpLink!;
     nSettingsGroup = result.pSettingsGroup ?? 1;
     String strRequest =
-        'uiType=99&strUniqueName=${Utils.urlEscape(deviceId)}&uiGroupID=$nSettingsGroup';
+        'uiType=99&strUniqueName=$deviceId&uiGroupID=$nSettingsGroup';
     strGetSettings = fADDSLASH(strGetSettings);
     strGetSettings += cmsGETSETTINGSURL;
     strGetSettings += '?';
-    strGetSettings += strRequest;
+    strGetSettings += Utils.urlEscape(strRequest);
     strRequest = '';
     strGetSettings = Utils.addCMSParam(strGetSettings);
     String strResult = '';
     var httpResult = await httpGet(strGetSettings);
     if (httpResult.status) {
+      strResult = httpResult.result ?? '';
       return ContentTypeManager.saveContentTypes(strResult);
     }
   } else {
@@ -352,4 +358,12 @@ Future<bool> loadContentTypeSettings(String deviceId) async {
   }
 
   return false;
+}
+
+Future<void> resetPlayerSettings() async {
+  String strIniFile = path.join(DCMGlobal.appDataPath, configFILENAME);
+  var file = File(strIniFile);
+  if (await file.exists()) {
+    await file.delete();
+  }
 }

@@ -186,9 +186,8 @@ class PlayerJobItem {
     return nRetryCount + 1 > nRetries;
   }
 
-  bool isImm() {
-    return (dwJobType == JobItemType.eMANUAL ||
-        dwJobType == JobItemType.eHTTPGET);
+  static bool isImm(JobItemType jobType) {
+    return (jobType == JobItemType.eMANUAL || jobType == JobItemType.eHTTPGET);
   }
 
   bool isTiming() {
@@ -334,7 +333,7 @@ class PlayerTaskFile {
   static DateTime dtSyncTime = fromOleDateTime(0.00);
 
   static String strFtpTime =
-      '${DateTime.now().year}${_twoDigits(DateTime.now().month)}${_twoDigits(DateTime.now().day)}000000';
+      '${DateFormat('yyyyMMdd').format(DateTime.now())}000000';
   static String strTimeOuts = '05:00';
   static int nSyncPeriod = 7;
   static int nBeforeDay = 1;
@@ -342,13 +341,9 @@ class PlayerTaskFile {
   static bool bIsTimeForACU = false;
   static bool bReset = false;
 
-  static String _twoDigits(int n) {
-    return n.toString().padLeft(2, '0');
-  }
-
   static void init() {
     strFtpTime =
-        '${DateTime.now().year}${_twoDigits(DateTime.now().month)}${_twoDigits(DateTime.now().day)}${globalPlayer.strSyncTime}00';
+        '${DateFormat('yyyyMMdd').format(DateTime.now())}${globalPlayer.strSyncTime}00';
     strFtpTime = strFtpTime.replaceAll(':', '');
     strTimeOuts = globalPlayer.strTimeOuts;
     nSyncPeriod = globalPlayer.nSyncPeriod;
@@ -374,10 +369,10 @@ class PlayerTaskFile {
       if (strResult.equalsIgnoreCase('Downloading')) {
         return false;
       } else {
-        logE('''Task:'$szTask' timeout\n''');
+        logE('''Task:'$szTask' timeout\n''', syncTag);
       }
     } else {
-      logE('Task timeout check HTTP Conection failure\n');
+      logE('Task timeout check HTTP Conection failure\n', syncTag);
     }
 
     return true;
@@ -400,10 +395,7 @@ class PlayerTaskFile {
     String strResult = await getTaskFromCMSInternal(req);
     if (strResult.isNotEmpty) {
       if (strResult.length > 14 &&
-          !strResult
-              .substring(0, 14)
-              .toLowerCase()
-              .contains('no player task')) {
+          !strResult.startsWithIgnoreCase('no player task')) {
         var vTaskQueue = getTaskFromXml(strXML: strResult);
         await dispatchTask(vTaskQueue);
       }
@@ -415,7 +407,7 @@ class PlayerTaskFile {
     String strCMSLink = DCMGlobal.cmsUrl;
     if (!strCMSLink.endsWith('/')) strCMSLink += '/';
     strCMSLink += cmsPLAYERTASKURL;
-    strCMSLink += '?$strRequest';
+    strCMSLink += '?${Utils.urlEscape(strRequest)}';
 
     // Add CMS Param
     strCMSLink = Utils.addCMSParam(strCMSLink);
@@ -462,15 +454,17 @@ class PlayerTaskFile {
       PlayerJobItem existing = vTaskQueue[index];
       if (existing.bIsCurrent) {
         if (pTask.hasExpired()) {
-          logE(
-              '''Task: '${pTask.strJobItem}' has expired; Valid Time: '${DateFormat('yyyy-MM-dd HH:mm:ss').format(pTask.dtValidity!)}'!''');
+          logW(
+              '''Task: '${pTask.strJobItem}' has expired; Valid Time: '${DateFormat('yyyy-MM-dd HH:mm:ss').format(pTask.dtValidity!)}'!''',
+              syncTag);
           existing.nAction = 2; // Stop
         }
       } else {
         if (existing.strJobTime != pTask.strJobTime) {
           if (pTask.hasExpired()) {
-            logE(
-                '''Task: '${pTask.strJobItem}' has expired; Valid Time: '${DateFormat('yyyy-MM-dd HH:mm:ss').format(pTask.dtValidity!)}'!''');
+            logW(
+                '''Task: '${pTask.strJobItem}' has expired; Valid Time: '${DateFormat('yyyy-MM-dd HH:mm:ss').format(pTask.dtValidity!)}'!''',
+                syncTag);
             vTaskQueue.removeAt(index);
           } else {
             pTask.bIsCurrent = existing.bIsCurrent;
@@ -481,8 +475,9 @@ class PlayerTaskFile {
           }
         } else {
           if (pTask.hasExpired()) {
-            logE(
-                '''Task: '${pTask.strJobItem}' has expired; Valid Time: '${pTask.dtValidity!.toIso8601String()}'!''');
+            logW(
+                '''Task: '${pTask.strJobItem}' has expired; Valid Time: '${pTask.dtValidity!.toIso8601String()}'!''',
+                syncTag);
             vTaskQueue.removeAt(index);
           }
         }
@@ -495,7 +490,7 @@ class PlayerTaskFile {
   }
 
   static void removeTask(PlayerJobItem pTask) {
-    logI('''CPlayerTaskFile::RemoveTask: '${pTask.strJobItem}'!''');
+    logI('''CPlayerTaskFile::RemoveTask: '${pTask.strJobItem}'!''', syncTag);
     int index = vTaskQueue.indexOf(pTask);
     if (index != -1) {
       vTaskQueue.removeAt(index);
@@ -519,7 +514,8 @@ class PlayerTaskFile {
 
       if (!bValid) {
         logD(
-            '''Load Player task file failure: '$strPlayerTaskFile'; try to delete file to recreate\n''');
+            '''Load Player task file failure: '$strPlayerTaskFile'; try to delete file to recreate\n''',
+            syncTag);
         file.close();
         await File(strPlayerTaskFile).delete();
       }
@@ -545,9 +541,9 @@ class PlayerTaskFile {
       //return true;
     }
     String strTaskFile = path.join(DCMGlobal.ftpSettingPath, 'PlayerTasks.xml');
-    XmlFile ftpTask = XmlFile('PlayerTasks');
-    if (ftpTask.load(strTaskFile)) {
-      var taskQueues = getTaskFromXml(ftpTask: ftpTask);
+    XmlFile syncTassk = XmlFile('PlayerTasks');
+    if (syncTassk.load(strTaskFile)) {
+      var taskQueues = getTaskFromXml(syncTassk: syncTassk);
       dispatchTask(taskQueues);
     }
 
@@ -600,7 +596,8 @@ class PlayerTaskFile {
       var it = taskQueues.first;
       if (it.hasExpired()) {
         logE(
-            '''Task: '${it.strJobItem}' has expired; Validity: '${DateFormat('yyyy-MM-dd HH:mm:ss').format(it.dtValidity!)}'!''');
+            '''Task: '${it.strJobItem}' has expired; Validity: '${DateFormat('yyyy-MM-dd HH:mm:ss').format(it.dtValidity!)}'!''',
+            syncTag);
         taskQueues.remove(it);
         continue;
       }
@@ -655,52 +652,53 @@ class PlayerTaskFile {
     if (result.status) {
       strResult = result.result!;
       if (strResult.equalsIgnoreCase('Successful')) {
-        logI('Update task status successfully;');
+        logI('Update task status successfully;', syncTag);
       } else {
-        logE('Update task status failure');
+        logE('Update task status failure', syncTag);
       }
     } else {
-      logE('CPlayerTaskFile::UpdateTaskStatus - HTTP update failure!');
+      logE('CPlayerTaskFile::UpdateTaskStatus - HTTP update failure!', syncTag);
     }
 
     return true;
   }
 
   static List<PlayerJobItem>? getTaskFromXml(
-      {String? strXML, XmlFile? ftpTask}) {
-    if (ftpTask == null) {
+      {String? strXML, XmlFile? syncTassk}) {
+    if (syncTassk == null) {
       if (isNotBlank(strXML)) {
         XmlFile xmlTask = XmlFile('PlayerTasks');
         if (xmlTask.loadXml(strXML!)) {
           String strTaskFile =
               path.join(DCMGlobal.ftpSettingPath, 'PlayerTasks.xml');
           xmlTask.save(strTaskFile);
-          return getTaskFromXml(ftpTask: xmlTask);
+          return getTaskFromXml(syncTassk: xmlTask);
         }
       }
-      logE('CPlayerTaskFile::QueueTask - Empty XML orLoad XML failure!');
+      logE('CPlayerTaskFile::QueueTask - Empty XML orLoad XML failure!',
+          syncTag);
 
       return null;
     }
 
-    String ftpTime = ftpTask.getItemValue('m_strFtpTime');
+    String ftpTime = syncTassk.getItemValue('m_strFtpTime');
     if (ftpTime.isNotEmpty) {
       strFtpTime = ftpTime;
-      nBeforeDay = ftpTask.getItemValueI('m_nBeforeDay');
-      bReplaceFile = ftpTask.getItemValueB('m_bReplaceFile');
+      nBeforeDay = syncTassk.getItemValueI('m_nBeforeDay');
+      bReplaceFile = syncTassk.getItemValueB('m_bReplaceFile');
     }
-    String timeOuts = ftpTask.getItemValue('m_strTimeOuts');
+    String timeOuts = syncTassk.getItemValue('m_strTimeOuts');
     if (timeOuts.isNotEmpty) {
       strTimeOuts = timeOuts;
     }
-    int syncPeriod = ftpTask.getItemValueI('m_nFtpPeriod');
+    int syncPeriod = syncTassk.getItemValueI('m_nFtpPeriod');
     if (syncPeriod > 0) {
       nSyncPeriod = syncPeriod;
     }
-    bIsTimeForACU = (ftpTask.getItemValueI('IsTimeForAutoUpdate') > 0);
+    bIsTimeForACU = (syncTassk.getItemValueI('IsTimeForAutoUpdate') > 0);
 
     List<PlayerJobItem> taskQueue = [];
-    XmlItem? pItem = ftpTask.getItem('TaskItem');
+    XmlItem? pItem = syncTassk.getItem('TaskItem');
     if (pItem != null) {
       String strPlayerTask =
           '<?xml version="1.0" encoding="UTF-8"?><PlayerTasks $cHTTPUNIQUEKEY="${globalPlayer.strUniqueName}">';
@@ -773,7 +771,7 @@ class PlayerTaskFile {
     vTaskQueue.clear();
   }
 
-  static void resetFtpStatus() {
+  static void resetSyncStatus() {
     if (pCurrJob != null) {
       pCurrJob!.nRetries = DCMGlobal.taskTransferRetries;
       writeTaskFile(pCurrJob, FileTransferStatus.eTRANSFERFAILED);

@@ -10,6 +10,23 @@ const int kDCMSMSSERVERPORT = 10028;
 const int kDCM3GSERVERPORT = 10029;
 const int kFTPMANAGERPORT = 10079;
 
+// Message definitions
+//const long msg_CommandReceived		= 'vod0' + 1;
+//const long msg_NewSocketAccepted	= 'vod0' + 2;
+
+// SMS Command Control
+//const int kSMSCOMMANDMASK		0xff00;
+const int kSMSCOMMANDPLAYLOG = 0x0001;
+const int kSMSCOMMANDFTPLOG = 0x0002;
+const int kSMSCOMMANDBPSSTATUS = 0x0004;
+const int kSMSCOMMANDTIMESYNC = 0x0008;
+const int kSMSCOMMANDRESET = 0x0010;
+const int kSMSCOMMANDRESTART = 0x0020;
+const int kSMSCOMMANDDCMPLAYER = 0x0040;
+const int kSMSCOMMANDPLAYLIST = 0x0080;
+const int kSMSCOMMANDAHPLAYLOG = 0x0100;
+const int kSMSCOMMANDUSBDTLLOG = 0x0200;
+
 // 协议ID枚举
 enum ProtocolId {
   any(-1),
@@ -54,6 +71,16 @@ enum NetCommand {
 
   final int value;
   const NetCommand(this.value);
+}
+
+NetCommand? netCommandFrom(int value) {
+  for (var element in NetCommand.values) {
+    if (element.value == value) {
+      return element;
+    }
+  }
+
+  return null;
 }
 
 // 数据包头结构体

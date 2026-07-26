@@ -66,8 +66,8 @@ class _ContentListPlayerState extends State<ContentListPlayer> {
                   builder: (context) {
                     final currentLayout = playerScreenProvider
                         .getContentListPlayerZones(widget.zone);
-                    logD(
-                        '''ContentListPlayer Zone: ${widget.zone}, play: '${widget.contentList}', contentType: ${widget.contentType}, currentLayout: ${currentLayout?.length}.''');
+                    /*logD(
+                        '''ContentListPlayer Zone: ${widget.zone}, play: '${widget.contentList}', contentType: ${widget.contentType}, currentLayout: ${currentLayout?.length}.''');*/
                     if (currentLayout == null || currentLayout.isEmpty) {
                       return Container(
                         color: Utils.fromRGB(DCMGlobal.clrBGColor),
@@ -80,8 +80,8 @@ class _ContentListPlayerState extends State<ContentListPlayer> {
                         final top = partition.getRect().top;
                         final w = partition.getRect().width;
                         final h = partition.getRect().bottom;
-                        logD(
-                            '''ContentListPlayer: Render '${partition.getZoneFile()}' in partition ${partition.getZone()} at ($left, $top) with size ($w x $h)''');
+                        /*logD(
+                            '''ContentListPlayer: Render '${partition.getZoneFile()}' in partition ${partition.getZone()} at ($left, $top) with size ($w x $h)''');*/
 
                         return Positioned(
                           left: left,

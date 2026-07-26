@@ -123,7 +123,7 @@ class DCMGlobal {
 
   static int httpRetryTimes = 10; //HTTP Post Retry Times
 
-  static int statusCheckInterval = 1; //minutes
+  static int statusCheckInterval = 60; //seconds
 
   // Other
   static int copyFileQueueSize = 8 * 1024 * 1024;
@@ -249,6 +249,49 @@ class DCMGlobal {
     return {
       'cscPath': _readStringValue(() => cscPath),
       'appDataPath': _readStringValue(() => appDataPath),
+      'ddServerPath': _readStringValue(() => ddServerPath),
+      'openPath': _readStringValue(() => openPath),
+      'imagePath': _readStringValue(() => imagePath),
+      'vcdPath': _readStringValue(() => vcdPath),
+      'ppPath': _readStringValue(() => ppPath),
+      'flashPath': _readStringValue(() => flashPath),
+      'webPath': _readStringValue(() => webPath),
+      'textPath': _readStringValue(() => textPath),
+      'imageSettingPath': _readStringValue(() => imageSettingPath),
+      'clockPath': _readStringValue(() => clockPath),
+      'weatherPath': _readStringValue(() => weatherPath),
+      'siteContentPath': _readStringValue(() => siteContentPath),
+      'layoutImagePath': _readStringValue(() => layoutImagePath),
+      'skinsPath': _readStringValue(() => skinsPath),
+      'rltContentPath': _readStringValue(() => rltContentPath),
+      'dynamicDataPath': _readStringValue(() => dynamicDataPath),
+      'skinFile': _readStringValue(() => skinFile),
+      'graphicsPath': _readStringValue(() => graphicsPath),
+      'dayPath': _readStringValue(() => dayPath),
+      'ahPlaylistPath': _readStringValue(() => ahPlaylistPath),
+      'monthPath': _readStringValue(() => monthPath),
+      'calendarPath': _readStringValue(() => calendarPath),
+      'settingPath': _readStringValue(() => settingPath),
+      'ftpSettingPath': _readStringValue(() => ftpSettingPath),
+      'tempPath': _readStringValue(() => tempPath),
+      'logPath': _readStringValue(() => logPath),
+      'contentListPath': _readStringValue(() => contentListPath),
+      'linkagePath': _readStringValue(() => linkagePath),
+      'ddeOthersPath': _readStringValue(() => ddeOthersPath),
+      'ddeDataPath': _readStringValue(() => ddeDataPath),
+      'ddeXmlPath': _readStringValue(() => ddeXmlPath),
+      'messagePath': _readStringValue(() => messagePath),
+      'roomEventPath': _readStringValue(() => roomEventPath),
+      'roomPath': _readStringValue(() => roomPath),
+      'lobbyPath': _readStringValue(() => lobbyPath),
+      'preDataPath': _readStringValue(() => preDataPath),
+      'updateFilePath': _readStringValue(() => updateFilePath),
+      'availableACUStart': availableACUStart == null
+          ? ''
+          : _readStringValue(() => availableACUStart!),
+      'availableACUEnd': availableACUEnd == null
+          ? ''
+          : _readStringValue(() => availableACUEnd!),
       'cmsUrl': _readStringValue(() => cmsUrl),
       'cmsToken': _readStringValue(() => cmsToken),
       'organization': _readStringValue(() => organization),
@@ -261,6 +304,10 @@ class DCMGlobal {
       'logUploadPeriod': logUploadPeriod,
       'statusCheckInterval': statusCheckInterval,
       'httpRetryTimes': httpRetryTimes,
+      'fileIntegrityCheck': fileIntegrityCheck,
+      'deleteContentIfFTPFail': deleteContentIfFTPFail,
+      'retryInterval': retryInterval,
+      'autoSyncTime': autoSyncTime,
     };
   }
 
@@ -275,6 +322,45 @@ class DCMGlobal {
   static void applyWorkerConfig({
     String? cscPath,
     String? appDataPath,
+    String? ddServerPath,
+    String? openPath,
+    String? imagePath,
+    String? vcdPath,
+    String? ppPath,
+    String? flashPath,
+    String? webPath,
+    String? textPath,
+    String? imageSettingPath,
+    String? clockPath,
+    String? weatherPath,
+    String? siteContentPath,
+    String? layoutImagePath,
+    String? skinsPath,
+    String? rltContentPath,
+    String? dynamicDataPath,
+    String? skinFile,
+    String? graphicsPath,
+    String? dayPath,
+    String? ahPlaylistPath,
+    String? monthPath,
+    String? calendarPath,
+    String? settingPath,
+    String? ftpSettingPath,
+    String? tempPath,
+    String? logPath,
+    String? contentListPath,
+    String? linkagePath,
+    String? ddeOthersPath,
+    String? ddeDataPath,
+    String? ddeXmlPath,
+    String? messagePath,
+    String? roomEventPath,
+    String? roomPath,
+    String? lobbyPath,
+    String? preDataPath,
+    String? updateFilePath,
+    String? availableACUStart,
+    String? availableACUEnd,
     String? cmsUrl,
     String? cmsToken,
     String? organization,
@@ -287,12 +373,133 @@ class DCMGlobal {
     int? logUploadPeriod,
     int? statusCheckInterval,
     int? httpRetryTimes,
+    bool? fileIntegrityCheck,
+    bool? deleteContentIfFTPFail,
+    int? retryInterval,
+    bool? autoSyncTime,
   }) {
     if (cscPath != null) {
       DCMGlobal.cscPath = cscPath;
     }
     if (appDataPath != null) {
       DCMGlobal.appDataPath = appDataPath;
+    }
+    if (ddServerPath != null) {
+      DCMGlobal.ddServerPath = ddServerPath;
+    }
+    if (openPath != null) {
+      DCMGlobal.openPath = openPath;
+    }
+    if (imagePath != null) {
+      DCMGlobal.imagePath = imagePath;
+    }
+    if (vcdPath != null) {
+      DCMGlobal.vcdPath = vcdPath;
+    }
+    if (ppPath != null) {
+      DCMGlobal.ppPath = ppPath;
+    }
+    if (flashPath != null) {
+      DCMGlobal.flashPath = flashPath;
+    }
+    if (webPath != null) {
+      DCMGlobal.webPath = webPath;
+    }
+    if (textPath != null) {
+      DCMGlobal.textPath = textPath;
+    }
+    if (imageSettingPath != null) {
+      DCMGlobal.imageSettingPath = imageSettingPath;
+    }
+    if (clockPath != null) {
+      DCMGlobal.clockPath = clockPath;
+    }
+    if (weatherPath != null) {
+      DCMGlobal.weatherPath = weatherPath;
+    }
+    if (siteContentPath != null) {
+      DCMGlobal.siteContentPath = siteContentPath;
+    }
+    if (layoutImagePath != null) {
+      DCMGlobal.layoutImagePath = layoutImagePath;
+    }
+    if (skinsPath != null) {
+      DCMGlobal.skinsPath = skinsPath;
+    }
+    if (rltContentPath != null) {
+      DCMGlobal.rltContentPath = rltContentPath;
+    }
+    if (dynamicDataPath != null) {
+      DCMGlobal.dynamicDataPath = dynamicDataPath;
+    }
+    if (skinFile != null) {
+      DCMGlobal.skinFile = skinFile;
+    }
+    if (graphicsPath != null) {
+      DCMGlobal.graphicsPath = graphicsPath;
+    }
+    if (dayPath != null) {
+      DCMGlobal.dayPath = dayPath;
+    }
+    if (ahPlaylistPath != null) {
+      DCMGlobal.ahPlaylistPath = ahPlaylistPath;
+    }
+    if (monthPath != null) {
+      DCMGlobal.monthPath = monthPath;
+    }
+    if (calendarPath != null) {
+      DCMGlobal.calendarPath = calendarPath;
+    }
+    if (settingPath != null) {
+      DCMGlobal.settingPath = settingPath;
+    }
+    if (ftpSettingPath != null) {
+      DCMGlobal.ftpSettingPath = ftpSettingPath;
+    }
+    if (tempPath != null) {
+      DCMGlobal.tempPath = tempPath;
+    }
+    if (logPath != null) {
+      DCMGlobal.logPath = logPath;
+    }
+    if (contentListPath != null) {
+      DCMGlobal.contentListPath = contentListPath;
+    }
+    if (linkagePath != null) {
+      DCMGlobal.linkagePath = linkagePath;
+    }
+    if (ddeOthersPath != null) {
+      DCMGlobal.ddeOthersPath = ddeOthersPath;
+    }
+    if (ddeDataPath != null) {
+      DCMGlobal.ddeDataPath = ddeDataPath;
+    }
+    if (ddeXmlPath != null) {
+      DCMGlobal.ddeXmlPath = ddeXmlPath;
+    }
+    if (messagePath != null) {
+      DCMGlobal.messagePath = messagePath;
+    }
+    if (roomEventPath != null) {
+      DCMGlobal.roomEventPath = roomEventPath;
+    }
+    if (roomPath != null) {
+      DCMGlobal.roomPath = roomPath;
+    }
+    if (lobbyPath != null) {
+      DCMGlobal.lobbyPath = lobbyPath;
+    }
+    if (preDataPath != null) {
+      DCMGlobal.preDataPath = preDataPath;
+    }
+    if (updateFilePath != null) {
+      DCMGlobal.updateFilePath = updateFilePath;
+    }
+    if (availableACUStart != null) {
+      DCMGlobal.availableACUStart = availableACUStart;
+    }
+    if (availableACUEnd != null) {
+      DCMGlobal.availableACUEnd = availableACUEnd;
     }
     if (cmsUrl != null) {
       DCMGlobal.cmsUrl = cmsUrl;

@@ -1,4 +1,5 @@
 import 'package:dcm/backend/app.dart';
+import 'package:dcm/backend/player_command_ext.dart';
 import 'package:flutter/services.dart';
 
 class KeyMapHelper {

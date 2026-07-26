@@ -288,12 +288,8 @@ class XmlFile {
       } else {
         XmlItem? pXIChild = pos.current;
         while (pXIChild != null) {
-          logI(
-              'exportItem element: $sItem, value: ${pXIChild.getValue()}, item count: ${pXIChild.getItemCount()}');
-          /*TiXmlNode * pChildNode = pNode->InsertNode(nNode++, sItem);
-          CXmlNodeWrapper nodeChild(pChildNode, false);
-
-          Export(pXIChild, &nodeChild);*/
+          /*logI(
+              'exportItem element: $sItem, value: ${pXIChild.getValue()}, item count: ${pXIChild.getItemCount()}');*/
           builder.element(sItem, nest: () {
             exportItem(pXIChild!, builder);
           });

@@ -57,8 +57,8 @@ class PlayerPathService {
   bool _isLoaded = false;
   String _strBatch = "";
 
-  static bool bCopyTempFile = false;
-  static int nCopyCount = 0;
+  bool bCopyTempFile = false;
+  int nCopyCount = 0;
 
   static final ContentTypeManager contentTypeManager = ContentTypeManager();
 
@@ -72,6 +72,10 @@ class PlayerPathService {
     if (DCMGlobal.cmsUrl.isNotEmpty && !DCMGlobal.cmsUrl.endsWith('/')) {
       DCMGlobal.cmsUrl += '/';
     }
+  }
+
+  void init() {
+    contentTypeManager.loadContentTypes();
   }
 
   /********************************************************************/
@@ -142,9 +146,9 @@ class PlayerPathService {
         nPriorityFlag = 2;
         break;
       /*case DCM_AHPLAYLIST_TYPE:
-		strFilePath = strAHPlaylistPathD;
-		nPriorityFlag = 2;
-		break;*/
+        strFilePath = strAHPlaylistPathD;
+        nPriorityFlag = 2;
+        break;*/
       case cDCMFILETYPE:
         strFilePath = DCMGlobal.openPath;
         nPriorityFlag = 1;
@@ -312,7 +316,7 @@ class PlayerPathService {
     _lstFileInfo.clear();
   }
 
-  Future<void> copyFileFinish(bool bSuccess) async {
+  Future<void> copyFileFinish([bool bSuccess = true]) async {
 //((int)_lstFileInfo.length > 0);
     if (bSuccess) {
       DownloadFileListImpl downloadFileList = DownloadFileListImpl();

@@ -287,7 +287,7 @@ class ContentTypeManager {
     XmlFile xmlContentTypes = XmlFile('ContentTypes');
     String strContentTypeFile =
         path.join(DCMGlobal.appDataPath, 'ContentTypes.xml');
-    if (xmlContentTypes.loadXml(strContentTypeFile)) {
+    if (xmlContentTypes.load(strContentTypeFile)) {
       XmlItem? pXmlItem = xmlContentTypes.getItem('ContentType');
       return (pXmlItem != null);
     }

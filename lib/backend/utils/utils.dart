@@ -616,14 +616,14 @@ class Utils {
 
   static String addCMSParam(String strCMSLink, [bool bAddTokenOnly = false]) {
     String cmsParam = '';
+    if (!bAddTokenOnly && DCMGlobal.organization.isNotEmpty) {
+      cmsParam += 'o=${DCMGlobal.organization}';
+    }
     if (DCMGlobal.cmsToken.isNotEmpty) {
       //authentication-token
-      cmsParam += ('authentication-token=${DCMGlobal.cmsToken}');
+      cmsParam += '&authentication-token=${DCMGlobal.cmsToken}';
       //strCMSLink += (strCMSLink.Find('?') != -1 ? '&authentication-token=' : '?authentication-token=');
       //strCMSLink += Settings.CMSToken;
-    }
-    if (!bAddTokenOnly && DCMGlobal.organization.isNotEmpty) {
-      cmsParam += ('&o=${DCMGlobal.organization}');
     }
     if (cmsParam.isNotEmpty) {
       strCMSLink += (strCMSLink.contains('?') ? '&' : '?');

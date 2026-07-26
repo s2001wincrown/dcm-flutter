@@ -1,20 +1,32 @@
 import 'dart:async';
+import 'dart:io';
 
+import 'package:dcm/backend/constants.dart';
 import 'package:dcm/backend/models/dcm_global.dart';
 import 'package:dcm/backend/models/player_global.dart';
+import 'package:dcm/backend/net/dcm_http_client.dart';
+import 'package:dcm/backend/net/netdef.dart';
 import 'package:dcm/backend/net/play_log_post.dart';
 import 'package:dcm/backend/net/player_log_file.dart';
 import 'package:dcm/backend/net/player_log_impl.dart';
 import 'package:dcm/backend/net/player_path_service.dart';
 import 'package:dcm/backend/net/player_task_file.dart';
 import 'package:dcm/backend/net/transfer_action_service.dart';
+import 'package:dcm/backend/services/dcm_downloader.dart';
+import 'package:dcm/backend/services/player_register_impl.dart';
 import 'package:dcm/backend/utils/file_utils.dart';
 import 'package:dcm/backend/utils/log_utils.dart';
 import 'package:dcm/backend/utils/string_utils.dart';
 import 'package:dcm/backend/utils/utils.dart';
+import 'package:flutter/foundation.dart';
 import 'package:intl/intl.dart';
+import 'package:path/path.dart' as path;
 
 class ContentSyncService {
+  static final ContentSyncService _instance = ContentSyncService._internal();
+  factory ContentSyncService() => _instance;
+  ContentSyncService._internal();
+
   bool _bTransfering = false;
 
   bool _bStartupTime = false;
@@ -31,6 +43,12 @@ class ContentSyncService {
   String _strPlaylistVersion = '';
   String _strJob = '';
 
+  bool _isRunning = false;
+  Timer? _pollTimer;
+  Timer? _tempFileCopyTimer;
+  Timer? _syncStatusTimer;
+  bool _pollInProgress = false;
+
   //CDownloadDynamicDataThread *_pThreadDynamicDataUpdate;
 
   //CUploadThread  *_pThreadUpload;
@@ -39,10 +57,131 @@ class ContentSyncService {
   PlayLogPostService? _pPlayLogPost;
   //CDCMSocketImpl *_pTCPServer;
 
+  late DcmDownloader _workQueue;
+
+  DcmDownloader get workQueue => _workQueue;
+
+  Future<void> init() async {
+    await initPlayerRegisterInformation();
+    _workQueue = DcmDownloader(
+      apiUrl: DCMGlobal.cmsUrl,
+      queue: DcmDownloadQueue(
+          persistencePath:
+              path.join(DCMGlobal.appDataPath, 'download_queue.json')),
+      maxRetries: DCMGlobal.fileTransferRetries,
+      pollingInterval: null,
+    );
+  }
+
+  Future<void> startPolling() async {
+    if (_pollTimer != null) {
+      return;
+    }
+    _pollTimer = Timer.periodic(
+        Duration(seconds: DCMGlobal.statusCheckInterval), (_) => _pollTick());
+    await _pollOnce();
+  }
+
+  Future<void> stopPolling() async {
+    _pollTimer?.cancel();
+    _pollTimer = null;
+    _pollInProgress = false;
+  }
+
+  bool get isPolling => _pollTimer != null;
+
+  Future<void> _pollTick() async {
+    if (_pollInProgress) {
+      return;
+    }
+    _pollInProgress = true;
+    try {
+      await _pollOnce();
+    } finally {
+      _pollInProgress = false;
+    }
+  }
+
+  Future<void> _pollOnce() async {
+    await contentSyncStatusCheck();
+  }
+
+  Future<void> startTempFileCopyTimer() async {
+    if (_tempFileCopyTimer != null) {
+      return;
+    }
+    _tempFileCopyTimer =
+        Timer.periodic(const Duration(seconds: 2), (_) => _copyTempFileCheck());
+  }
+
+  Future<void> stopTempFileCopyTimer() async {
+    _tempFileCopyTimer?.cancel();
+    _tempFileCopyTimer = null;
+  }
+
+  void startSyncStatusTimer() {
+    if (_syncStatusTimer != null) {
+      return;
+    }
+
+    _bTransfering = true;
+    _syncStatusTimer =
+        Timer.periodic(const Duration(seconds: 1), (_) => _syncStatusCheck());
+  }
+
+  Future<void> stopSyncStatusTimer() async {
+    _syncStatusTimer?.cancel();
+    _syncStatusTimer = null;
+  }
+
+  Future<void> _syncStatusCheck() async {
+    if (isFtpFinished()) {
+      _bTransfering = false;
+      if (PlayerLogFile.bSyncFail) {
+        PlayerLogFile.bSyncFail = false;
+        flagRetryJob(DCMGlobal.retryInterval);
+      } else {
+        if (PlayerTaskFile.pCurrJob != null) {
+          //m_dwJobStatus = TRANSFERED_TEMPFILE;
+          PlayerTaskFile.writeTaskFile(
+              PlayerTaskFile.pCurrJob, FileTransferStatus.eTRANSFEREDTEMPFILE);
+          await startTempFileCopy();
+        }
+      }
+      return;
+    }
+
+    if (!isTimeOuts()) {
+      PlayerTaskFile.resetSyncStatus();
+      return;
+    }
+  }
+
+  bool isWorking() {
+    return (_bTransfering && PlayerTaskFile.pCurrJob != null);
+  }
+
+  bool isTimeOuts() {
+    if (_bTransfering && PlayerTaskFile.pCurrJob != null) {
+      DateTime dtDate = PlayerLogFile.dtDownloadStartTime;
+      String strTimeOuts = PlayerTaskFile.pCurrJob!.strTimeOuts;
+      int nHour = int.tryParse(strTimeOuts.substring(0, 2)) ?? 0;
+      int nMin = int.tryParse(strTimeOuts.substring(2, 4)) ?? 0;
+      if (dtDate
+          .add(Duration(hours: nHour, minutes: nMin))
+          .isAfter(DateTime.now())) {
+        return true;
+      }
+    } else if (!_bTransfering) {
+      return true;
+    }
+
+    return false;
+  }
+
   Future<void> initPlayerRegisterInformation() async {
     //StopTimer(ID_TIMER_UPDATE_REG, true);
 
-    bool bGetRegInfo = false;
     /*if (!kDebugMode){
 			  wxMilliSleep(StartupDelay);
       }*/
@@ -100,7 +239,7 @@ class ContentSyncService {
         }
       }
 
-      startFtpCheck();
+      startSyncCheck();
       //StartMessageThread();
       //StartRLTContentThread();
 
@@ -108,17 +247,81 @@ class ContentSyncService {
           globalPlayer.strUniqueName, globalPlayer.strName);
 
       if (PlayLogPostService.hasLogPost()) {
-        /*if (CreatePlayLogPost()) {
-						//if (pPlayLogPost.IsPlayLogPost())
-						pPlayLogPost.ResetPostTime();
-						pPlayLogPost.Start();
-					}*/
+        if (createPlayLogPost()) {
+          //if (pPlayLogPost.IsPlayLogPost())
+          _pPlayLogPost!.resetPostTime();
+          _pPlayLogPost!.start();
+        }
       }
     }
     //StartTimer(ID_TIMER_STATUS_CHECK, PlayerPathService.dwStatusCheckInterval);
   }
 
-  void startFtpCheck() {
+  Future<void> contentSyncStatusCheck() async {
+    //todo wifi check
+    //FTPMisc::NetworkCheck();
+
+    //todo UDP server init
+    /*if (g_UDPManager == null || (g_UDPManager && !g_UDPManager.IsOk()))
+		{
+			bool bUDP = InitUDPManager(globalPlayer);
+
+			PlayerLogFile.Message(MSG_INFO, bUDP ? 'Init UDP Socket Successfully!' : 'Init UDP Socket Failure!');
+
+			//FTPMisc::SendStatusToMonitor(0, 0, 'Init UDP Socket Successfully!');
+		}*/
+
+    //todo sync time check
+    /*if (!PlayerTaskFile.bSyncTime && PlayerPathService.bAutoSyncTime)
+		{
+
+			PlayerLogFile.Message(MSG_INFO, 'Try to Sync Time.');
+
+			PlayerTaskFile.SynLocalTime();
+		}*/
+
+    if (PlayerTaskFile.bReset) {
+      logW('Try to reset all tasks', syncTag);
+      _bTransfering = false;
+      await _workQueue.resetQueue();
+      PlayerTaskFile.resetTasks();
+    }
+
+    logI(
+        '''DCM Task check: '${globalPlayer.strUniqueName}'; CMS url: '${DCMGlobal.cmsUrl}'.''',
+        syncTag);
+
+    bool bSyncing = false;
+    if (globalPlayer.strUniqueName.isNotEmpty) {
+      await PlayerTaskFile.getTaskFromServer();
+      await processCMDTask();
+
+      bSyncing = _bTransfering;
+      PlayLogPostService.updatePlayerLog2();
+
+      PlayLogPostService.updateShutdown();
+      PlayLogPostService.updateContentLog(
+          globalPlayer.strUniqueName, globalPlayer.strName);
+
+      if (PlayerTaskFile.pCurrJob != null) {
+        if (PlayerTaskFile.pCurrJob!.nAction == 2) {
+          await _workQueue.resetQueue();
+          _bTransfering = false;
+          PlayerTaskFile.removeTask(PlayerTaskFile.pCurrJob!);
+        } else {
+          PlayerLogFile.timeForSyncStatusUpdate();
+        }
+      }
+
+      PlayLogPostService.updatePlayerLogRetry();
+
+      if (!bSyncing) {
+        await startSyncAction();
+      }
+    }
+  }
+
+  void startSyncCheck() {
     //startDynamicDataUpdateThread();
     //startUploadThread();
   }
@@ -134,7 +337,7 @@ class ContentSyncService {
           PlayerTaskFile.pCurrJob, FileTransferStatus.eTRANSFERFAILED);
 
       String strBatch = PlayerTaskFile.pCurrJob!.strJobItem;
-      //DWORD dwStatus = PlayerTaskFile.pCurrJob!.dwJobStatus;
+      //int dwStatus = PlayerTaskFile.pCurrJob!.dwJobStatus;
       //SAFE_DELETE(PlayerTaskFile.pCurrJob);
       PlayerTaskFile.removeTask(PlayerTaskFile.pCurrJob!);
 
@@ -178,7 +381,8 @@ class ContentSyncService {
         PlayerLogFile.strJob = PlayerTaskFile.pCurrJob!.strJobItem;
 
         logI(
-            '''Load Task: '${PlayerTaskFile.pCurrJob!.strJobItem}' successfully; Retry: '${PlayerTaskFile.pCurrJob!.nRetryCount}'; status: '${PlayerTaskFile.pCurrJob!.dwJobStatus}'.''');
+            '''Load Task: '${PlayerTaskFile.pCurrJob!.strJobItem}' successfully; Retry: '${PlayerTaskFile.pCurrJob!.nRetryCount}'; status: '${PlayerTaskFile.pCurrJob!.dwJobStatus}'.''',
+            syncTag);
 
         if (PlayerTaskFile.pCurrJob!.dwJobStatus.value <
                 FileTransferStatus.eTRANSFERFAILED.value ||
@@ -200,13 +404,13 @@ class ContentSyncService {
   }
 
   bool isFtpFinished() {
-    return true; //m_WorkQueue.GetQueueStatus();
+    return _workQueue.getQueueStatus().allTasksFinished;
   }
 
   Future<void> startTempFileCopy() async {
-    logI('Copy tempory file to playlist\n');
+    logI('Copy tempory file to playlist\n', syncTag);
     if (isFtpFinished()) {
-      logI('Start To Copy tempory file to playlist\n');
+      logI('Start To Copy tempory file to playlist\n', syncTag);
 
       //_bTransfering = false;
       _bTransfering = false;
@@ -215,12 +419,13 @@ class ContentSyncService {
       if (PlayerTaskFile.pCurrJob!.dwSyncContent == cSyncDCMPLAYERLOG ||
           PlayerTaskFile.pCurrJob!.dwSyncContent == cSyncDCMTRANSFERLOG) {
         //_bPlayListUpdated = true;
-        //StartTimer(ID_TIMER_TEMPFILE_CHECK, 2000, true);
+        await startTempFileCopyTimer();
         return;
       }
       if (await PlayerPathService()
           .loadDownloadFileList(PlayerTaskFile.pCurrJob!.strJobItem)) {
-        logI('Load Downloaded filelist To Copy tempory file to playlist\n');
+        logI('Load Downloaded filelist To Copy tempory file to playlist\n',
+            syncTag);
 
         if (PlayerTaskFile.pCurrJob!.dwSyncContent != cSyncDDEDATA &&
             PlayerTaskFile.pCurrJob!.dwSyncContent != cSyncDCMPLAYERLOG &&
@@ -233,10 +438,11 @@ class ContentSyncService {
             //::PostMessage(HWND_BROADCAST, wm_Message, (WPARAM)m_hWnd, BLACKSCRN_NOTICE);
           }
         }
-        //StartTimer(ID_TIMER_TEMPFILE_CHECK, 2000, true);
+        await startTempFileCopyTimer();
       } else {
         logI(
-            'Load Downloaded filelist failure To Copy tempory file to playlist\n');
+            'Load Downloaded filelist failure To Copy tempory file to playlist\n',
+            syncTag);
 
         //_bTransfering = false;
         PlayerTaskFile.pCurrJob!.dwJobStatus =
@@ -247,23 +453,129 @@ class ContentSyncService {
     }
   }
 
-  Future<void> startTransferAction() async {
-    if (!await startTransferActionLock()) {
-      PlayerLogFile.openLogFile(PlayerTaskFile.pCurrJob!);
+  Future<void> _copyTempFileCheck() async {
+    if (!_bPlayListUpdated) {
+      if (PlayerTaskFile.pCurrJob!.dwSyncContent != cSyncDCMPLAYERLOG &&
+          PlayerTaskFile.pCurrJob!.dwSyncContent != cSyncDCMTRANSFERLOG) {
+        _bPlayListUpdated = await PlayerPathService().tryToCopyTempFile();
+      } else {
+        _bPlayListUpdated = true;
+      }
+      if (_bPlayListUpdated) {
+        //m_dwJobStatus = TRANSFER_SUCCESS;
+        PlayerTaskFile.writeTaskFile(
+            PlayerTaskFile.pCurrJob, FileTransferStatus.eTRANSFERSUCCESS);
+
+        PlayerPathService().copyFileFinish();
+      } else {
+        //PlayerPathService().SaveDownloadFileList();
+        if (PlayerPathService().nCopyCount > DCMGlobal.tempFileCopyRetries) {
+          PlayerPathService().nCopyCount = 0;
+          stopTempFileCopyTimer();
+          //todo notify to player
+          /*#ifndef OLEVIA_PLAYER
+  #if DCM_PLATFORM != DCM_PLATFORM_WIN32
+          String strCmd = String::Format(ddeformat, FTPFINISHED_NOTICE, 0,'');
+          DDENotify(strCmd);
+  #else
+          ::PostMessage(HWND_BROADCAST, wm_Message, (WPARAM)m_hWnd, FTPFINISHED_NOTICE);
+  #endif
+  #endif*/
+          //PlayerPathService().CopyFileFinish(false);
+          //PlayerPathService().bCopyTempFile = false;
+          PlayerPathService().saveDownloadFileList();
+          flagRetryJob(DCMGlobal.retryInterval);
+        }
+      }
+    } else {
+      logI('Finished Copy tempory file to playlist\n', syncTag);
+
+      String strLatestPlaylistVersion = PlayerTaskFile.pCurrJob!.strJobItem;
+      int dwSyncContent = PlayerTaskFile.pCurrJob!.dwSyncContent;
+      int nEventDisplay = PlayerTaskFile.pCurrJob!.nSyncPeriod;
+      String strSyncContent = PlayerTaskFile.pCurrJob!.strSyncContent;
+      JobItemType dwJobType = PlayerTaskFile.pCurrJob!.dwJobType;
+
+      //m_dwJobStatus = TRANSFER_SUCCESS;
+      PlayerTaskFile.writeTaskFile(
+          PlayerTaskFile.pCurrJob, FileTransferStatus.eTRANSFERSUCCESS);
+      PlayerTaskFile.removeTask(PlayerTaskFile.pCurrJob!);
+
+      stopTempFileCopyTimer();
+
+      _bPlayListUpdated = true;
+      PlayerLogFile.closeLogFile('Download Finished');
+
+      _bTransfering = false;
+      if (dwSyncContent == cSyncROOMEVENT) {
+        //COleDateTime dtCurr = COleDateTime::GetCurrentTime();
+        //if (strSyncContent.CmpNoCase(dtCurr.Format(_T("%Y%m%d')) == 0 || strSyncContent.CmpNoCase(_T("DefaultXML') == 0)
+        if (nEventDisplay != 1) {
+          //todo send room event download finished notify to player
+          /*#if DCM_PLATFORM != DCM_PLATFORM_WIN32
+          String strCmd = String::Format(ddeformat, FTPFINISHED_NOTICE, 0,'');
+          DDENotify(strCmd);
+  #else
+          ::PostMessage(HWND_BROADCAST, wm_Message, (WPARAM)m_hWnd, FTPFINISHED_NOTICE);
+  #endif*/
+        }
+
+        logI(
+            'Send room event download finished notify to player successfully\n',
+            syncTag);
+      } else if (dwSyncContent == cSyncDCMUPDATE) {
+        String strLocalFile =
+            path.join(DCMGlobal.ftpSettingPath, 'DCMUpdate.xml');
+
+        String strLocalFile1 = path.join(DCMGlobal.ftpSettingPath, 'DCMUpdate');
+        FileUtils.makeSureDirectoryPathExists(strLocalFile1);
+        strLocalFile1 = path.join(strLocalFile1, '$strSyncContent.xml');
+        String strLocalFile2 = path.join(
+            await PlayerPathService.getLocalPath(cDCMUPDATETYPE),
+            '$strSyncContent.DCMUP');
+        File(strLocalFile).copy(strLocalFile1);
+        File(strLocalFile).copy(strLocalFile2);
+        if (!kDebugMode) {
+          if (PlayerJobItem.isImm(dwJobType)) {
+            logI('Try to restart player for DCM Update\n', syncTag);
+
+            PlayerLogImpl.restartAction();
+          }
+        }
+      } else if (dwSyncContent != cSyncDCMPLAYERLOG &&
+          dwSyncContent != cSyncDCMTRANSFERLOG) {
+        //todo send playlist download finished notify to player
+        /*#if DCM_PLATFORM != DCM_PLATFORM_WIN32
+        String strCmd = String::Format(ddeformat, DOWNLOAD_FINISHED, dwSyncContent,'');
+        DDENotify(strCmd);
+  #else
+        FTPMisc::SavePlaylistVersion(strLatestPlaylistVersion);
+        CFTPLogFile::GenPlaylistContent(nEventDisplay);
+        LPARAM lParam = MAKELPARAM(DOWNLOAD_FINISHED, dwSyncContent);
+        ::PostMessage(HWND_BROADCAST, wm_Message, (WPARAM)m_hWnd, lParam);
+  #endif*/
+        logI('Send playlist download finished notify to player successfully\n',
+            syncTag);
+      }
+    }
+  }
+
+  Future<void> startSyncAction() async {
+    if (!await startSyncActionLock()) {
+      await PlayerLogFile.openLogFile(PlayerTaskFile.pCurrJob!);
       flagRetryJob(DCMGlobal.retryInterval);
     }
   }
 
-  Future<bool> startTransferActionLock() async {
-    logI('Checking Task Queue!');
+  Future<bool> startSyncActionLock() async {
+    logI('Checking Task Queue!', syncTag);
     if (_bTransfering) {
       return true;
     }
-    //todo get download queue status
-    /*if (!_WorkQueue.getQueueStatus())
-    {
+
+    if (!_workQueue.getQueueStatus().allTasksFinished) {
       return true;
-    }*/
+    }
     bool bClearLog = false;
     PlayerJobItem? pJob;
     if (PlayerTaskFile.pCurrJob != null) {
@@ -307,7 +619,7 @@ class ContentSyncService {
 
     if (PlayerTaskFile.pCurrJob != pJob) {
       //_dwJobStatus = NOT_TRANSFER;
-      PlayerTaskFile.writeTaskFile(pJob, FileTransferStatus.eNOTTRANSFER);
+      await PlayerTaskFile.writeTaskFile(pJob, FileTransferStatus.eNOTTRANSFER);
       PlayerTaskFile.pCurrJob = pJob;
       PlayerTaskFile.pCurrJob!.nAction = 1;
     }
@@ -328,41 +640,41 @@ class ContentSyncService {
         pJob.dwSyncContent == cSyncDCMUPDATE ||
         pJob.dwSyncContent == cSyncAHMESSAGE ||
         pJob.dwSyncContent == cSyncSITEPLAYLIST) {
-      bDownload = await transferActionEvent(transferAction, pJob, bClearLog);
+      bDownload = await syncActionEvent(transferAction, pJob, bClearLog);
     } else if (pJob.dwSyncContent == cSyncDCMPLAYERLOG ||
         pJob.dwSyncContent == cSyncDCMTRANSFERLOG) {
-      bDownload = await transferActionUpload(transferAction, pJob, bClearLog);
+      bDownload = await syncActionUpload(transferAction, pJob, bClearLog);
     } else {
-      bDownload = await transferActionSchedule(transferAction, pJob, bClearLog);
+      bDownload = await syncActionSchedule(transferAction, pJob, bClearLog);
     }
 
     return (bDownload == true);
   }
 
-  Future<bool> transferActionSchedule(TransferActionService transferAction,
+  Future<bool> syncActionSchedule(TransferActionService transferAction,
       PlayerJobItem pJob, bool bClearLog) async {
     bool bDownload = false;
     if (pJob.dwJobStatus.value < FileTransferStatus.eGENERATEDFILELIST.value ||
         pJob.dwJobStatus.value >= FileTransferStatus.eTRANSFEREDCHANNEL.value) {
       PlayerLogFile.openLogFile(pJob, bClearLog);
 
-      logI('Retrieving channel information from server......\n');
+      logI('Retrieving channel information from server......\n', syncTag);
       if (pJob.dwJobStatus.value <
           FileTransferStatus.eTRANSFEREDCHANNEL.value) {
-        PlayerTaskFile.writeTaskFile(
+        await PlayerTaskFile.writeTaskFile(
             pJob, FileTransferStatus.eTRANSFEREDCHANNEL);
       }
       //PlayerLogFile.UploadLogFile();
       if (transferAction.dwSyncContent != cSyncPREDATA) {
-        logI('Retrieving file list from server......\n');
+        logI('Retrieving file list from server......\n', syncTag);
 
         if (await transferAction.downloadDailySchedule()) {
-          //todo stop temp file copy
-          //StopTimer(ID_TIMER_TEMPFILE_CHECK, true);
+          await stopTempFileCopyTimer();
 
           if (await transferAction.genFileList()) {
             logI(
-                '''Total Size '${FileUtils.formatBytesToMb(PlayerLogFile.nTotalBytesToDownload)}MB' will been download''');
+                '''Total Size '${FileUtils.formatBytesToMb(PlayerLogFile.nTotalBytesToDownload)}MB' will been download''',
+                syncTag);
             if (transferAction.isOverMaximumLimitSize()) {
               transferFailureAction();
               return true;
@@ -370,9 +682,12 @@ class ContentSyncService {
 
             PlayerLogFile.writeLogFile(
                 cTRANSFERFILECOUNT, '${transferAction.getFileCount()}');
+
+            startSyncStatusTimer();
             if (transferAction.isNoDownloadButScheduleChange()) {
+              stopSyncStatusTimer();
               //_dwJobStatus = FileTransferStatus.eTRANSFEREDTEMPFILE;
-              PlayerTaskFile.writeTaskFile(PlayerTaskFile.pCurrJob,
+              await PlayerTaskFile.writeTaskFile(PlayerTaskFile.pCurrJob,
                   FileTransferStatus.eTRANSFEREDTEMPFILE);
               startTempFileCopy();
 
@@ -382,13 +697,13 @@ class ContentSyncService {
             }
             bDownload = true;
             //_dwJobStatus = FileTransferStatus.eTRANSFERINGTEMPFILE;
-            PlayerTaskFile.writeTaskFile(
+            await PlayerTaskFile.writeTaskFile(
                 pJob, FileTransferStatus.eTRANSFERINGTEMPFILE);
           }
         } else {
           //FlagRetryJob(DCMGlobal.retryInterval);
 
-          logI('Retrieve file list failure\n');
+          logI('Retrieve file list failure\n', syncTag);
         }
       } else {
         if (await transferAction.genFileList()) {
@@ -399,19 +714,18 @@ class ContentSyncService {
 
           PlayerLogFile.writeLogFile(
               cTRANSFERFILECOUNT, '${transferAction.getFileCount()}');
-          //todo stop temp file copy
-          //StopTimer(ID_TIMER_TEMPFILE_CHECK, true);
+          await stopTempFileCopyTimer();
 
           transferAction.download();
           bDownload = true;
           //_dwJobStatus = FileTransferStatus.eTRANSFERINGTEMPFILE;
-          PlayerTaskFile.writeTaskFile(
+          await PlayerTaskFile.writeTaskFile(
               pJob, FileTransferStatus.eTRANSFERINGTEMPFILE);
         }
       }
     } else if (pJob.dwJobStatus.value <
         FileTransferStatus.eTRANSFEREDTEMPFILE.value) {
-      bDownload = await transferActionTransfer(transferAction, pJob);
+      bDownload = await syncActionTransfer(transferAction, pJob);
     } else if (pJob.dwJobStatus.value <
         FileTransferStatus.eUPDATINGPLAYLIST.value) {
       startTempFileCopy();
@@ -421,19 +735,19 @@ class ContentSyncService {
     return bDownload;
   }
 
-  void transferFailureAction() {
+  Future<void> transferFailureAction() async {
     if (PlayerTaskFile.pCurrJob != null) {
       //_dwJobStatus = FileTransferStatus.eTRANSFERFAILED;
       PlayerTaskFile.pCurrJob!.nRetryCount = PlayerTaskFile.pCurrJob!.nRetries;
-      PlayerTaskFile.writeTaskFile(
+      await PlayerTaskFile.writeTaskFile(
           PlayerTaskFile.pCurrJob, FileTransferStatus.eTRANSFERFAILED);
       PlayerTaskFile.removeTask(PlayerTaskFile.pCurrJob!);
 
-      PlayerLogFile.closeLogFile('Transfer Failure!');
+      await PlayerLogFile.closeLogFile('Transfer Failure!');
     }
   }
 
-  Future<bool> transferActionUpload(TransferActionService transferAction,
+  Future<bool> syncActionUpload(TransferActionService transferAction,
       PlayerJobItem pJob, bool bClearLog) async {
     bool bDownload = false;
     if (pJob.dwJobStatus.value < FileTransferStatus.eGENERATEDFILELIST.value ||
@@ -441,12 +755,12 @@ class ContentSyncService {
       PlayerLogFile.openLogFile(pJob, bClearLog);
       if (pJob.dwJobStatus.value <
           FileTransferStatus.eTRANSFEREDCHANNEL.value) {
-        PlayerTaskFile.writeTaskFile(
+        await PlayerTaskFile.writeTaskFile(
             pJob, FileTransferStatus.eTRANSFEREDCHANNEL);
       }
       //PlayerLogFile.UploadLogFile();
 
-      logI('Retrieving file list......\n');
+      logI('Retrieving file list......\n', syncTag);
       if (await transferAction.genDailySchedule()) {
         //todo stop temp file copy
         //StopTimer(ID_TIMER_TEMPFILE_CHECK, true);
@@ -454,7 +768,7 @@ class ContentSyncService {
           PlayerLogFile.writeLogFile(
               cTRANSFERFILECOUNT, '${transferAction.getFileCount()}');
           if (transferAction.getFileCount() == 0) {
-            PlayerTaskFile.writeTaskFile(PlayerTaskFile.pCurrJob,
+            await PlayerTaskFile.writeTaskFile(PlayerTaskFile.pCurrJob,
                 FileTransferStatus.eTRANSFEREDTEMPFILE);
             startTempFileCopy();
 
@@ -464,17 +778,17 @@ class ContentSyncService {
             //transferAction.upload();
           }
           bDownload = true;
-          PlayerTaskFile.writeTaskFile(
+          await PlayerTaskFile.writeTaskFile(
               pJob, FileTransferStatus.eTRANSFERINGTEMPFILE);
         }
       } else {
         //FlagRetryJob(DCMGlobal.retryInterval);
 
-        logE('Retrieve file list failure\n');
+        logE('Retrieve file list failure\n', syncTag);
       }
     } else if (pJob.dwJobStatus.value <
         FileTransferStatus.eTRANSFEREDTEMPFILE.value) {
-      bDownload = await transferActionTransfer(transferAction, pJob);
+      bDownload = await syncActionTransfer(transferAction, pJob);
     } else if (pJob.dwJobStatus.value <
         FileTransferStatus.eUPDATINGPLAYLIST.value) {
       startTempFileCopy();
@@ -484,7 +798,7 @@ class ContentSyncService {
     return bDownload;
   }
 
-  Future<bool> transferActionEvent(TransferActionService transferAction,
+  Future<bool> syncActionEvent(TransferActionService transferAction,
       PlayerJobItem pJob, bool bClearLog) async {
     bool bDownload = false;
     if (pJob.dwJobStatus.value < FileTransferStatus.eGENERATEDFILELIST.value ||
@@ -492,12 +806,12 @@ class ContentSyncService {
       PlayerLogFile.openLogFile(pJob, bClearLog);
       if (pJob.dwJobStatus.value <
           FileTransferStatus.eTRANSFEREDCHANNEL.value) {
-        PlayerTaskFile.writeTaskFile(
+        await PlayerTaskFile.writeTaskFile(
             pJob, FileTransferStatus.eTRANSFEREDCHANNEL);
       }
       //PlayerLogFile.UploadLogFile();
 
-      logI('Retrieving file list......\n');
+      logI('Retrieving file list......\n', syncTag);
 
       if (await transferAction.genDailySchedule()) {
         //todo stop temp file copy
@@ -512,7 +826,7 @@ class ContentSyncService {
           PlayerLogFile.writeLogFile(
               cTRANSFERFILECOUNT, '${transferAction.getFileCount()}');
           if (transferAction.getFileCount() == 0) {
-            PlayerTaskFile.writeTaskFile(PlayerTaskFile.pCurrJob,
+            await PlayerTaskFile.writeTaskFile(PlayerTaskFile.pCurrJob,
                 FileTransferStatus.eTRANSFEREDTEMPFILE);
             startTempFileCopy();
 
@@ -521,17 +835,17 @@ class ContentSyncService {
             transferAction.download();
           }
           bDownload = true;
-          PlayerTaskFile.writeTaskFile(
+          await PlayerTaskFile.writeTaskFile(
               pJob, FileTransferStatus.eTRANSFERINGTEMPFILE);
         }
       } else {
         //FlagRetryJob(DCMGlobal.retryInterval);
 
-        logE('Retrieve file list failure\n');
+        logE('Retrieve file list failure\n', syncTag);
       }
     } else if (pJob.dwJobStatus.value <
         FileTransferStatus.eTRANSFEREDTEMPFILE.value) {
-      bDownload = await transferActionTransfer(transferAction, pJob);
+      bDownload = await syncActionTransfer(transferAction, pJob);
     } else if (pJob.dwJobStatus.value <
         FileTransferStatus.eUPDATINGPLAYLIST.value) {
       startTempFileCopy();
@@ -541,12 +855,12 @@ class ContentSyncService {
     return bDownload;
   }
 
-  Future<bool> transferActionTransfer(
+  Future<bool> syncActionTransfer(
       TransferActionService transferAction, PlayerJobItem pJob) async {
     bool bDownload = false;
-    PlayerLogFile.openLogFile(pJob);
+    await PlayerLogFile.openLogFile(pJob);
     if (await transferAction.genFileList()) {
-      PlayerLogFile.writeLogFile(
+      await PlayerLogFile.writeLogFile(
           cTRANSFERFILECOUNT, '${transferAction.getFileCount()}');
       if (pJob.dwSyncContent == cSyncAPCONTENTLIST ||
           pJob.dwSyncContent == cSyncEVENTCONTENTLIST ||
@@ -554,36 +868,36 @@ class ContentSyncService {
         if (transferAction.getFileCount() == 0) {
           //StartTempFileCopy();
           //PlayerTaskFile.writeTaskFile();
-          PlayerTaskFile.writeTaskFile(
+          await PlayerTaskFile.writeTaskFile(
               PlayerTaskFile.pCurrJob, FileTransferStatus.eTRANSFEREDTEMPFILE);
-          startTempFileCopy();
+          await startTempFileCopy();
         } else {
-          transferAction.download();
-          PlayerTaskFile.writeTaskFile(
+          await transferAction.download();
+          await PlayerTaskFile.writeTaskFile(
               pJob, FileTransferStatus.eTRANSFERINGTEMPFILE);
         }
       } else if (pJob.dwSyncContent == cSyncDCMPLAYERLOG ||
           pJob.dwSyncContent == cSyncDCMTRANSFERLOG) {
         if (transferAction.getFileCount() == 0) {
-          PlayerTaskFile.writeTaskFile(
+          await PlayerTaskFile.writeTaskFile(
               pJob, FileTransferStatus.eTRANSFEREDTEMPFILE);
-          startTempFileCopy();
+          await startTempFileCopy();
         } else {
           //todo upload contents
           //transferAction.upload();
-          PlayerTaskFile.writeTaskFile(
+          await PlayerTaskFile.writeTaskFile(
               pJob, FileTransferStatus.eTRANSFERINGTEMPFILE);
         }
       } else {
         if (transferAction.isNoDownloadButScheduleChange()) {
           //StartTempFileCopy();
           //PlayerTaskFile.writeTaskFile();
-          PlayerTaskFile.writeTaskFile(
+          await PlayerTaskFile.writeTaskFile(
               PlayerTaskFile.pCurrJob, FileTransferStatus.eTRANSFEREDTEMPFILE);
-          startTempFileCopy();
+          await startTempFileCopy();
         } else {
-          transferAction.download();
-          PlayerTaskFile.writeTaskFile(
+          await transferAction.download();
+          await PlayerTaskFile.writeTaskFile(
               pJob, FileTransferStatus.eTRANSFERINGTEMPFILE);
         }
       }
@@ -605,5 +919,286 @@ class ContentSyncService {
     _strPublicIP = globalPlayer.strPublicIP;
 
     return (globalPlayer.strPublicIP.isNotEmpty);
+  }
+
+  Future<void> processCMDTask() async {
+    PlayerJobItem? pTask = PlayerTaskFile.getCMDTask();
+    if (pTask == null) {
+      return;
+    }
+    await PlayerTaskFile.writeTaskFile();
+
+    logI(
+        '''Get Command:'${pTask.dwSyncContent}' from task list; Action:'${pTask.nTaskAction}' \n''',
+        syncTag);
+    if (pTask.dwSyncContent == cTASKRESETSETTINGS) {
+      await resetSettings(pTask.nTaskAction);
+    } else if (pTask.dwSyncContent == cTASKCOMMAND) {
+      var taskCommand = netCommandFrom(pTask.nTaskAction);
+      if (taskCommand != null) {
+        switch (taskCommand) {
+          case NetCommand.resetDcmPlayer:
+            {
+              //todo restart dcmplayer.exe
+              //EnumAndKillProcess('DCMPlayer.exe');
+            }
+            break;
+          case NetCommand.resetHost:
+            {
+              await PlayerLogImpl.restartAction();
+            }
+            break;
+
+          case NetCommand.shutdown:
+            {
+              await PlayerLogImpl.shutdownDevice();
+            }
+            break;
+
+          case NetCommand.requestSyncTime:
+            {
+              //todo: sync time from time server
+              PlayerTaskFile.synLocalTime();
+            }
+            break;
+          case NetCommand.resetSettings:
+            {
+              await resetSettings(cSETTINGSGENERAL);
+            }
+            break;
+
+          case NetCommand.resetTransfer:
+            PlayerTaskFile.resetSyncStatus();
+            break;
+
+          case NetCommand.resetTasks:
+            PlayerTaskFile.bReset = true;
+            break;
+
+          case NetCommand.monitor:
+            {
+              MessageInfo msgInfo = MessageInfo();
+              msgInfo.status = fMAKEDWORD(
+                  pTask.nRetries, pTask.nSyncPeriod); //Port Number + nFormat
+              msgInfo.messageID = pTask.nMaximumLimit;
+              String strContent = '';
+              if (pTask.strSyncContent.length > 50) {
+                strContent = pTask.strSyncContent;
+              } else {
+                msgInfo.messageName = pTask.strSyncContent;
+              }
+              processCMDMonitor(msgInfo, strContent);
+            }
+            break;
+          default:
+            break;
+        }
+      }
+    } else if (pTask.dwSyncContent == cTASKCOMMANDSMS) {
+      MessageInfo msgInfo = MessageInfo();
+      msgInfo.status = pTask.nTaskAction;
+      msgInfo.messageName = pTask.strSyncContent;
+      processSMSControl(msgInfo);
+    }
+  }
+
+  void processSMSControl(MessageInfo pData) {
+    int dwLogPost = PlayLogPostService.logPostFlags;
+    int dwSMSCommand = pData.status;
+    if (dwSMSCommand & kSMSCOMMANDRESET > 0) {
+      _bTransfering = false;
+      //m_dwJobStatus = TRANSFER_FAILED;
+      PlayerTaskFile.resetSyncStatus();
+
+      return;
+    }
+
+    if (dwSMSCommand & kSMSCOMMANDPLAYLOG > 0) {
+      PlayLogPostService.logPostFlags |= PlayLogPostFlag.playLog.value;
+
+      //todo: send sms
+      /*String strSMS;
+      strSMS = '%s=%s&SMSCommand=%d') % HTTP_UNIQUE_KEY % globalPlayer.strUniqueName % kSMSCOMMANDPLAYLOG;
+      String strResult;
+      SendSMS(strSMS, strResult, 3);*/
+    }
+
+    if (dwSMSCommand & kSMSCOMMANDUSBDTLLOG > 0) {
+      PlayLogPostService.logPostFlags |= PlayLogPostFlag.usbDtlLog.value;
+
+      //todo: send sms
+      /*String strSMS;
+      strSMS = '%s=%s&SMSCommand=%d') % HTTP_UNIQUE_KEY % globalPlayer.strUniqueName % kSMSCOMMANDUSBDTLLOG;
+      String strResult;
+      SendSMS(strSMS, strResult, 3);*/
+    }
+
+    if (dwSMSCommand & kSMSCOMMANDFTPLOG > 0) {
+      //PlayLogPostService.logPostFlags |= FTPDTLLOG_POST;
+
+      /*String strSMS;
+      strSMS = '%s=%s&SMSCommand=%d') % HTTP_UNIQUE_KEY % globalPlayer.strUniqueName % kSMSCOMMANDFTPLOG;
+      String strResult;
+      SendSMS(strSMS, strResult, 3);*/
+    }
+
+    if (dwSMSCommand & kSMSCOMMANDPLAYLIST > 0) {
+      String strMessage = pData.messageName;
+      //todo: change playlist and send sms
+      // write text to memory-mapped file
+      /*if ( !strMessage.IsEmpty() && m_pViewOfFile  &&  m_pLock )
+      {
+        // get write access to common memory block
+        if ( m_pLock.WaitToWrite() )
+        {
+          lstrcpy( (LPTSTR) m_pViewOfFile, strMessage);
+          m_pLock.Done();
+
+          // Notify all running instances that text was changed
+          ::PostMessage(HWND_BROADCAST, wm_Message, (WPARAM)m_hWnd, CHANGEPLAYLIST_NOTICE);
+        }
+      }
+
+      String strSMS;
+      strSMS  = '%s=%s&SMSCommand=%d&strPlaylist=%s') % HTTP_UNIQUE_KEY % globalPlayer.strUniqueName % kSMSCOMMANDPLAYLIST % strMessage;
+      String strResult;
+      SendSMS(strSMS, strResult, 3);*/
+    }
+
+    if (dwSMSCommand & kSMSCOMMANDBPSSTATUS > 0) {
+      /*String strRequest;
+      String strFormat = '%s=%s&dtStartup=%s&dtLastSyncTime=%s&strPublicIP=%s&strMACID=%s&strDeviceID=%s&strMACAddress=%s&strMACAddress1=%s&strLocalAddress=%s&strDCMVersion=%s';
+      strRequest  = strFormat) % HTTP_UNIQUE_KEY %
+        globalPlayer.strUniqueName % m_dtStartup.Format('%Y-%m-%d %H:%M:%S') % m_dtSyncTime.Format('%Y-%m-%d %H:%M:%S') %
+        m_strPublicIP % m_strMACID % m_strDeviceID % globalPlayer.strMACAddress % globalPlayer.strMACAddress1 %
+        globalPlayer.strLocalAddress % m_strVerInfo);*/
+      //todo: get player information and send sms
+      /*DateTime dtCurr = DateTime.now();
+      String strRequest;
+      String strFormat = '%s=%s&dtStartup=%s&dtLastSyncTime=%s&strPublicIP=%s&strMACID=%s&strDeviceID=%s&dtLogDate=%s';
+      strRequest = strFormat) % HTTP_UNIQUE_KEY %
+        globalPlayer.strUniqueName % m_dtStartup.Format('%Y-%m-%d %H:%M:%S') % m_dtSyncTime.Format('%Y-%m-%d %H:%M:%S') %
+        m_strPublicIP % m_strMACID % m_strDeviceID % dtCurr.Format('%Y-%m-%d %H:%M:%S');
+
+      String strResult;
+      SendSMS(strRequest, strResult, 3);
+
+      strFormat = '%s=%s&dtStartup=%s&strMACAddress=%s&strMACAddress1=%s&strLocalAddress=%s&strDCMVersion=%s&dtLogDate=%s';
+      strRequest = strFormat) % HTTP_UNIQUE_KEY %
+        globalPlayer.strUniqueName % m_dtStartup.Format('%Y-%m-%d %H:%M:%S') % globalPlayer.strMACAddress % globalPlayer.strMACAddress1 %
+        '' % m_strVerInfo % dtCurr.Format('%Y-%m-%d %H:%M:%S'); //globalPlayer.strLocalAddress
+      SendSMS(strRequest, strResult, 3);*/
+    }
+
+    if (dwSMSCommand & kSMSCOMMANDTIMESYNC > 0) {
+      //todo: sync time and send sms
+      /*SynLocalTime();
+
+      String strSMS;
+      strSMS = '%s=%s&SMSCommand=%d') % HTTP_UNIQUE_KEY % globalPlayer.strUniqueName % kSMSCOMMANDTIMESYNC;
+      String strResult;
+      SendSMS(strSMS, strResult, 3);*/
+    }
+    if (PlayLogPostService.logPostFlags != dwLogPost) {
+      PlayLogPostService.processLogPostFlag(PlayLogPostService.logPostFlags);
+      if (PlayLogPostService.hasLogPost()) {
+        if (createPlayLogPost()) {
+          _pPlayLogPost!.start();
+        }
+      }
+    }
+  }
+
+  //Startup Play log post thread
+  bool createPlayLogPost() {
+    if (_pPlayLogPost == null) {
+      _pPlayLogPost = PlayLogPostService(
+        uniqueName: globalPlayer.strUniqueName,
+        playerName: globalPlayer.strName,
+        logUploadInterval: DCMGlobal.logUploadInterval,
+        logUploadPeriod: DCMGlobal.logUploadPeriod,
+        httpClientFactory: dcmHttpClientFactory,
+      );
+      if (_pPlayLogPost != null) {
+        //todo: create log upload thread
+        String strLogPath = DCMGlobal.logPath;
+        String strPlayLogPath = '${strLogPath}PlayLog';
+        String strPlaylistLogPath = '${strLogPath}PlaylistLog';
+        String strUSBLogPath = '${strLogPath}USBLog';
+        String strMSGLogPath = '${strLogPath}MSGLog';
+        String strCOMLogPath = '${strLogPath}COMLog';
+        String strAHPlayLogPath = '${strLogPath}AHPlayLog';
+        String strAPPlayLogPath = '${strLogPath}APPlayLog';
+        String strDDELogPath = '${strLogPath}DDELog';
+        String strContentLogPath = '${strLogPath}ContentLog';
+
+        _pPlayLogPost!.logFolders.add(strPlayLogPath); //0
+        _pPlayLogPost!.logFolders.add(strAHPlayLogPath); //1
+        _pPlayLogPost!.logFolders.add(strAPPlayLogPath); //2
+        _pPlayLogPost!.logFolders.add(strPlaylistLogPath); //3
+        _pPlayLogPost!.logFolders.add(strUSBLogPath); //4
+        _pPlayLogPost!.logFolders.add(strMSGLogPath); //5
+        _pPlayLogPost!.logFolders.add(strCOMLogPath); //6
+        _pPlayLogPost!.logFolders.add(strDDELogPath); //7
+        _pPlayLogPost!.logFolders.add(strContentLogPath); //8
+      }
+    }
+
+    return (_pPlayLogPost != null);
+  }
+
+  void processCMDMonitor(MessageInfo pData, String strContent) {
+    //todo: control monitor status through serial port
+    String strCmd = pData.messageName;
+    if (strContent.isNotEmpty) {
+      strCmd = strContent;
+    }
+    logI('''Try to Send serial port Command:'$strCmd'\n''', syncTag);
+
+    /*logI('Send serial port Command:'%s' %s\n') % strCmd % (bSuccess ? 'Successfully!' : 'Failure!'));
+    if (!bSuccess)
+    {
+      logI('Send serial port Command:'%s' %s\n') % strCmd % pSerialControl.GetLastErrMsg());
+    }*/
+  }
+
+  void queryMonitorStatus(String strCmd) {
+    //todo: query monitor status through serial port
+    logI('''Serial port Command:'$strCmd' has been not sent!\n''',
+        syncTag); //${false ? '' : 'not'}
+  }
+
+  Future<void> resetSettings(int dwSettings) async {
+    //todo: stop all pollings
+    //StopTimer();
+    _bTransfering = false;
+    //todo: reset all tasks and queues
+    /*if (m_WorkQueue.reset())
+    {
+      PlayerTaskFile.resetTasks();
+    }*/
+
+    if ((dwSettings & cSETTINGSNET) > 0) {
+      PlayerPathService().reset();
+    }
+    if (dwSettings & cSETTINGSREG > 0) {
+      PlayerRegisterImpl.reset();
+    }
+    //todo: reset license
+    /*if (dwSettings & cSETTINGSLM > 0)
+      wxGetApp().reset();*/
+
+    if (dwSettings & cSETTINGSPLAYER > 0) {
+      await resetPlayerSettings();
+      String strIniFile = path.join(DCMGlobal.appDataPath, 'ContentTypes.xml');
+      var file = File(strIniFile);
+      if (await file.exists()) {
+        await file.delete();
+      }
+    }
+
+    if (!kDebugMode) {
+      PlayerLogImpl.restartAction();
+    }
   }
 }

@@ -19,7 +19,6 @@ import 'package:dcm/backend/utils/string_utils.dart';
 import 'package:dcm/backend/utils/utils.dart';
 import 'package:dcm/backend/xml_settings/dcmfile_Impl.dart';
 import 'package:dcm/backend/xmlfile/inifile.dart';
-import 'package:dcm/pages/multi_partition_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_libserialport/flutter_libserialport.dart';
@@ -210,7 +209,7 @@ class PlayerScreenProvider extends ChangeNotifier {
   void _onTimer() {
     _needNotifyListeners = false;
     /*logD(
-        'CPlayerScreenDlg::OnTimer - _bValidForPlay: $_bValidForPlay; _bIsPlaying: \'$_bIsPlaying\'');*/
+        'PlayerScreenProvider - OnTimer - _bValidForPlay: $_bValidForPlay; _bIsPlaying: \'$_bIsPlaying\'');*/
     if (!_bValidForPlay) {
       stopPlayingTimer();
       playImm();
@@ -330,7 +329,7 @@ class PlayerScreenProvider extends ChangeNotifier {
           nFlag = result.nFlag!;
           if (!_bIsPlaying || (isNormalCut() && !isDurationCut())) {
             logD(
-                'CPlayerScreenDlg::OnTimer - ScheduleList().IsTimeForLoad - IsTimeForPlayAH; _bIsPlaying: \'$_bIsPlaying\'');
+                'PlayerScreenProvider - OnTimer - ScheduleList().IsTimeForLoad - IsTimeForPlayAH; _bIsPlaying: \'$_bIsPlaying\'');
             stopNotQuit();
             _bValidForPlay = false;
             var playResult = ScheduleList().playFileList();
@@ -346,10 +345,10 @@ class PlayerScreenProvider extends ChangeNotifier {
           } else if (isTimeToCut()) {
             if (nFlag == 1) {
               _bIsTimeForPlayAH = true;
-              logD('CPlayerScreenDlg::OnTimer IsTimeForPlayAH');
+              logD('PlayerScreenProvider - OnTimer IsTimeForPlayAH');
             } else if (nFlag == 0) {
               _bIsTimeForStopAH = true;
-              logD('CPlayerScreenDlg::OnTimer IsTimeForStopAH');
+              logD('PlayerScreenProvider - OnTimer IsTimeForStopAH');
             } else {
               _bIsTimeForRefresh = true;
             }
@@ -358,7 +357,7 @@ class PlayerScreenProvider extends ChangeNotifier {
               _bIsTimeForStopAH = true;
             } else {
               logD(
-                  'CPlayerScreenDlg::OnTimer - ScheduleList().IsTimeForLoad - IsTimeForPlayAH');
+                  'PlayerScreenProvider - OnTimer - ScheduleList().IsTimeForLoad - IsTimeForPlayAH');
               stopNotQuit();
               _bValidForPlay = false;
               var playResult = ScheduleList().playFileList();
@@ -391,7 +390,7 @@ class PlayerScreenProvider extends ChangeNotifier {
       }
 
       if (_bIsPlaying) {
-        //logD('CPlayerScreenDlg::OnTimer Start zoneThreadCheck');
+        //logD('PlayerScreenProvider - OnTimer Start zoneThreadCheck');
         bool bSaveState = zoneThreadCheck(_nTotalZoneThread);
 
         DateTime dtCurr = DateTime.now();
@@ -419,7 +418,7 @@ class PlayerScreenProvider extends ChangeNotifier {
       _bIsTimeForPlayAH = false;
       _bIsTimeForNextPlaylist = false;
       _bIsTimeForNextGroup = false;
-      logD('CPlayerScreenDlg::OnTimer catch Exception: $e');
+      logD('PlayerScreenProvider - OnTimer catch Exception: $e');
     }
   }
 
@@ -436,14 +435,14 @@ class PlayerScreenProvider extends ChangeNotifier {
         if (pThread0.isPlaying() && pThread0.isWantStop()) {
           //::PostMessage(pThread0.GetPlayerHWnd(), WM_INFORM_STOP, 0, 0);
           logD(
-              'CPlayerScreenDlg::zoneThreadCheck, Zone: ${pThread0.getZone()} want to stop, Current TID $pid.');
+              'PlayerScreenProvider - zoneThreadCheck, Zone: ${pThread0.getZone()} want to stop, Current TID $pid.');
           _needNotifyListeners = true;
           continue;
         } else if (!pThread0.isPlaying() && !pThread0.isWantStop()) {
           bNeedSelectedProduct = true;
           //::PostMessage(pThread0.GetPlayerHWnd(), WM_INFORM_PLAY, 0, 0);
           logD(
-              'CPlayerScreenDlg::zoneThreadCheck, Zone: ${pThread0.getZone()} try to play, Current TID $pid.');
+              'PlayerScreenProvider - zoneThreadCheck, Zone: ${pThread0.getZone()} try to play, Current TID $pid.');
           _needNotifyListeners = true;
           continue;
         }
@@ -471,7 +470,7 @@ class PlayerScreenProvider extends ChangeNotifier {
         var pfResult = pThread0.isPlayerFinish(rtPos, nFinish);
         nFinish = pfResult.nFinish ?? nFinish;
         logD(
-            'CPlayerScreenDlg::zoneThreadCheck, Zone: ${pThread0.getZone()}, rtPos: $rtPos, rtCurrPos1: $rtCurrPos1, pfResult: ${pfResult.status} - ${pfResult.nFinish}.');
+            'PlayerScreenProvider - zoneThreadCheck, Zone: ${pThread0.getZone()}, rtPos: $rtPos, rtCurrPos1: $rtCurrPos1, pfResult: ${pfResult.status} - ${pfResult.nFinish}.');
         if (pfResult.status) {
           pThread0.setPlayingDuration(rtPos);
           pThread0.setStartPlayTime(DateTime.now());
@@ -576,10 +575,10 @@ class PlayerScreenProvider extends ChangeNotifier {
   }
 
   void adjustPlayRect(ProductData pProductData) {
-    //WriteMessage(MSG_INFO, 'CPlayerScreenDlg::LoadCatalogue Step: %d, Current TID $pid.', 1, GetCurrentThreadId());
+    //WriteMessage(MSG_INFO, 'PlayerScreenProvider - LoadCatalogue Step: %d, Current TID $pid.', 1, GetCurrentThreadId());
     //MatchZoneThread(nTotalZone);
     matchZoneThreadByProduct(pProductData);
-    //WriteMessage(MSG_INFO, 'CPlayerScreenDlg::LoadCatalogue Step: %d, Current TID $pid.', 2, GetCurrentThreadId());
+    //WriteMessage(MSG_INFO, 'PlayerScreenProvider - LoadCatalogue Step: %d, Current TID $pid.', 2, GetCurrentThreadId());
     if (_bScreenLayoutChanged) {
       _bScreenLayoutChanged = false;
       //StopPlayer();
@@ -746,7 +745,7 @@ class PlayerScreenProvider extends ChangeNotifier {
           }
         }
         logD(
-            '''CPlayerScreenDlg::ChangePlaylist before, Reload Schedule: $_bReloadSchedule; Time for Refresh: $_bIsTimeForRefresh; Time for Stop ad-hoc: $_bIsTimeForStopAH;
+            '''PlayerScreenProvider - ChangePlaylist before, Reload Schedule: $_bReloadSchedule; Time for Refresh: $_bIsTimeForRefresh; Time for Stop ad-hoc: $_bIsTimeForStopAH;
                       Time for Play ad-hoc: $_bIsTimeForPlayAH; Time for play next playlist: $_bIsTimeForNextPlaylist; time for play next group: $_bIsTimeForNextGroup; Current TID: $pid.''');
         _bReloadSchedule = false;
         _bIsTimeForRefresh = false;
@@ -755,7 +754,7 @@ class PlayerScreenProvider extends ChangeNotifier {
         _bIsTimeForNextPlaylist = false;
         _bIsTimeForNextGroup = false;
         logD(
-            '''CPlayerScreenDlg::ChangePlaylist After, Reload Schedule: $_bReloadSchedule; Time for Refresh: $_bIsTimeForRefresh; Time for Stop ad-hoc: $_bIsTimeForStopAH;
+            '''PlayerScreenProvider - ChangePlaylist After, Reload Schedule: $_bReloadSchedule; Time for Refresh: $_bIsTimeForRefresh; Time for Stop ad-hoc: $_bIsTimeForStopAH;
                       Time for Play ad-hoc: $_bIsTimeForPlayAH; Time for play next playlist: $_bIsTimeForNextPlaylist; time for play next group: $_bIsTimeForNextGroup; Current TID: $pid.''');
       } else {
         // Play next content in contentlist or replay zone content
@@ -879,7 +878,7 @@ class PlayerScreenProvider extends ChangeNotifier {
         }
 
         logD(
-            '''CPlayerScreenDlg::ChangePlaylist before, Reload Schedule: $_bReloadSchedule; Time for Refresh: $_bIsTimeForRefresh; Time for Stop ad-hoc: $_bIsTimeForStopAH;
+            '''PlayerScreenProvider - ChangePlaylist before, Reload Schedule: $_bReloadSchedule; Time for Refresh: $_bIsTimeForRefresh; Time for Stop ad-hoc: $_bIsTimeForStopAH;
                       Time for Play ad-hoc: $_bIsTimeForPlayAH; Time for play next playlist: $_bIsTimeForNextPlaylist;
                       time for play next group: $_bIsTimeForNextGroup; Current TID: $pid.''');
 
@@ -891,13 +890,13 @@ class PlayerScreenProvider extends ChangeNotifier {
         _bIsTimeForNextGroup = false;
 
         logD(
-            '''CPlayerScreenDlg::ChangePlaylist after, Reload Schedule: $_bReloadSchedule; Time for Refresh: $_bIsTimeForRefresh; Time for Stop ad-hoc: $_bIsTimeForStopAH;
+            '''PlayerScreenProvider - ChangePlaylist after, Reload Schedule: $_bReloadSchedule; Time for Refresh: $_bIsTimeForRefresh; Time for Stop ad-hoc: $_bIsTimeForStopAH;
                       Time for Play ad-hoc: $_bIsTimeForPlayAH; Time for play next playlist: $_bIsTimeForNextPlaylist;
                       time for play next group: $_bIsTimeForNextGroup; Current TID: $pid.''');
       } else {
         //touch screen click - play finish, return to playlist
         logD(
-            'CPlayerScreenDlg::ChangePlaylist after, _dwLatestUDP: ${_dwLatestUDP != null ? DateFormat('yyyy-MM-dd HH:mm:ss').format(_dwLatestUDP!) : 'null'}; _nEventTimeout: ${DCMGlobal.eventTimeout}.');
+            'PlayerScreenProvider - ChangePlaylist after, _dwLatestUDP: ${_dwLatestUDP != null ? DateFormat('yyyy-MM-dd HH:mm:ss').format(_dwLatestUDP!) : 'null'}; _nEventTimeout: ${DCMGlobal.eventTimeout}.');
         if ((_dwLatestUDP == null && DCMGlobal.eventTimeout == 0) ||
             (_dwLatestUDP != null ||
                 (DateTime.now().difference(_dwLatestUDP!).inMilliseconds >
@@ -925,7 +924,8 @@ class PlayerScreenProvider extends ChangeNotifier {
   }
 
   void playProduct(int nIndex, [bool bStart = false]) {
-    logD('CPlayerScreenDlg::PlayProduct - Play Product: $nIndex; TID $pid.');
+    logD(
+        'PlayerScreenProvider - PlayProduct - Play Product: $nIndex; TID $pid.');
     //ContentMgr.Cleanup();
     int nStatus = 0;
     //WriteMemoryLog(nStatus);
@@ -936,15 +936,15 @@ class PlayerScreenProvider extends ChangeNotifier {
       return;
     }
 
-    //logD(' CPlayerScreenDlg::PlayProduct step 1 Play Product %d, TID $pid.', nIndex, GetCurrentThreadId());
+    //logD(' PlayerScreenProvider - PlayProduct step 1 Play Product %d, TID $pid.', nIndex, GetCurrentThreadId());
     _nCurrProduct = nIndex;
     ScheduleList().setPlayProduct(nIndex);
 
     ProductData? pProductData = ScheduleList().getProductData(nIndex);
     ScheduleList().initPlaylistZone(pProductData);
-    //logD(' CPlayerScreenDlg::PlayProduct step 2 Play Product %d, TID $pid.', nIndex, GetCurrentThreadId());
+    //logD(' PlayerScreenProvider - PlayProduct step 2 Play Product %d, TID $pid.', nIndex, GetCurrentThreadId());
 
-    //logD('CPlayerScreenDlg::PlayProduct Stop Timer Event %d!!!', GetCurrentThreadId());
+    //logD('PlayerScreenProvider - PlayProduct Stop Timer Event %d!!!', GetCurrentThreadId());
     int nTotalZones = ScheduleList().getTotalZones();
     if (pProductData == null || nTotalZones < 1 || nTotalZones > 10000) {
       _bNeedPlayNextProduct = true;
@@ -972,7 +972,7 @@ class PlayerScreenProvider extends ChangeNotifier {
     int nTransparentZones =
         pProductData.getZoneCount(ZoneEffectType.contentAlpha);
     deleteMessageThread(cTRANSPARENTZONETYPE + nTransparentZones, true);
-    //logD(' CPlayerScreenDlg::PlayProduct step 3 Play Product %d, TID $pid.', nIndex, GetCurrentThreadId());
+    //logD(' PlayerScreenProvider - PlayProduct step 3 Play Product %d, TID $pid.', nIndex, GetCurrentThreadId());
 
     //LockWindowUpdate();
     /*if (::IsWindow(_PlayerFrame.GetSafeHwnd()))
@@ -1057,11 +1057,11 @@ class PlayerScreenProvider extends ChangeNotifier {
       }
     } catch (e) {
       logD(
-          'CPlayerScreenDlg::PlayProduct Play product 0 error, TID $pid, error: $e');
+          'PlayerScreenProvider - PlayProduct Play product 0 error, TID $pid, error: $e');
     }
     ScheduleList().setShowMessage(bShowMessage);
 
-    //logD('CPlayerScreenDlg::PlayProduct WaitWithMessageLoop: '%d', %s; TID: '%d'!', bWaitOK, DCMMisc::GetErrorString(), GetCurrentThreadId());
+    //logD('PlayerScreenProvider - PlayProduct WaitWithMessageLoop: '%d', %s; TID: '%d'!', bWaitOK, DCMMisc::GetErrorString(), GetCurrentThreadId());
 
     _dwFirstTime =
         _dwFirstTime.add(Duration(milliseconds: (rtDuration * 1000).toInt()));
@@ -1074,7 +1074,7 @@ class PlayerScreenProvider extends ChangeNotifier {
       //deleteMZThread();
     } catch (e) {
       logD(
-          'CPlayerScreenDlg::PlayProduct Play product 1 error, TID $pid, error: $e');
+          'PlayerScreenProvider - PlayProduct Play product 1 error, TID $pid, error: $e');
     }
 
     //Sleep(200);
@@ -1099,7 +1099,7 @@ class PlayerScreenProvider extends ChangeNotifier {
     notifyListeners();
 
     startPlayingTimer();
-    //logD('CPlayerScreenDlg::PlayProduct Restart Timer Event $pid.');
+    //logD('PlayerScreenProvider - PlayProduct Restart Timer Event $pid.');
 
     _bIsLoading = false;
     /*gShowHideTaskBar(true);
@@ -1377,14 +1377,14 @@ class PlayerScreenProvider extends ChangeNotifier {
         pThread0.setContentFinished(false);
         //::PostMessage(pThread0.GetPlayerHWnd(), WM_INFORM_REPLAY, 0, 0);
         logD(
-            'CPlayerScreenDlg::playNextContent, Zone: ${pThread0.getZone()} play finished, try to replay, Current TID $pid.');
+            'PlayerScreenProvider - playNextContent, Zone: ${pThread0.getZone()} play finished, try to replay, Current TID $pid.');
         pThread0.rePlay();
         //notifyListeners();
       } else {
         if (pThread0.isContentFinished()) {
           pThread0.setContentFinished(false);
           logD(
-              '''CPlayerScreenDlg::playNextContent, Zone: ${pThread0.getZone()} contentlist's content play finished, try to playNextContentListItem, Current TID $pid.''');
+              '''PlayerScreenProvider - playNextContent, Zone: ${pThread0.getZone()} contentlist's content play finished, try to playNextContentListItem, Current TID $pid.''');
           //::PostMessage(pThread0.GetPlayerHWnd(), WM_PLAYNEXT_CONTENTLIST, (WPARAM)CONTENT_FINISH, 0);
           pThread0.playNextContentListItem(PlayFinish.eCONTENTFINISH);
           //notifyListeners();
@@ -1405,7 +1405,7 @@ class PlayerScreenProvider extends ChangeNotifier {
     bool bHasPowerPoint =
         ScheduleList().hasPowerPoint(ScheduleList().getPlayProduct());
     logD(
-        'CPlayerScreenDlg::PlayNextProduct, bHasPowerPoint:$bHasPowerPoint, Current TID $pid.');
+        'PlayerScreenProvider - PlayNextProduct, bHasPowerPoint:$bHasPowerPoint, Current TID $pid.');
 
     try {
       if (ScheduleList().reachLastProduct()) {
@@ -1419,7 +1419,7 @@ class PlayerScreenProvider extends ChangeNotifier {
           ScheduleList().setProductIndex(_nPushBtn);
           _bIsPushFile = false;
         }
-        //logD('CPlayerScreenDlg::PlayNextProduct step:%d, Current TID $pid.', 3, GetCurrentThreadId());
+        //logD('PlayerScreenProvider - PlayNextProduct step:%d, Current TID $pid.', 3, GetCurrentThreadId());
 
         if (!ScheduleList().isDCMFilePlay() && _btnEvent == 0) {
           //not Preview catalogue or event
@@ -1427,7 +1427,7 @@ class PlayerScreenProvider extends ChangeNotifier {
             sendSerialMSG('1!\r\n');
           }
 
-          //logD('CPlayerScreenDlg::PlayNextProduct step:%d, Current TID $pid.', 4, GetCurrentThreadId());
+          //logD('PlayerScreenProvider - PlayNextProduct step:%d, Current TID $pid.', 4, GetCurrentThreadId());
           if (ScheduleList().count > 1) {
             // multi playlist
             //12/03/2001 John Lee
@@ -1436,7 +1436,7 @@ class PlayerScreenProvider extends ChangeNotifier {
               var playNextResult = ScheduleList().playNextFile();
               if (playNextResult.status) {
                 if (!playNextResult.strDCMFile!.equalsIgnoreCase(_strDCMFile)) {
-                  //logD('CPlayerScreenDlg::PlayNextProduct step:%d, Current TID $pid.', 51, GetCurrentThreadId());
+                  //logD('PlayerScreenProvider - PlayNextProduct step:%d, Current TID $pid.', 51, GetCurrentThreadId());
                   if (!loadCatalogue(playNextResult.strDCMFile!)) {
                     logD(
                         'load DCM file: ${playNextResult.strDCMFile} error; Current TID $pid.');
@@ -1453,7 +1453,7 @@ class PlayerScreenProvider extends ChangeNotifier {
                 }
               }
             }
-            //logD('CPlayerScreenDlg::PlayNextProduct step:%d, Current Thread ID %d!!!', 52, GetCurrentThreadId());
+            //logD('PlayerScreenProvider - PlayNextProduct step:%d, Current Thread ID %d!!!', 52, GetCurrentThreadId());
             /*else
             {
               ScheduleList().SetPlayTimes();
@@ -1463,7 +1463,7 @@ class PlayerScreenProvider extends ChangeNotifier {
             //Single Playlist play
             String strDCMFile = ScheduleList().getPlayFile();
             if (!strDCMFile.equalsIgnoreCase(_strDCMFile)) {
-              //logD('CPlayerScreenDlg::PlayNextProduct step:%d, Current TID $pid.', 53, GetCurrentThreadId());
+              //logD('PlayerScreenProvider - PlayNextProduct step:%d, Current TID $pid.', 53, GetCurrentThreadId());
               if (!loadCatalogue(strDCMFile)) {
                 logD('load DCM file: $strDCMFile error; Current TID $pid.');
                 _bNeedPlayNextProduct = true;
@@ -1477,7 +1477,7 @@ class PlayerScreenProvider extends ChangeNotifier {
               _nCurrProduct = 0;
               ScheduleList().setProductIndex(0);
             }
-            //logD('CPlayerScreenDlg::PlayNextProduct step:%d, Current TID $pid.', 6, GetCurrentThreadId());
+            //logD('PlayerScreenProvider - PlayNextProduct step:%d, Current TID $pid.', 6, GetCurrentThreadId());
           }
         }
       } else {
@@ -1509,10 +1509,11 @@ class PlayerScreenProvider extends ChangeNotifier {
 
       //int nCurrProduct = ScheduleList().GetPlayProduct();
       logD(
-          '''CPlayerScreenDlg::PlayNextProduct finished; Catalogue:'$_strDCMFile'; start Play Product:'$_nCurrProduct' Current TID '$pid'.''');
+          '''PlayerScreenProvider - PlayNextProduct finished; Catalogue:'$_strDCMFile'; start Play Product:'$_nCurrProduct' Current TID '$pid'.''');
       playProduct(_nCurrProduct);
     } catch (e) {
-      logD('CPlayerScreenDlg::PlayNextProduct error: $e; Current TID $pid.');
+      logD(
+          'PlayerScreenProvider - PlayNextProduct error: $e; Current TID $pid.');
     }
 
     //StartTimer(PLAYING_TIMER, PLAYING_DURATION);
@@ -1676,7 +1677,7 @@ class PlayerScreenProvider extends ChangeNotifier {
     if (pMessageThread != null)
     {
       int nOutput = CAHPlayList::GetOutput(pMessageThread->GetZone());
-      //logI('CPlayerScreenDlg::LoadMessageThread: %d', GetCurrentThreadId());
+      //logI('PlayerScreenProvider - LoadMessageThread: %d', GetCurrentThreadId());
       int nLayout = ScheduleList()._MessageList.GetMessageLayout(nOutput);
       if (nLayout != AH_BOTTOM_MZ)
       {
@@ -1796,7 +1797,7 @@ class PlayerScreenProvider extends ChangeNotifier {
       {
         if (CAHPlayList::IsAHMessage(((PlayerZone )_arrLineThread.GetAt(i))->GetZone()))
         {
-          logI('CPlayerScreenDlg::DeleteMessageThreadByOutput - Found Message Thread '%d', TID %d.', ((PlayerZone )_arrLineThread.GetAt(i))->GetZone(), GetCurrentThreadId());
+          logI('PlayerScreenProvider - DeleteMessageThreadByOutput - Found Message Thread '%d', TID %d.', ((PlayerZone )_arrLineThread.GetAt(i))->GetZone(), GetCurrentThreadId());
           DeleteMessageThread(((PlayerZone )_arrLineThread.GetAt(i))->GetZone());
         }
         else
@@ -1807,7 +1808,7 @@ class PlayerScreenProvider extends ChangeNotifier {
     }
     else
     {
-      logI('CPlayerScreenDlg::DeleteMessageThreadByOutput - Found Message Thread '%d', Output: '%d'; TID %d.', CAHPlayList::GetMessageId(nOutput), nOutput, GetCurrentThreadId());
+      logI('PlayerScreenProvider - DeleteMessageThreadByOutput - Found Message Thread '%d', Output: '%d'; TID %d.', CAHPlayList::GetMessageId(nOutput), nOutput, GetCurrentThreadId());
       DeleteMessageThread(CAHPlayList::GetMessageId(nOutput));
     }*/
   }
@@ -1819,7 +1820,7 @@ class PlayerScreenProvider extends ChangeNotifier {
       if (CAHPlayList::IsAHMessage(((PlayerZone )_arrLineThread.GetAt(i))->GetZone())
         && nLayer == CAHPlayList::GetLayer(((PlayerZone )_arrLineThread.GetAt(i))->GetZone()))
       {
-        logI('CPlayerScreenDlg::DeleteMessageThreadByLayer - Found Message Thread '%d', TID %d.', ((PlayerZone )_arrLineThread.GetAt(i))->GetZone(), GetCurrentThreadId());
+        logI('PlayerScreenProvider - DeleteMessageThreadByLayer - Found Message Thread '%d', TID %d.', ((PlayerZone )_arrLineThread.GetAt(i))->GetZone(), GetCurrentThreadId());
         DeleteMessageThread(((PlayerZone )_arrLineThread.GetAt(i))->GetZone());
       }
       else
@@ -1890,7 +1891,7 @@ class PlayerScreenProvider extends ChangeNotifier {
 
     if (bKilled && AHScheduleList().isAHMessage(nZone)) {
       int nOutput = AHScheduleList().getOutput(nZone);
-      logI('''CPlayerScreenDlg::DeleteMessageThread refresh window nOutput '$nOutput'''');
+      logI('''PlayerScreenProvider - DeleteMessageThread refresh window nOutput '$nOutput'''');
       //PlaySkin.RemoveAHMessageRect(nOutput);
       changeMessageRect(nOutput);
       changeMessageRgn(nOutput);
@@ -2066,7 +2067,7 @@ class PlayerScreenProvider extends ChangeNotifier {
         playSkin.loadFromCatalogue(ScheduleList().getCatalogue());
       }
 
-      //logD('CPlayerScreenDlg::LoadCatalogue Step: %d, DCMFile:'%s'; last Zone Number:'%d'; Now Zone Number:'%d'; Current TID $pid.',
+      //logD('PlayerScreenProvider - LoadCatalogue Step: %d, DCMFile:'%s'; last Zone Number:'%d'; Now Zone Number:'%d'; Current TID $pid.',
       //	0, strDCMFile, nTotalZone1, nTotalZone, getCurrentThreadId());
       /*bool bIsTwoWindows = playSkin.isTwoWindows;
       bool bIsAutoHide = playSkin.isAutoHidePopupWindow;
@@ -2092,10 +2093,10 @@ class PlayerScreenProvider extends ChangeNotifier {
           ScheduleList().getCatalogue().strLayoutName != strOldLayout ||
           ScheduleList().getCatalogue().nScreenType != nOldScreen);
       _bDisplayChanged = false;
-      //logD('CPlayerScreenDlg::LoadCatalogue Step: %d, Current TID $pid.', 3, getCurrentThreadId());
+      //logD('PlayerScreenProvider - LoadCatalogue Step: %d, Current TID $pid.', 3, getCurrentThreadId());
       ScheduleList().setPlayTimes();
       _strDCMFile = strDCMFile;
-      //logD('CPlayerScreenDlg::LoadCatalogue Step: %d, Current TID $pid.', 4, getCurrentThreadId());
+      //logD('PlayerScreenProvider - LoadCatalogue Step: %d, Current TID $pid.', 4, getCurrentThreadId());
       return true;
     }
 
@@ -2181,7 +2182,7 @@ class PlayerScreenProvider extends ChangeNotifier {
 
     final window = WindowManager.instance.getCurrent();
     if (window != null) {
-      logD('CPlayerScreenDlg::_changeWindowSize: $rectMonitor');
+      logD('PlayerScreenProvider - _changeWindowSize: $rectMonitor');
       //window.setPosition(rectMonitor.left, rectMonitor.top);
       //window.setSize(rectMonitor.width, rectMonitor.height);
     }
@@ -2192,7 +2193,7 @@ class PlayerScreenProvider extends ChangeNotifier {
     if (window != null) {
       _rectPlayer = Rect.fromLTWH(window.position.dx, window.position.dy,
           window.size.width, window.size.height);
-      logD('CPlayerScreenDlg::GetClientRect: $_rectPlayer');
+      logD('PlayerScreenProvider - GetClientRect: $_rectPlayer');
     }
   }
 
