@@ -723,8 +723,8 @@ class PlayerTaskFile {
   static PlayerJobItem? getTask() {
     PlayerJobItem? pTask;
     PlayerJobItem? pFirst;
-    int index = 0;
-    for (var it in vTaskQueue) {
+    for (var index = 0; index < vTaskQueue.length; index++) {
+      var it = vTaskQueue[index];
       if (it.dwSyncContent == cTASKCOMMANDSMS ||
           it.dwSyncContent == cTASKCOMMAND ||
           it.dwSyncContent == cTASKRESETSETTINGS) {
@@ -739,7 +739,6 @@ class PlayerTaskFile {
         it.bIsCurrent = false;
         break;
       }
-      index++;
     }
     pTask ??= pFirst;
 

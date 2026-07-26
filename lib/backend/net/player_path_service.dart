@@ -299,13 +299,13 @@ class PlayerPathService {
       await tempFile.delete();
     }
 
-    strFileName = p.join(DCMGlobal.settingPath, 'ContentTypes.xml');
+    strFileName = p.join(DCMGlobal.appDataPath, 'ContentTypes.xml');
     tempFile = File(strFileName);
     if (await tempFile.exists()) {
       await tempFile.delete();
     }
 
-    strFileName = p.join(App().dataPath, 'FTPManager.xml');
+    strFileName = p.join(DCMGlobal.appDataPath, 'FTPManager.xml');
     tempFile = File(strFileName);
     if (await tempFile.exists()) {
       await tempFile.delete();
@@ -841,13 +841,15 @@ class PlayerPathService {
       dtEnd = stringToTime(dtEnd, DCMGlobal.availableACUEnd!, ':');
       if (DateTime.now().isAfter(dtEnd)) {
         logI(
-            'Auto content update is unavailable, End time for auto content update: ${DCMGlobal.availableACUEnd}');
+            'Auto content update is unavailable, End time for auto content update: ${DCMGlobal.availableACUEnd}',
+            syncTag);
 
         return false;
       }
     }
     logI(
-        'It is time for auto content update, Available time: ${DCMGlobal.availableACUStart} - ${DCMGlobal.availableACUEnd}');
+        'It is time for auto content update, Available time: ${DCMGlobal.availableACUStart} - ${DCMGlobal.availableACUEnd}',
+        syncTag);
 
     return true;
   }

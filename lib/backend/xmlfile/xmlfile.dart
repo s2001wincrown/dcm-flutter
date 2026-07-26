@@ -62,7 +62,7 @@ class XmlFile {
       File file = File(_sFilePath);
       szFile = file.readAsStringSync();
     } catch (e) {
-      logE('Error loading file: $e');
+      logE('XmlFile - Error loading xml file: $e');
       return false;
     }
 
@@ -84,7 +84,7 @@ class XmlFile {
       // now read it into XmlItem structures
       if (_xflError == XflError.none) {
         if (!parseRootItem(strRootItemName, doc.detach())) {
-          logE("Miss root item.");
+          logE("XmlFile - Miss root item.");
           _xflError = XflError.missingRoot;
         } else {
           bRes = true;
@@ -92,7 +92,7 @@ class XmlFile {
       }
       return parseRootItem(strRootItemName, doc.detach());
     } catch (e) {
-      logE('Error parsing XML: $e');
+      logE('XmlFile - Error parsing XML: $e');
       _xflError = XflError.badMsxml;
     }
 
@@ -168,7 +168,7 @@ class XmlFile {
         file.writeAsStringSync(sXml);
         return true;
       } catch (e) {
-        logE('Error saving file: $e');
+        logE('XmlFile - Error saving file: $e');
         return false;
       }
     }

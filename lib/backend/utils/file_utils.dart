@@ -10,6 +10,7 @@ import 'package:intl/intl.dart';
 import 'package:mime_type/mime_type.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as path;
+import 'package:storage_info/storage_info.dart';
 
 class FileUtils {
   static String waPath = '/storage/emulated/0/WhatsApp/Media/.Statuses';
@@ -319,15 +320,13 @@ class FileUtils {
   }
 
   /// Returns a map of storage root -> { 'total': <bytes>, 'free': <bytes> }
-  static Future<Map<String, Map<String, int>>> getDiskUsage() async {
+  static Future<double> getDiskUsage() async {
     try {
-      // storage_info API differs across platforms and package versions.
-      // Return an empty map here; platforms can implement a richer
-      // implementation if needed.
-      return <String, Map<String, int>>{};
+      final storageInfoPlugin = StorageInfo();
+      return await storageInfoPlugin.getStorageFreeSpace(SpaceUnit.GB);
     } catch (e) {
       logE('Error getting disk usage: $e');
-      return <String, Map<String, int>>{};
+      return 0.0;
     }
   }
 

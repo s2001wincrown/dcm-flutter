@@ -362,7 +362,8 @@ class PlayerLogFile {
           },
         );
         logI(
-            '''httpPostAction '$url', response: ${response.statusCode} - ${response.body}''');
+            '''httpPostAction '$url', response: ${response.statusCode} - ${response.body}''',
+            syncTag);
         return (
           status: response.statusCode >= 200 && response.statusCode < 300,
           result: response.body

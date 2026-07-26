@@ -1,19 +1,16 @@
 import 'dart:async';
 import 'dart:io';
-import 'dart:ui';
 
-import 'package:dcm/backend/app.dart';
-import 'package:dcm/backend/constants.dart';
 import 'package:dcm/backend/models/dcm_global.dart';
 import 'package:dcm/backend/models/player_global.dart';
 import 'package:dcm/backend/net/content_sync_service.dart';
 import 'package:dcm/backend/net/dcm_http_client.dart';
+import 'package:dcm/backend/net/play_log_post.dart';
 import 'package:dcm/backend/net/player_path_service.dart';
 import 'package:dcm/backend/net/player_task_file.dart';
 import 'package:dcm/backend/services/dcm_downloader.dart';
 import 'package:dcm/backend/utils/log_utils.dart';
 import 'package:dcm/backend/xmlfile/xmlfile.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:path/path.dart' as path;
 import 'package:worker_manager/worker_manager.dart';
@@ -46,6 +43,8 @@ class DcmBackgroundService {
     final snapshot = snapshotPlayer();
     // 1. 获取主 Isolate 的 Token
     final rootIsolateToken = RootIsolateToken.instance;
+    final logPostValue = PlayLogPostService.logPostFlags;
+    final lastSyncTime = PlayerTaskFile.dtSyncTime;
 
     try {
       _started = true;
@@ -53,6 +52,8 @@ class DcmBackgroundService {
         if (rootIsolateToken != null) {
           BackgroundIsolateBinaryMessenger.ensureInitialized(rootIsolateToken);
         }
+        // 3. 【核心】使用 Completer 保持后台任务存活
+        final completer = Completer<String>();
         //WidgetsFlutterBinding.ensureInitialized();
         // Apply DCMGlobal config inside worker
         DCMGlobal.applyWorkerConfig(
@@ -131,11 +132,18 @@ class DcmBackgroundService {
           PlayerTaskFile.strPlayerTaskFile =
               path.join(DCMGlobal.ftpSettingPath, 'synctask.xml');
           PlayerTaskFile.init();
+          PlayerTaskFile.dtSyncTime = lastSyncTime;
+          PlayLogPostService.processLogPostFlag(logPostValue);
           await ContentSyncService().init();
           await ContentSyncService().startPolling();
         } catch (e) {
           logE('Failed to apply player snapshot in worker: $e', syncTag);
         }
+
+        logD('completer.future', syncTag);
+        // 5. 等待 Completer 完成，防止后台 Isolate 提前销毁
+        await completer.future;
+        logD('completer.future end', syncTag);
       }));
     } catch (e, stack) {
       _started = false;

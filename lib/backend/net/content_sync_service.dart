@@ -29,7 +29,7 @@ class ContentSyncService {
 
   bool _bTransfering = false;
 
-  bool _bStartupTime = false;
+  bool bStartupTime = false; // true: successful to player log post at startup
   bool _bPlayListUpdated = false;
 
   final DateTime _dtStartup = DateTime.now();
@@ -60,6 +60,7 @@ class ContentSyncService {
   late DcmDownloader _workQueue;
 
   DcmDownloader get workQueue => _workQueue;
+  DateTime get dtStartup => _dtStartup;
 
   Future<void> init() async {
     await initPlayerRegisterInformation();
@@ -103,7 +104,12 @@ class ContentSyncService {
   }
 
   Future<void> _pollOnce() async {
-    await contentSyncStatusCheck();
+    try {
+      await contentSyncStatusCheck();
+    } catch (e, stack) {
+      logE('Content sync status check failed: $e', syncTag);
+      stderr.writeln(stack);
+    }
   }
 
   Future<void> startTempFileCopyTimer() async {
@@ -194,7 +200,7 @@ class ContentSyncService {
     //InitUDPManager(globalPlayer);
 
     if (globalPlayer.strUniqueName.isNotEmpty) {
-      PlayerPathService.initLocalFiles();
+      await PlayerPathService.initLocalFiles();
       var versionInfo = await Utils.uploadVersionInfo();
       _strVerInfo = versionInfo.strVerInfo;
       _strPlaylistVersion = versionInfo.strPlaylistVersion;
@@ -204,7 +210,7 @@ class ContentSyncService {
 					globalPlayer.strUniqueName % dtStartup.Format('%Y-%m-%d %H:%M:%S') % strPublicIP % strVerInfo % strImportVersion % strPlaylistVersion;*/
       String strRequest =
           '$cHTTPUNIQUEKEY=${globalPlayer.strUniqueName}&dtStartup=${DateFormat('yyyy-MM-dd HH:mm:ss').format(_dtStartup)}&strPublicIP=$_strPublicIP&strLocalAddress=${globalPlayer.strLocalAddress}&strDCMVersion=$_strVerInfo&strUSBPlugin=$_strImportVersion&strPlaylistVersion=$_strPlaylistVersion';
-      _bStartupTime =
+      bStartupTime =
           await PlayLogPostService.updatePlayerLog(request: strRequest);
 
       PlayLogPostService.updateShutdown();
@@ -656,7 +662,7 @@ class ContentSyncService {
     bool bDownload = false;
     if (pJob.dwJobStatus.value < FileTransferStatus.eGENERATEDFILELIST.value ||
         pJob.dwJobStatus.value >= FileTransferStatus.eTRANSFEREDCHANNEL.value) {
-      PlayerLogFile.openLogFile(pJob, bClearLog);
+      await PlayerLogFile.openLogFile(pJob, bClearLog);
 
       logI('Retrieving channel information from server......\n', syncTag);
       if (pJob.dwJobStatus.value <
@@ -676,24 +682,24 @@ class ContentSyncService {
                 '''Total Size '${FileUtils.formatBytesToMb(PlayerLogFile.nTotalBytesToDownload)}MB' will been download''',
                 syncTag);
             if (transferAction.isOverMaximumLimitSize()) {
-              transferFailureAction();
+              await transferFailureAction();
               return true;
             }
 
-            PlayerLogFile.writeLogFile(
+            await PlayerLogFile.writeLogFile(
                 cTRANSFERFILECOUNT, '${transferAction.getFileCount()}');
 
             startSyncStatusTimer();
             if (transferAction.isNoDownloadButScheduleChange()) {
-              stopSyncStatusTimer();
+              await stopSyncStatusTimer();
               //_dwJobStatus = FileTransferStatus.eTRANSFEREDTEMPFILE;
               await PlayerTaskFile.writeTaskFile(PlayerTaskFile.pCurrJob,
                   FileTransferStatus.eTRANSFEREDTEMPFILE);
-              startTempFileCopy();
+              await startTempFileCopy();
 
               return true;
             } else {
-              transferAction.download();
+              await transferAction.download();
             }
             bDownload = true;
             //_dwJobStatus = FileTransferStatus.eTRANSFERINGTEMPFILE;
@@ -708,15 +714,15 @@ class ContentSyncService {
       } else {
         if (await transferAction.genFileList()) {
           if (transferAction.isOverMaximumLimitSize()) {
-            transferFailureAction();
+            await transferFailureAction();
             return true;
           }
 
-          PlayerLogFile.writeLogFile(
+          await PlayerLogFile.writeLogFile(
               cTRANSFERFILECOUNT, '${transferAction.getFileCount()}');
           await stopTempFileCopyTimer();
 
-          transferAction.download();
+          await transferAction.download();
           bDownload = true;
           //_dwJobStatus = FileTransferStatus.eTRANSFERINGTEMPFILE;
           await PlayerTaskFile.writeTaskFile(
@@ -728,7 +734,7 @@ class ContentSyncService {
       bDownload = await syncActionTransfer(transferAction, pJob);
     } else if (pJob.dwJobStatus.value <
         FileTransferStatus.eUPDATINGPLAYLIST.value) {
-      startTempFileCopy();
+      await startTempFileCopy();
       bDownload = true;
     }
 

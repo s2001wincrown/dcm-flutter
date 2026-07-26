@@ -2,10 +2,10 @@ import 'dart:async';
 import 'dart:collection';
 import 'dart:io';
 
-import 'package:dcm/backend/app.dart';
 import 'package:dcm/backend/constants.dart';
 import 'package:dcm/backend/models/dcm_global.dart';
 import 'package:dcm/backend/models/player_global.dart';
+import 'package:dcm/backend/net/content_sync_service.dart';
 import 'package:dcm/backend/net/dcm_http_client.dart';
 import 'package:dcm/backend/net/player_log_file.dart';
 import 'package:dcm/backend/net/player_task_file.dart';
@@ -115,9 +115,6 @@ class PlayLogPostService {
   static final Map<String, int> _mapLogRetries = <String, int>{};
   final Queue<String> _pendingUploads = Queue<String>();
   DateTime? _lastPlayerLog2Post;
-
-  static bool _bStartupTime =
-      false; // true: successful to player log post at startup
 
   static int _nPlayerLogRetryCnt = 0;
   static int _nShutdownLogRetryCnt = 0;
@@ -422,39 +419,39 @@ class PlayLogPostService {
 
       xmlProfile.saveProfile();
       if (logPostSettings.lastPlaylistLogPost.isAfter(dtDefa)) {
-        logI('Request Playlist log');
+        logI('Request Playlist log', syncTag);
       }
 
       if (logPostSettings.lastUSBDTLLogPost.isAfter(dtDefa)) {
-        logI('Request USB log in detail');
+        logI('Request USB log in detail', syncTag);
       }
 
       if (logPostSettings.lastMSGLogPost.isAfter(dtDefa)) {
-        logI('Request Message log');
+        logI('Request Message log', syncTag);
       }
 
       if (logPostSettings.lastUSBLogPost.isAfter(dtDefa)) {
-        logI('Request USB log');
+        logI('Request USB log', syncTag);
       }
 
       if (logPostSettings.lastCOMLogPost.isAfter(dtDefa)) {
-        logI('Request COM log');
+        logI('Request COM log', syncTag);
       }
 
       if (logPostSettings.lastAPPlayLogPost.isAfter(dtDefa)) {
-        logI('Request 3G ad-hoc Playlog');
+        logI('Request 3G ad-hoc Playlog', syncTag);
       }
 
       if (logPostSettings.lastAHPlayLogPost.isAfter(dtDefa)) {
-        logI('Request ad-hoc Playlog');
+        logI('Request ad-hoc Playlog', syncTag);
       }
 
       if (logPostSettings.lastPlayLogUpload.isAfter(dtDefa)) {
-        logI('Request Playlog in detail');
+        logI('Request Playlog in detail', syncTag);
       }
 
       if (logPostSettings.lastDDELogPost.isAfter(dtDefa)) {
-        logI('Request DDE download log in detail');
+        logI('Request DDE download log in detail', syncTag);
       }
     }
   }
@@ -657,7 +654,8 @@ class PlayLogPostService {
           }
         }
       } catch (e) {
-        logE('Failed to process playlog files in $strLogPath. Error: $e');
+        logE('Failed to process playlog files in $strLogPath. Error: $e',
+            syncTag);
       }
     }
 
@@ -847,7 +845,8 @@ class PlayLogPostService {
         }
       }
     } catch (e) {
-      logE('Failed to process playlog files in $strLogPath. Error: $e');
+      logE(
+          'Failed to process playlog files in $strLogPath. Error: $e', syncTag);
     }
 
     return true;
@@ -934,7 +933,8 @@ class PlayLogPostService {
         }
       }
     } catch (e) {
-      logE('Failed to process playlistlog files in $strLogPath. Error: $e');
+      logE('Failed to process playlistlog files in $strLogPath. Error: $e',
+          syncTag);
     }
 
     return true;
@@ -990,7 +990,8 @@ class PlayLogPostService {
         }
       }
     } catch (e) {
-      logE('Failed to process DDE log files in $strLogPath. Error: $e');
+      logE(
+          'Failed to process DDE log files in $strLogPath. Error: $e', syncTag);
     }
 
     return true;
@@ -1084,7 +1085,8 @@ class PlayLogPostService {
         }
       }
     } catch (e) {
-      logE('Failed to process ad-hocplaylog files in $strLogPath. Error: $e');
+      logE('Failed to process ad-hocplaylog files in $strLogPath. Error: $e',
+          syncTag);
     }
 
     return true;
@@ -1179,7 +1181,8 @@ class PlayLogPostService {
       }
     } catch (e) {
       logE(
-          'Failed to process ad-hoc playlist log files in $strLogPath. Error: $e');
+          'Failed to process ad-hoc playlist log files in $strLogPath. Error: $e',
+          syncTag);
     }
 
     return true;
@@ -1248,7 +1251,8 @@ class PlayLogPostService {
         }
       }
     } catch (e) {
-      logE('Failed to process COM Port log files in $strLogPath. Error: $e');
+      logE('Failed to process COM Port log files in $strLogPath. Error: $e',
+          syncTag);
     }
 
     return true;
@@ -1334,7 +1338,8 @@ class PlayLogPostService {
       }
     } catch (e) {
       logE(
-          'Failed to process USB content import log files in $strLogPath. Error: $e');
+          'Failed to process USB content import log files in $strLogPath. Error: $e',
+          syncTag);
     }
 
     return true;
@@ -1375,7 +1380,8 @@ class PlayLogPostService {
                 strMessage = await logFile.readAsString();
               } catch (e) {
                 logE(
-                    'Failed to read USB detail log file $strFilePath. Error: $e');
+                    'Failed to read USB detail log file $strFilePath. Error: $e',
+                    syncTag);
               }
 
               if (strMessage.isEmpty || !strMessage.contains('<FileList>')) {
@@ -1400,7 +1406,8 @@ class PlayLogPostService {
       }
     } catch (e) {
       logE(
-          'Failed to process USB content import detail log  files in $strLogPath. Error: $e');
+          'Failed to process USB content import detail log  files in $strLogPath. Error: $e',
+          syncTag);
     }
 
     return true;
@@ -1440,10 +1447,12 @@ class PlayLogPostService {
     }
     String link = cmsUrl;
     link = fADDSLASH(link);
-    link += cmsPLAYERLOGURL;
+    link += '$cmsPLAYERLOGURL?${Utils.urlEscape(request)}';
     link = Utils.addCMSParam(link);
+    var httpResult = await PlayerLogFile.httpPostAction(link, '');
 
-    final client = dcmHttpClientFactory.clientFor(
+    return httpResult.status;
+    /*final client = dcmHttpClientFactory.clientFor(
       baseUrl: Utils.apiBaseUrl(link),
       timeout: const Duration(seconds: 15),
       defaultHeaders: {
@@ -1461,9 +1470,9 @@ class PlayLogPostService {
       );
       return response.statusCode >= 200 && response.statusCode < 300;
     } catch (e) {
-      logE('PlayLogPostService.updatePlayerLog error: $e');
+      logE('PlayLogPostService.updatePlayerLog error: $e', syncTag);
       return false;
-    }
+    }*/
   }
 
   static Future<bool> updatePlayerLog2Retry({
@@ -1476,7 +1485,7 @@ class PlayLogPostService {
     String strCMSLink = DCMGlobal.cmsUrl;
     strCMSLink = fADDSLASH(strCMSLink);
     strCMSLink += cmsPLAYERLOG2URL;
-    strCMSLink += ('?$strRequest1');
+    strCMSLink += '?$strRequest1';
     strCMSLink = Utils.addCMSParam(strCMSLink);
 
     var result = await PlayerLogFile.httpPostAction(strCMSLink, '');
@@ -1683,7 +1692,7 @@ class PlayLogPostService {
 
       await File(strFilePath).delete();
     }
-    logI('''Upate Content log file: '$strFilePath' $strResult.''');
+    logI('''Upate Content log file: '$strFilePath' $strResult.''', syncTag);
 
     return nRes;
   }
@@ -1707,7 +1716,8 @@ class PlayLogPostService {
         }
       }
     } catch (e) {
-      logE('Failed to process DCMUpdateLog files in $strLogPath. Error: $e');
+      logE('Failed to process DCMUpdateLog files in $strLogPath. Error: $e',
+          syncTag);
     }
   }
 
@@ -1788,11 +1798,13 @@ class PlayLogPostService {
   }
 
   static void updatePlayerLogRetry() async {
-    if (!_bStartupTime && _nPlayerLogRetryCnt < DCMGlobal.httpRetryTimes) {
+    if (!ContentSyncService().bStartupTime &&
+        _nPlayerLogRetryCnt < DCMGlobal.httpRetryTimes) {
       String strRequest =
-          '''$cHTTPUNIQUEKEY=${globalPlayer.strUniqueName}&dtStartup=${DateFormat('yyyy-MM-dd HH:mm:ss').format(App().dtStartup)}
+          '''$cHTTPUNIQUEKEY=${globalPlayer.strUniqueName}&dtStartup=${DateFormat('yyyy-MM-dd HH:mm:ss').format(ContentSyncService().dtStartup)}
         &strPublicIP=$strPublicIP&strDCMVersion=$strVerInfo&strUSBPlugin=$strImportVersion&strPlaylistVersion=$strPlaylistVersion''';
-      _bStartupTime = await updatePlayerLog(request: strRequest);
+      ContentSyncService().bStartupTime =
+          await updatePlayerLog(request: strRequest);
       _nPlayerLogRetryCnt++;
     }
   }
@@ -1802,7 +1814,7 @@ class PlayLogPostService {
       var diskUsage = await FileUtils.getDiskUsage();
       String strRequest =
           '''$cHTTPUNIQUEKEY=${globalPlayer.strUniqueName}&dtLastSyncTime=${DateFormat('yyyy-MM-dd HH:mm:ss').format(PlayerTaskFile.dtSyncTime)}
-      &strMACID=$strMACID&strDeviceID=$strDeviceID&strMACAddress=${globalPlayer.strMACAddress}&strMACAddress1=${globalPlayer.strMACAddress1}&nUsedSpace=%.2f''';
+      &strMACID=$strMACID&strDeviceID=$strDeviceID&strMACAddress=${globalPlayer.strMACAddress}&strMACAddress1=${globalPlayer.strMACAddress1}&nUsedSpace=$diskUsage''';
 
       await updatePlayerLog2Retry(request: strRequest);
     }
