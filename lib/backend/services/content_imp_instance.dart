@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'package:dcm/backend/models/dcm_global.dart';
+import 'package:dcm/backend/models/app_global.dart';
 import 'package:dcm/backend/services/content_file_impl.dart';
 import 'package:dcm/backend/utils/log_utils.dart';
 import 'package:dcm/backend/xmlfile/inifile.dart';
@@ -138,7 +138,7 @@ class ContentImpInstance {
       return;
     }
 
-    final companyPath = path.join(DCMGlobal.tempPath, task.batch);
+    final companyPath = path.join(AppGlobal.tempPath, task.batch);
     final usbPath = path.join(importFolder, task.batch);
     final fileImpl = ContentFileImpl(
       sourcePath: companyPath,
@@ -171,7 +171,7 @@ class ContentImpInstance {
 
     if (task.status.index < USBImportStatus.updatedPlaylist.index) {
       bool copySuccess = true;
-      while (task.retries < DCMGlobal.copyFileRetries) {
+      while (task.retries < AppGlobal.copyFileRetries) {
         if (task.status.index > USBImportStatus.filteredFileList.index &&
             task.status.index < USBImportStatus.copiedTempFile.index) {
           copySuccess = fileImpl.loadFileList(generated: true);
@@ -210,7 +210,7 @@ class ContentImpInstance {
           }
         }
 
-        if (copySuccess || task.retries >= DCMGlobal.copyFileRetries) {
+        if (copySuccess || task.retries >= AppGlobal.copyFileRetries) {
           break;
         }
 
@@ -224,16 +224,16 @@ class ContentImpInstance {
       }
     }
 
-    final updateLog = path.join(DCMGlobal.tempPath, 'updatelog.xml');
-    _copyFileIfExists(updateLog, path.join(DCMGlobal.logPath, 'updatelog.xml'));
-    final usbLogPath = path.join(DCMGlobal.logPath, 'PlayLog');
+    final updateLog = path.join(AppGlobal.tempPath, 'updatelog.xml');
+    _copyFileIfExists(updateLog, path.join(AppGlobal.logPath, 'updatelog.xml'));
+    final usbLogPath = path.join(AppGlobal.logPath, 'PlayLog');
     final timestamp = DateFormat('yyyyMMddHHmmss').format(DateTime.now());
     _copyFileIfExists(updateLog, path.join(usbLogPath, 'USB$timestamp.xml'));
 
     _removeFolder(companyPath);
     _deleteUpdateLog(updateLog);
     _deleteFile(
-        path.join(DCMGlobal.settingPath, 'Filelog', '${task.batch}.xml'));
+        path.join(AppGlobal.settingPath, 'Filelog', '${task.batch}.xml'));
     _clearTempFolder(task.batch);
     ContentFileImpl.empty().copyDCMUpdateFile(task.driver, task.batch);
 
@@ -249,10 +249,10 @@ class ContentImpInstance {
 
   static bool folderCheckForImport() {
     try {
-      Directory(DCMGlobal.settingPath).createSync(recursive: true);
+      Directory(AppGlobal.settingPath).createSync(recursive: true);
       return true;
     } catch (e) {
-      logE('Access folder ${DCMGlobal.settingPath} failure: $e');
+      logE('Access folder ${AppGlobal.settingPath} failure: $e');
       return false;
     }
   }
@@ -264,7 +264,7 @@ class ContentImpInstance {
 
     final index = getLatestTaskFile();
     final taskFile = path.join(
-      DCMGlobal.settingPath,
+      AppGlobal.settingPath,
       index == 0 ? 'DCMtask.xml' : 'DCMtask$index.xml',
     );
     if (!File(taskFile).existsSync()) {
@@ -300,7 +300,7 @@ class ContentImpInstance {
       return false;
     }
 
-    final importedVersionFile = path.join(DCMGlobal.settingPath, 'Version.txt');
+    final importedVersionFile = path.join(AppGlobal.settingPath, 'Version.txt');
     final importedVersion = File(importedVersionFile).existsSync()
         ? File(importedVersionFile).readAsStringSync().trim()
         : '';
@@ -317,7 +317,7 @@ class ContentImpInstance {
   }
 
   static int getLatestTaskFile() {
-    final dir = Directory(DCMGlobal.settingPath);
+    final dir = Directory(AppGlobal.settingPath);
     if (!dir.existsSync()) return 0;
 
     final regex = RegExp(r'^DCMtask(\d+)\.xml\$', caseSensitive: false);
@@ -411,7 +411,7 @@ class ContentImpInstance {
   }
 
   static bool _clearTempFolder(String currentBatch) {
-    final tempDir = Directory(DCMGlobal.tempPath);
+    final tempDir = Directory(AppGlobal.tempPath);
     if (!tempDir.existsSync()) {
       return true;
     }
@@ -455,7 +455,7 @@ class ContentImpInstance {
       if (!File(sourceVersionFile).existsSync()) {
         return false;
       }
-      final targetVersionFile = path.join(DCMGlobal.settingPath, 'Version.txt');
+      final targetVersionFile = path.join(AppGlobal.settingPath, 'Version.txt');
       Directory(path.dirname(targetVersionFile)).createSync(recursive: true);
       File(sourceVersionFile).copySync(targetVersionFile);
       return true;

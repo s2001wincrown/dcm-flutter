@@ -1,6 +1,6 @@
 import 'dart:io';
 
-import 'package:dcm/backend/models/dcm_global.dart';
+import 'package:dcm/backend/models/app_global.dart';
 import 'package:dcm/backend/models/download_file_info_data.dart';
 import 'package:dcm/backend/models/file_info_data.dart';
 import 'package:dcm/backend/net/file_replace_service.dart';
@@ -45,7 +45,7 @@ class DownloadFileListImpl {
 
     // Delete the log XML file
     var listFile =
-        File(p.join(DCMGlobal.ftpSettingPath, 'Filelog', '$_strBatch.xml'));
+        File(p.join(AppGlobal.ftpSettingPath, 'Filelog', '$_strBatch.xml'));
     if (await listFile.exists()) {
       await listFile.delete();
     }
@@ -92,7 +92,7 @@ class DownloadFileListImpl {
   /// Corresponds to ValidDownloadedFile
   Future<bool> validDownloadedFile(List<FileInfoData> targetList) async {
     bool bValid = true;
-    if (DCMGlobal.fileIntegrityCheck) {
+    if (AppGlobal.fileIntegrityCheck) {
       for (var iter in _lstFileInfo) {
         if (!iter.needDelete()) {
           var result = await PlayerPathService.validDownloadedFile(iter);
@@ -167,7 +167,7 @@ class DownloadFileListImpl {
 
   /// Corresponds to Serialize
   Future<bool> _serialize(String batchId, bool isStoring) async {
-    String strFileName = p.join(DCMGlobal.ftpSettingPath, 'Filelog');
+    String strFileName = p.join(AppGlobal.ftpSettingPath, 'Filelog');
     FileUtils.makeSureDirectoryPathExists(strFileName);
     strFileName = p.join(strFileName, '$_strBatch.xml');
 

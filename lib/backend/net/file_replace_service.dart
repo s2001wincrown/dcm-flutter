@@ -2,7 +2,7 @@ import 'dart:io';
 
 import 'package:crypto/crypto.dart';
 import 'package:dcm/backend/constants.dart';
-import 'package:dcm/backend/models/dcm_global.dart';
+import 'package:dcm/backend/models/app_global.dart';
 import 'package:dcm/backend/models/file_info_data.dart';
 import 'package:dcm/backend/net/player_path_service.dart';
 import 'package:dcm/backend/utils/extensions.dart';
@@ -69,7 +69,7 @@ class FileReplaceService {
         if (info != null) {
           info.strShortPath = p.relative(entity.path, from: contentPath);
           info.strDestFile = p.relative(entity.path, from: contentPath);
-          if ((DCMGlobal.globalSetting & settingCHECKSUM) > 0) {
+          if ((AppGlobal.globalSetting & settingCHECKSUM) > 0) {
             await _calculateHash(info);
           }
 
@@ -139,7 +139,7 @@ class FileReplaceService {
 
   /// Corresponds to Serialize / LoadFileInfoData / SaveFileInfoData
   Future<bool> serialize(String fileListName, bool bStoring) async {
-    String strFileName = p.join(DCMGlobal.ftpSettingPath, fileListName);
+    String strFileName = p.join(AppGlobal.ftpSettingPath, fileListName);
 
     if (bStoring) {
       XmlFilePro fileList = XmlFilePro('FileList');

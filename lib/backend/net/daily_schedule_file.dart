@@ -1,4 +1,4 @@
-import 'package:dcm/backend/models/dcm_global.dart';
+import 'package:dcm/backend/models/app_global.dart';
 import 'package:dcm/backend/net/daily_schedule_data.dart';
 import 'package:dcm/backend/utils/extensions.dart';
 import 'package:dcm/backend/utils/file_utils.dart';
@@ -36,7 +36,7 @@ class DailyScheduleFile extends XmlFile {
 
   bool saveDailySchedule() {
     String strEventDirectory =
-        path.join(DCMGlobal.ftpSettingPath, 'DailySchedule');
+        path.join(AppGlobal.ftpSettingPath, 'DailySchedule');
     FileUtils.makeSureDirectoryPathExists(strEventDirectory);
     strEventDirectory = path.join(strEventDirectory, 'DailySchedule.xml');
 
@@ -45,7 +45,7 @@ class DailyScheduleFile extends XmlFile {
 
   bool loadDailySchedule() {
     String strEventDirectory = path.join(
-        DCMGlobal.ftpSettingPath, 'DailySchedule', 'DailySchedule.xml');
+        AppGlobal.ftpSettingPath, 'DailySchedule', 'DailySchedule.xml');
     if (load(strEventDirectory)) {
       _strEventDefa = root().getItemValue('Default');
       getOutputsDefaEvent();

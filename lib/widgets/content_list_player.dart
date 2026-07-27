@@ -1,7 +1,6 @@
-import 'package:dcm/backend/models/dcm_global.dart';
+import 'package:dcm/backend/models/app_global.dart';
 import 'package:dcm/backend/providers/player_screen_provider.dart';
 import 'package:dcm/backend/services/player_zone_impl.dart';
-import 'package:dcm/backend/utils/log_utils.dart';
 import 'package:dcm/backend/utils/utils.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -52,7 +51,7 @@ class _ContentListPlayerState extends State<ContentListPlayer> {
       builder: (BuildContext context, playerScreenProvider, Widget? child) {
         if (!playerScreenProvider.isValidForPlay()) {
           return Container(
-            color: Utils.fromRGB(DCMGlobal.clrBGColor),
+            color: Utils.fromRGB(AppGlobal.clrBGColor),
           );
         }
 
@@ -70,7 +69,7 @@ class _ContentListPlayerState extends State<ContentListPlayer> {
                         '''ContentListPlayer Zone: ${widget.zone}, play: '${widget.contentList}', contentType: ${widget.contentType}, currentLayout: ${currentLayout?.length}.''');*/
                     if (currentLayout == null || currentLayout.isEmpty) {
                       return Container(
-                        color: Utils.fromRGB(DCMGlobal.clrBGColor),
+                        color: Utils.fromRGB(AppGlobal.clrBGColor),
                       );
                     }
 
@@ -89,9 +88,9 @@ class _ContentListPlayerState extends State<ContentListPlayer> {
                           width: w,
                           height: h,
                           child: Container(
-                            color: Utils.fromRGB(DCMGlobal.clrBGColor),
+                            color: Utils.fromRGB(AppGlobal.clrBGColor),
                             /*decoration: BoxDecoration(
-                            color: Utils.fromRGB(DCMGlobal.clrBGColor),
+                            color: Utils.fromRGB(AppGlobal.clrBGColor),
                             border: null,
                             borderRadius: BorderRadius.zero,
                           ),*/

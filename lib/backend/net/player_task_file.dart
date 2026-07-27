@@ -1,7 +1,7 @@
 import 'dart:io';
 
 import 'package:dcm/backend/constants.dart';
-import 'package:dcm/backend/models/dcm_global.dart';
+import 'package:dcm/backend/models/app_global.dart';
 import 'package:dcm/backend/models/player_global.dart';
 import 'package:dcm/backend/net/player_log_file.dart';
 import 'package:dcm/backend/net/player_log_impl.dart';
@@ -303,7 +303,7 @@ class PlayerJobItem {
     nBeforeDay = pXmlItem.getItemValueI('m_nBeforeDay');
     nRetries = pXmlItem.getItemValueI('m_nRetries');
     if (nRetries < 0) {
-      nRetries = DCMGlobal.taskTransferRetries;
+      nRetries = AppGlobal.taskTransferRetries;
     }
 
     nRetryCount = pXmlItem.getItemValueI('m_nRetryCount');
@@ -357,7 +357,7 @@ class PlayerTaskFile {
         '$cHTTPUNIQUEKEY=${globalPlayer.strUniqueName}&strTask=$szTask&strStatus=GetStatus&nTimeout=240';
 
     String strResult = '';
-    var contentSyncStatusUpdateUrl = DCMGlobal.cmsUrl;
+    var contentSyncStatusUpdateUrl = AppGlobal.cmsUrl;
     contentSyncStatusUpdateUrl = fADDSLASH(contentSyncStatusUpdateUrl);
     contentSyncStatusUpdateUrl += cmsSyncSTATUSURL;
     String strCMSLink =
@@ -380,14 +380,14 @@ class PlayerTaskFile {
 
   static Future<bool> getTaskFromServer() async {
     // 检查是否启用任务检查
-    if (!DCMGlobal.enableTaskCheck) return true;
+    if (!AppGlobal.enableTaskCheck) return true;
 
     // 检查 CMS Backend
     return await getTaskFromCMS();
   }
 
   static Future<bool> getTaskFromCMS([String? strRequest]) async {
-    if (DCMGlobal.cmsUrl.isEmpty) return false;
+    if (AppGlobal.cmsUrl.isEmpty) return false;
 
     String req = strRequest ?? '$cHTTPUNIQUEKEY=${globalPlayer.strUniqueName}';
     req = Utils.urlEscape(req);
@@ -404,7 +404,7 @@ class PlayerTaskFile {
   }
 
   static Future<String> getTaskFromCMSInternal(String strRequest) async {
-    String strCMSLink = DCMGlobal.cmsUrl;
+    String strCMSLink = AppGlobal.cmsUrl;
     if (!strCMSLink.endsWith('/')) strCMSLink += '/';
     strCMSLink += cmsPLAYERTASKURL;
     strCMSLink += '?${Utils.urlEscape(strRequest)}';
@@ -540,7 +540,7 @@ class PlayerTaskFile {
 
       //return true;
     }
-    String strTaskFile = path.join(DCMGlobal.ftpSettingPath, 'PlayerTasks.xml');
+    String strTaskFile = path.join(AppGlobal.ftpSettingPath, 'PlayerTasks.xml');
     XmlFile syncTassk = XmlFile('PlayerTasks');
     if (syncTassk.load(strTaskFile)) {
       var taskQueues = getTaskFromXml(syncTassk: syncTassk);
@@ -632,7 +632,7 @@ class PlayerTaskFile {
     if (bSave) {
       writeTaskFile();
     }
-    String strTaskFile = path.join(DCMGlobal.ftpSettingPath, 'PlayerTasks.xml');
+    String strTaskFile = path.join(AppGlobal.ftpSettingPath, 'PlayerTasks.xml');
     File tempFile = File(strTaskFile);
     if (await tempFile.exists()) {
       await tempFile.delete();
@@ -643,7 +643,7 @@ class PlayerTaskFile {
 
   static Future<bool> updateTaskStatus(String strXml) async {
     String strResult = '';
-    String strLink = DCMGlobal.cmsUrl;
+    String strLink = AppGlobal.cmsUrl;
     strLink = fADDSLASH(strLink);
     strLink += cmsPLAYERTASKUPDATEURL;
     strLink = Utils.addCMSParam(strLink);
@@ -670,7 +670,7 @@ class PlayerTaskFile {
         XmlFile xmlTask = XmlFile('PlayerTasks');
         if (xmlTask.loadXml(strXML!)) {
           String strTaskFile =
-              path.join(DCMGlobal.ftpSettingPath, 'PlayerTasks.xml');
+              path.join(AppGlobal.ftpSettingPath, 'PlayerTasks.xml');
           xmlTask.save(strTaskFile);
           return getTaskFromXml(syncTassk: xmlTask);
         }
@@ -772,7 +772,7 @@ class PlayerTaskFile {
 
   static void resetSyncStatus() {
     if (pCurrJob != null) {
-      pCurrJob!.nRetries = DCMGlobal.taskTransferRetries;
+      pCurrJob!.nRetries = AppGlobal.taskTransferRetries;
       writeTaskFile(pCurrJob, FileTransferStatus.eTRANSFERFAILED);
       PlayerLogFile.resetSyncStatus();
     }
@@ -781,7 +781,7 @@ class PlayerTaskFile {
 
   static Future<void> synLocalTime() async {
     if (PlayLogPostService.isEnabled(PlayLogPostFlag.playerLog2) &&
-        DCMGlobal.cmsUrl.isNotEmpty) {
+        AppGlobal.cmsUrl.isNotEmpty) {
       final request = PlayLogPostService.buildPlayerLogRequest(
           '$cHTTPUNIQUEKEY=${globalPlayer.strUniqueName}',
           DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now()),
@@ -803,7 +803,7 @@ class PlayerTaskFile {
     DateTime dtGMT = dtStartFtpTime.toUtc();
     String strRequest =
         '''<?xml version="1.0" encoding="UTF-8"?><ContentList ContentType="$type" StartFtpTime="${DateFormat('dd/MM/yyyy HH:mm:ss').format(dtGMT)}" FtpPeriod="$nPeriod" FtpContent="$dwSyncContent"
-    strUniqueName="${globalPlayer.strUniqueName}" strPlayer="${globalPlayer.strName}" organization="${DCMGlobal.organization}" strTask="$strTask">''';
+    strUniqueName="${globalPlayer.strUniqueName}" strPlayer="${globalPlayer.strName}" organization="${AppGlobal.organization}" strTask="$strTask">''';
     for (int i = 0; i < arrContent.length; i++) {
       strRequest += '<Content Name="${arrContent[i]}" />';
     }
@@ -817,7 +817,7 @@ class PlayerTaskFile {
     DateTime dtGMT = DateTime.now().toUtc();
     String strRequest =
         '''<?xml version="1.0" encoding="UTF-8"?><ContentList ContentType="$type" StartFtpTime="${DateFormat('dd/MM/yyyy HH:mm:ss').format(dtGMT)}" FtpPeriod="$nPeriod" FtpContent="$dwSyncContent"
-    strUniqueName="${globalPlayer.strUniqueName}" strPlayer="${globalPlayer.strName}" organization="${DCMGlobal.organization}" strTask="$strTask"></ContentList>''';
+    strUniqueName="${globalPlayer.strUniqueName}" strPlayer="${globalPlayer.strName}" organization="${AppGlobal.organization}" strTask="$strTask"></ContentList>''';
 
     return strRequest;
   }

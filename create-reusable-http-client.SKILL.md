@@ -20,7 +20,7 @@ description: |
   - lib/backend/services/dcm_background_service.dart 中的后台轮询与下载任务调度
   - lib/backend/net/net_task_file.dart 中的 FTP / 任务相关状态模型
   - lib/backend/net/net_log_file.dart 中的 FTP 日志与状态更新逻辑
-  - lib/backend/models/dcm_global.dart 与 lib/backend/utils/utils.dart 中的配置与路径辅助逻辑
+  - lib/backend/models/app_global.dart 与 lib/backend/utils/utils.dart 中的配置与路径辅助逻辑
 
   设计重点：
   - 优先复用现有 `DcmHttpClient`，而不是新增一套并行网络封装
@@ -92,7 +92,7 @@ arguments:
 - DCM 下载器：在 lib/backend/services/dcm_downloader.dart 中，把下载 URL 请求和文件状态更新收敛到统一客户端。
 - FTP 日志上报：在 lib/backend/net/ftp_log_file.dart 中，把 `updateFTPStatus` 相关逻辑改造为统一封装的服务调用。
 - 任务模型：把 `DcmDownloadTask`、`FTPJobItem` 的字段映射到统一响应对象中，减少散落的请求代码。
-- 配置来源：优先使用 DCMGlobal 中的 URL、token、路径等配置，而不是在业务代码里硬编码。
+- 配置来源：优先使用 AppGlobal 中的 URL、token、路径等配置，而不是在业务代码里硬编码。
 
 ## 建议的类结构
 
@@ -297,7 +297,7 @@ class DcmHttpException implements Exception {
 
 ## 后续扩展建议
 
-- 对接认证 token：从 DCMGlobal 或登录态中动态获取 token，并统一注入到请求头。
+- 对接认证 token：从 AppGlobal 或登录态中动态获取 token，并统一注入到请求头。
 - 对接请求日志：把请求耗时、状态码和失败原因记录到当前项目的日志系统。
 - 对接缓存与离线兜底：对只读接口优先返回缓存结果，离线时可使用已有的本地文件或默认配置。
 - 对接进度上报：把下载进度回传给当前任务状态或 UI 层，减少网络逻辑与业务逻辑的耦合。

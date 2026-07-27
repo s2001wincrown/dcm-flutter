@@ -1,6 +1,6 @@
 import 'dart:io';
 
-import 'package:dcm/backend/models/dcm_global.dart';
+import 'package:dcm/backend/models/app_global.dart';
 import 'package:dcm/backend/net/netdef.dart';
 import 'package:dcm/backend/utils/extensions.dart';
 import 'package:dcm/backend/utils/log_utils.dart';
@@ -56,7 +56,7 @@ class PlayerLogImpl {
 
   // 加载 FTP 日志 (tasklog.xml)
   static Future<bool> loadFTPLog() async {
-    String strFileName = path.join(DCMGlobal.ftpSettingPath, 'tasklog.xml');
+    String strFileName = path.join(AppGlobal.ftpSettingPath, 'tasklog.xml');
     XmlFile file = XmlFile('PlayerTasks');
     if (file.load(strFileName)) {
       XmlItem? pItem = file.getItem('TaskList');
@@ -88,7 +88,7 @@ class PlayerLogImpl {
       return true;
     }
 
-    String strFileName = path.join(DCMGlobal.ftpSettingPath, 'tasklog.xml');
+    String strFileName = path.join(AppGlobal.ftpSettingPath, 'tasklog.xml');
     XmlFile file = XmlFile('PlayerTasks');
 
     // Save DCM Task information
@@ -246,7 +246,7 @@ class PlayerLogImpl {
     // C++ 逻辑: dts < 5 mins AND dts > -5 mins (即绝对值小于5分钟)
     // 注意: C++ COleDateTimeSpan 比较逻辑可能不同，这里简化为最近5分钟内
     if (diff.inMinutes.abs() < 5) {
-      String strFileName = path.join(DCMGlobal.ftpSettingPath, 'tasklog.xml');
+      String strFileName = path.join(AppGlobal.ftpSettingPath, 'tasklog.xml');
       XmlProfile xmlProfile = XmlProfile.fromFile(strFileName);
       if (xmlProfile.loadProfile(szRootItemName: 'PlayerTasks')) {
         xmlProfile.writeProfileDateTime(

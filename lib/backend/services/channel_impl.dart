@@ -1,7 +1,7 @@
 import 'dart:io';
 
 import 'package:dcm/backend/models/channel_data.dart';
-import 'package:dcm/backend/models/dcm_global.dart';
+import 'package:dcm/backend/models/app_global.dart';
 import 'package:dcm/backend/xmlfile/xmlfile.dart';
 import 'package:dcm/backend/xmlfile/xmlfilepro.dart';
 import 'package:dcm/backend/xmlfile/xmlitem.dart';
@@ -9,7 +9,7 @@ import 'package:path/path.dart' as path;
 
 class ChannelImpl {
   String get channelListFile =>
-      path.join(DCMGlobal.settingPath, 'channels.xml');
+      path.join(AppGlobal.settingPath, 'channels.xml');
 
   bool saveChannelList(List<ChannelData> lstChannel, {String? filePath}) {
     String fullPath = filePath ?? channelListFile;

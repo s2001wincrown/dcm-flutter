@@ -1,7 +1,7 @@
 import 'dart:async';
 
 import 'package:dcm/backend/app.dart';
-import 'package:dcm/backend/models/dcm_global.dart';
+import 'package:dcm/backend/models/app_global.dart';
 import 'package:flutter/material.dart';
 import 'package:media_kit_video/media_kit_video.dart';
 
@@ -86,7 +86,7 @@ class _BasicVideoState extends State<BasicVideo> {
                   );
                 }
                 return Container(
-                  color: Color(DCMGlobal.clrBGColor),
+                  color: Color(AppGlobal.clrBGColor),
                 );
               },
             );

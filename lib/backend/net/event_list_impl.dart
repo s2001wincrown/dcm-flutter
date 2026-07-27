@@ -1,5 +1,5 @@
 import 'package:dcm/backend/constants.dart';
-import 'package:dcm/backend/models/dcm_global.dart';
+import 'package:dcm/backend/models/app_global.dart';
 import 'package:dcm/backend/models/file_info_data.dart';
 import 'package:dcm/backend/net/player_path_service.dart';
 import 'package:dcm/backend/utils/encoder_utils.dart';
@@ -167,10 +167,10 @@ class EventListImpl {
 
   List<String> getSkinSetting(String strDCMFile, List<String> dcmArray) {
     String strSkinsDirectory =
-        p.join(DCMGlobal.ftpSettingPath, 'Skins', '$strDCMFile.dat');
+        p.join(AppGlobal.ftpSettingPath, 'Skins', '$strDCMFile.dat');
     FileInfoData? fileData = _serializeSkin(strSkinsDirectory);
     if (fileData != null && fileData.nContentType == 0) {
-      strSkinsDirectory = '${DCMGlobal.ftpSettingPath}/Skins/skin.dat';
+      strSkinsDirectory = '${AppGlobal.ftpSettingPath}/Skins/skin.dat';
       IniFile iniFile = IniFile(strSkinsDirectory);
       String strDCMFile = '';
       strDCMFile = iniFile.readString(fileData.strFilePath!, 'Second DCMFile');

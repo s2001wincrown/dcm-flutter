@@ -2,9 +2,9 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:dcm/backend/constants.dart';
-import 'package:dcm/backend/models/dcm_global.dart';
+import 'package:dcm/backend/models/app_global.dart';
 import 'package:dcm/backend/models/player_global.dart';
-import 'package:dcm/backend/net/dcm_http_client.dart';
+import 'package:dcm/backend/net/sync_http_client.dart';
 import 'package:dcm/backend/net/netdef.dart';
 import 'package:dcm/backend/net/play_log_post.dart';
 import 'package:dcm/backend/net/player_log_file.dart';
@@ -12,7 +12,7 @@ import 'package:dcm/backend/net/player_log_impl.dart';
 import 'package:dcm/backend/net/player_path_service.dart';
 import 'package:dcm/backend/net/player_task_file.dart';
 import 'package:dcm/backend/net/transfer_action_service.dart';
-import 'package:dcm/backend/services/dcm_downloader.dart';
+import 'package:dcm/backend/services/content_downloader.dart';
 import 'package:dcm/backend/services/player_register_impl.dart';
 import 'package:dcm/backend/utils/file_utils.dart';
 import 'package:dcm/backend/utils/log_utils.dart';
@@ -57,19 +57,19 @@ class ContentSyncService {
   PlayLogPostService? _pPlayLogPost;
   //CDCMSocketImpl *_pTCPServer;
 
-  late DcmDownloader _workQueue;
+  late ContentDownloader _workQueue;
 
-  DcmDownloader get workQueue => _workQueue;
+  ContentDownloader get workQueue => _workQueue;
   DateTime get dtStartup => _dtStartup;
 
   Future<void> init() async {
     await initPlayerRegisterInformation();
-    _workQueue = DcmDownloader(
-      apiUrl: DCMGlobal.cmsUrl,
-      queue: DcmDownloadQueue(
+    _workQueue = ContentDownloader(
+      apiUrl: AppGlobal.cmsUrl,
+      queue: ContentDownloadQueue(
           persistencePath:
-              path.join(DCMGlobal.appDataPath, 'download_queue.json')),
-      maxRetries: DCMGlobal.fileTransferRetries,
+              path.join(AppGlobal.appDataPath, 'download_queue.json')),
+      maxRetries: AppGlobal.fileTransferRetries,
       pollingInterval: null,
     );
   }
@@ -79,7 +79,7 @@ class ContentSyncService {
       return;
     }
     _pollTimer = Timer.periodic(
-        Duration(seconds: DCMGlobal.statusCheckInterval), (_) => _pollTick());
+        Duration(seconds: AppGlobal.statusCheckInterval), (_) => _pollTick());
     await _pollOnce();
   }
 
@@ -145,7 +145,7 @@ class ContentSyncService {
       _bTransfering = false;
       if (PlayerLogFile.bSyncFail) {
         PlayerLogFile.bSyncFail = false;
-        flagRetryJob(DCMGlobal.retryInterval);
+        flagRetryJob(AppGlobal.retryInterval);
       } else {
         if (PlayerTaskFile.pCurrJob != null) {
           //m_dwJobStatus = TRANSFERED_TEMPFILE;
@@ -294,7 +294,7 @@ class ContentSyncService {
     }
 
     logI(
-        '''DCM Task check: '${globalPlayer.strUniqueName}'; CMS url: '${DCMGlobal.cmsUrl}'.''',
+        '''DCM Task check: '${globalPlayer.strUniqueName}'; CMS url: '${AppGlobal.cmsUrl}'.''',
         syncTag);
 
     bool bSyncing = false;
@@ -454,7 +454,7 @@ class ContentSyncService {
         PlayerTaskFile.pCurrJob!.dwJobStatus =
             FileTransferStatus.eTRANSFERINGTEMPFILE;
         //_dwJobStatus = FileTransferStatus.eTRANSFERINGTEMPFILE;
-        flagRetryJob(DCMGlobal.retryInterval);
+        flagRetryJob(AppGlobal.retryInterval);
       }
     }
   }
@@ -475,7 +475,7 @@ class ContentSyncService {
         PlayerPathService().copyFileFinish();
       } else {
         //PlayerPathService().SaveDownloadFileList();
-        if (PlayerPathService().nCopyCount > DCMGlobal.tempFileCopyRetries) {
+        if (PlayerPathService().nCopyCount > AppGlobal.tempFileCopyRetries) {
           PlayerPathService().nCopyCount = 0;
           stopTempFileCopyTimer();
           //todo notify to player
@@ -490,7 +490,7 @@ class ContentSyncService {
           //PlayerPathService().CopyFileFinish(false);
           //PlayerPathService().bCopyTempFile = false;
           PlayerPathService().saveDownloadFileList();
-          flagRetryJob(DCMGlobal.retryInterval);
+          flagRetryJob(AppGlobal.retryInterval);
         }
       }
     } else {
@@ -531,9 +531,9 @@ class ContentSyncService {
             syncTag);
       } else if (dwSyncContent == cSyncDCMUPDATE) {
         String strLocalFile =
-            path.join(DCMGlobal.ftpSettingPath, 'DCMUpdate.xml');
+            path.join(AppGlobal.ftpSettingPath, 'DCMUpdate.xml');
 
-        String strLocalFile1 = path.join(DCMGlobal.ftpSettingPath, 'DCMUpdate');
+        String strLocalFile1 = path.join(AppGlobal.ftpSettingPath, 'DCMUpdate');
         FileUtils.makeSureDirectoryPathExists(strLocalFile1);
         strLocalFile1 = path.join(strLocalFile1, '$strSyncContent.xml');
         String strLocalFile2 = path.join(
@@ -569,7 +569,7 @@ class ContentSyncService {
   Future<void> startSyncAction() async {
     if (!await startSyncActionLock()) {
       await PlayerLogFile.openLogFile(PlayerTaskFile.pCurrJob!);
-      flagRetryJob(DCMGlobal.retryInterval);
+      flagRetryJob(AppGlobal.retryInterval);
     }
   }
 
@@ -707,7 +707,7 @@ class ContentSyncService {
                 pJob, FileTransferStatus.eTRANSFERINGTEMPFILE);
           }
         } else {
-          //FlagRetryJob(DCMGlobal.retryInterval);
+          //FlagRetryJob(AppGlobal.retryInterval);
 
           logI('Retrieve file list failure\n', syncTag);
         }
@@ -788,7 +788,7 @@ class ContentSyncService {
               pJob, FileTransferStatus.eTRANSFERINGTEMPFILE);
         }
       } else {
-        //FlagRetryJob(DCMGlobal.retryInterval);
+        //FlagRetryJob(AppGlobal.retryInterval);
 
         logE('Retrieve file list failure\n', syncTag);
       }
@@ -845,7 +845,7 @@ class ContentSyncService {
               pJob, FileTransferStatus.eTRANSFERINGTEMPFILE);
         }
       } else {
-        //FlagRetryJob(DCMGlobal.retryInterval);
+        //FlagRetryJob(AppGlobal.retryInterval);
 
         logE('Retrieve file list failure\n', syncTag);
       }
@@ -943,7 +943,7 @@ class ContentSyncService {
       var taskCommand = netCommandFrom(pTask.nTaskAction);
       if (taskCommand != null) {
         switch (taskCommand) {
-          case NetCommand.resetDcmPlayer:
+          case NetCommand.resetSelf:
             {
               //todo restart dcmplayer.exe
               //EnumAndKillProcess('DCMPlayer.exe');
@@ -1121,13 +1121,13 @@ class ContentSyncService {
       _pPlayLogPost = PlayLogPostService(
         uniqueName: globalPlayer.strUniqueName,
         playerName: globalPlayer.strName,
-        logUploadInterval: DCMGlobal.logUploadInterval,
-        logUploadPeriod: DCMGlobal.logUploadPeriod,
-        httpClientFactory: dcmHttpClientFactory,
+        logUploadInterval: AppGlobal.logUploadInterval,
+        logUploadPeriod: AppGlobal.logUploadPeriod,
+        httpClientFactory: syncHttpClientFactory,
       );
       if (_pPlayLogPost != null) {
         //todo: create log upload thread
-        String strLogPath = DCMGlobal.logPath;
+        String strLogPath = AppGlobal.logPath;
         String strPlayLogPath = '${strLogPath}PlayLog';
         String strPlaylistLogPath = '${strLogPath}PlaylistLog';
         String strUSBLogPath = '${strLogPath}USBLog';
@@ -1196,7 +1196,7 @@ class ContentSyncService {
 
     if (dwSettings & cSETTINGSPLAYER > 0) {
       await resetPlayerSettings();
-      String strIniFile = path.join(DCMGlobal.appDataPath, 'ContentTypes.xml');
+      String strIniFile = path.join(AppGlobal.appDataPath, 'ContentTypes.xml');
       var file = File(strIniFile);
       if (await file.exists()) {
         await file.delete();

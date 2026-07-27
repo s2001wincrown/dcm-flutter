@@ -3,10 +3,10 @@ import 'dart:collection';
 import 'dart:io';
 
 import 'package:dcm/backend/constants.dart';
-import 'package:dcm/backend/models/dcm_global.dart';
+import 'package:dcm/backend/models/app_global.dart';
 import 'package:dcm/backend/models/player_global.dart';
 import 'package:dcm/backend/net/content_sync_service.dart';
-import 'package:dcm/backend/net/dcm_http_client.dart';
+import 'package:dcm/backend/net/sync_http_client.dart';
 import 'package:dcm/backend/net/player_log_file.dart';
 import 'package:dcm/backend/net/player_task_file.dart';
 import 'package:dcm/backend/utils/extensions.dart';
@@ -110,7 +110,7 @@ class PlayLogPostService {
   final String playerName;
   final int logUploadInterval;
   final int logUploadPeriod;
-  final DcmHttpClientFactory? httpClientFactory;
+  final SyncHttpClientFactory? httpClientFactory;
 
   static final Map<String, int> _mapLogRetries = <String, int>{};
   final Queue<String> _pendingUploads = Queue<String>();
@@ -136,7 +136,7 @@ class PlayLogPostService {
   static final LogPostSettings logPostSettings = LogPostSettings();
 
   static bool serialize(bool bStoring) {
-    String strFileName = path.join(DCMGlobal.ftpSettingPath, 'ftplog.xml');
+    String strFileName = path.join(AppGlobal.ftpSettingPath, 'ftplog.xml');
 
     XmlProfile xmlProfile = XmlProfile.fromFile(strFileName);
     xmlProfile.loadProfile(szRootItemName: 'FTPLog');
@@ -187,7 +187,7 @@ class PlayLogPostService {
 
   static void processLogPostFlag(int dwLogPost) {
     logPostFlags = dwLogPost;
-    String strFileName = path.join(DCMGlobal.ftpSettingPath, 'ftplog.xml');
+    String strFileName = path.join(AppGlobal.ftpSettingPath, 'ftplog.xml');
 
     XmlProfile xmlProfile = XmlProfile.fromFile(strFileName);
     xmlProfile.loadProfile(szRootItemName: 'FTPLog');
@@ -560,7 +560,7 @@ class PlayLogPostService {
     DateTime dtPost = dtToday.copyWith(
         hour: 0, minute: 0, second: 0, millisecond: 0, microsecond: 0);
 
-    String strFileName = path.join(DCMGlobal.ftpSettingPath, 'ftplog.xml');
+    String strFileName = path.join(AppGlobal.ftpSettingPath, 'ftplog.xml');
     XmlProfile xmlProfile = XmlProfile.fromFile(strFileName);
     if (xmlProfile.loadProfile(szRootItemName: 'FTPLog')) {
       DateTime dtDefa = fromOleDateTime();
@@ -606,7 +606,7 @@ class PlayLogPostService {
   }
 
   void resetUSBPostTime() {
-    String strFileName = path.join(DCMGlobal.ftpSettingPath, 'ftplog.xml');
+    String strFileName = path.join(AppGlobal.ftpSettingPath, 'ftplog.xml');
 
     XmlProfile xmlProfile = XmlProfile.fromFile(strFileName);
     if (xmlProfile.loadProfile(szRootItemName: 'FTPLog')) {
@@ -729,14 +729,14 @@ class PlayLogPostService {
 
       pItem.addItem('strUniqueName', uniqueName);
       pItem.addItem('strPlayer', playerName);
-      pItem.addItem('organization', DCMGlobal.organization);
+      pItem.addItem('organization', AppGlobal.organization);
       pItem.addItem(
           'dtPlayDate', DateFormat('yyyy-MM-dd HH:mm:ss').format(dtUpload));
 
       String strMessage = playerReg.export();
 
       String strResult = '';
-      String strHttpLink = DCMGlobal.cmsUrl;
+      String strHttpLink = AppGlobal.cmsUrl;
       strHttpLink = fADDSLASH(strHttpLink);
       strHttpLink += cmsPLAYLOGURL;
       var httpResult = await logHTTPAction(strHttpLink, strMessage);
@@ -793,7 +793,7 @@ class PlayLogPostService {
     String strTo = DateFormat('yyyyMMdd000000').format(dtTo);
 
     String strLogPath = logFolders[5];
-    var msgLogHttpLink = DCMGlobal.cmsUrl; // + msgLOGURL;
+    var msgLogHttpLink = AppGlobal.cmsUrl; // + msgLOGURL;
     try {
       Directory dir = Directory(strLogPath);
       if (await dir.exists()) {
@@ -824,7 +824,7 @@ class PlayLogPostService {
                 DateTime? dtEnd = pLogItem.getItemValueD('EndTime');
                 String strMessage =
                     '''<?xml version="1.0" encoding="UTF-8"?><PlayLog strMessage="${pLogItem.getItemValue('Content')}" strUniqueName="$uniqueName" strPlayer="$playerName" 
-                organization="${DCMGlobal.organization}" nMessage="${pLogItem.getItemValueI('Seq')}" dtEndTime="${DateFormat('yyyy-MM-dd HH:mm:ss').format(dtEnd!)}" dtStartTime="${DateFormat('yyyy-MM-dd HH:mm:ss').format(dtStart!)}"/>''';
+                organization="${AppGlobal.organization}" nMessage="${pLogItem.getItemValueI('Seq')}" dtEndTime="${DateFormat('yyyy-MM-dd HH:mm:ss').format(dtEnd!)}" dtStartTime="${DateFormat('yyyy-MM-dd HH:mm:ss').format(dtStart!)}"/>''';
 
                 String strResult = '';
                 var httpResult =
@@ -908,9 +908,9 @@ class PlayLogPostService {
                 //strPlaylist.Replace('\\', '\\\\');
                 String strMessage =
                     '''<?xml version="1.0" encoding="UTF-8"?><PlayLog strPlaylist="$strPlaylist" strPlaylistVersion="$strVersion" strVersion="$_usbVersion" nSeq="${pLogItem.getItemValueI('Seq')}" 
-                    strUniqueName="$uniqueName" strPlayer="$playerName" organization="${DCMGlobal.organization}" dtEndTime="${DateFormat('yyyy-MM-dd HH:mm:ss').format(dtEnd!)}" dtStartTime="${DateFormat('yyyy-MM-dd HH:mm:ss').format(dtStart!)}"/>''';
+                    strUniqueName="$uniqueName" strPlayer="$playerName" organization="${AppGlobal.organization}" dtEndTime="${DateFormat('yyyy-MM-dd HH:mm:ss').format(dtEnd!)}" dtStartTime="${DateFormat('yyyy-MM-dd HH:mm:ss').format(dtStart!)}"/>''';
 
-                String strCMSLink = DCMGlobal.cmsUrl;
+                String strCMSLink = AppGlobal.cmsUrl;
                 strCMSLink = fADDSLASH(strCMSLink);
                 strCMSLink += cmsPLAYLISTLOGURL;
                 strCMSLink = Utils.addCMSParam(strCMSLink);
@@ -953,7 +953,7 @@ class PlayLogPostService {
     String strTo = DateFormat('yyyyMMdd000000').format(dtTo);
 
     String strLogPath = logFolders[7];
-    var ddeLogHttpLink = DCMGlobal.cmsUrl;
+    var ddeLogHttpLink = AppGlobal.cmsUrl;
     try {
       Directory dir = Directory(strLogPath);
       if (await dir.exists()) {
@@ -1016,7 +1016,7 @@ class PlayLogPostService {
     String strTo = DateFormat('yyyyMMdd000000').format(dtTo);
 
     String strLogPath = logFolders[1];
-    var ahPlayLogHttpLink = DCMGlobal.cmsUrl;
+    var ahPlayLogHttpLink = AppGlobal.cmsUrl;
     try {
       Directory dir = Directory(strLogPath);
       if (await dir.exists()) {
@@ -1059,7 +1059,7 @@ class PlayLogPostService {
 
                 pItem.addItem('strUniqueName', uniqueName);
                 pItem.addItem('strPlayer', playerName);
-                pItem.addItem('organization', DCMGlobal.organization);
+                pItem.addItem('organization', AppGlobal.organization);
                 pItem.addItem('dtPlayDate',
                     DateFormat('yyyy-MM-dd HH:mm:ss').format(dtUpload));
 
@@ -1110,7 +1110,7 @@ class PlayLogPostService {
     String strTo = DateFormat('yyyyMMdd000000').format(dtTo);
 
     String strLogPath = logFolders[2];
-    var apPlayLogHttpLink = DCMGlobal.cmsUrl;
+    var apPlayLogHttpLink = AppGlobal.cmsUrl;
     try {
       Directory dir = Directory(strLogPath);
       if (await dir.exists()) {
@@ -1154,7 +1154,7 @@ class PlayLogPostService {
 
                 pItem.addItem('strUniqueName', uniqueName);
                 pItem.addItem('strPlayer', playerName);
-                pItem.addItem('organization', DCMGlobal.organization);
+                pItem.addItem('organization', AppGlobal.organization);
                 pItem.addItem('dtPlayDate',
                     DateFormat('yyyy-MM-dd HH:mm:ss').format(dtUpload));
 
@@ -1200,7 +1200,7 @@ class PlayLogPostService {
     String strTo = DateFormat('yyyyMMdd000000').format(dtTo);
 
     String strLogPath = logFolders[6];
-    String comLogHttpLink = DCMGlobal.cmsUrl;
+    String comLogHttpLink = AppGlobal.cmsUrl;
     try {
       Directory dir = Directory(strLogPath);
       if (await dir.exists()) {
@@ -1230,7 +1230,7 @@ class PlayLogPostService {
                 DateTime? dtStart = pLogItem.getItemValueD('StartTime');
                 DateTime? dtEnd = pLogItem.getItemValueD('EndTime');
                 String strMessage =
-                    '''<?xml version="1.0" encoding="UTF-8"?><PlayLog $cHTTPUNIQUEKEY="$uniqueName" strPlayer="$playerName" organization="${DCMGlobal.organization}" dtEventTime="${DateFormat('yyyy-MM-dd HH:mm:ss').format(dtStart!)}"/>''';
+                    '''<?xml version="1.0" encoding="UTF-8"?><PlayLog $cHTTPUNIQUEKEY="$uniqueName" strPlayer="$playerName" organization="${AppGlobal.organization}" dtEventTime="${DateFormat('yyyy-MM-dd HH:mm:ss').format(dtStart!)}"/>''';
 
                 String strResult = '';
                 var httpResult =
@@ -1284,7 +1284,7 @@ class PlayLogPostService {
     String strTo = DateFormat('yyyyMMdd000000').format(dtTo);
 
     String strLogPath = logFolders[4];
-    String usbLogHttpLink = DCMGlobal.cmsUrl;
+    String usbLogHttpLink = AppGlobal.cmsUrl;
     try {
       Directory dir = Directory(strLogPath);
       if (await dir.exists()) {
@@ -1315,7 +1315,7 @@ class PlayLogPostService {
                 DateTime? dtEnd = pLogItem.getItemValueD('EndTime');
                 String strMessage =
                     '''<?xml version="1.0" encoding="UTF-8"?><PlayLog strVersion="${pLogItem.getItemValue('Content')}" strStatus="${pLogItem.getItemValue('Status')}" 
-                    strUniqueName="$uniqueName" strPlayer="$playerName" organization="${DCMGlobal.organization}" dtEndTime="${DateFormat('yyyy-MM-dd HH:mm:ss').format(dtEnd!)}" dtStartTime="${DateFormat('yyyy-MM-dd HH:mm:ss').format(dtStart!)}"/>''';
+                    strUniqueName="$uniqueName" strPlayer="$playerName" organization="${AppGlobal.organization}" dtEndTime="${DateFormat('yyyy-MM-dd HH:mm:ss').format(dtEnd!)}" dtStartTime="${DateFormat('yyyy-MM-dd HH:mm:ss').format(dtStart!)}"/>''';
 
                 String strResult = '';
                 var httpResult =
@@ -1361,7 +1361,7 @@ class PlayLogPostService {
     String strTo = DateFormat('yyyyMMdd000000').format(dtTo);
 
     String strLogPath = logFolders[0];
-    String usbDTLLogHttpLink = DCMGlobal.cmsUrl;
+    String usbDTLLogHttpLink = AppGlobal.cmsUrl;
     try {
       Directory dir = Directory(strLogPath);
       if (await dir.exists()) {
@@ -1441,7 +1441,7 @@ class PlayLogPostService {
       return true;
     }
 
-    final cmsUrl = DCMGlobal.cmsUrl;
+    final cmsUrl = AppGlobal.cmsUrl;
     if (cmsUrl.isEmpty) {
       return false;
     }
@@ -1482,7 +1482,7 @@ class PlayLogPostService {
     String strResult = '';
     String strRequest1 = Utils.urlEscape(request);
 
-    String strCMSLink = DCMGlobal.cmsUrl;
+    String strCMSLink = AppGlobal.cmsUrl;
     strCMSLink = fADDSLASH(strCMSLink);
     strCMSLink += cmsPLAYERLOG2URL;
     strCMSLink += '?$strRequest1';
@@ -1496,7 +1496,7 @@ class PlayLogPostService {
         logPostSettings.lastPlayerLog2Post = dtCurr.copyWith(
             hour: 0, minute: 0, second: 0, millisecond: 0, microsecond: 0);
 
-        String strFileName = path.join(DCMGlobal.ftpSettingPath, 'ftplog.xml');
+        String strFileName = path.join(AppGlobal.ftpSettingPath, 'ftplog.xml');
         XmlProfile xmlProfile = XmlProfile.fromFile(strFileName);
         if (xmlProfile.loadProfile(szRootItemName: 'FTPLog')) {
           xmlProfile.writeProfileDateTime('FTPLog', 'LastPlayerLog2Post',
@@ -1537,7 +1537,7 @@ class PlayLogPostService {
     DateTime dtPost = dtCurr.copyWith(
         hour: 0, minute: 0, second: 0, millisecond: 0, microsecond: 0);
     if (logPostSettings.lastPlayerLog2Post.isBefore(dtPost) &&
-        _nPlayerLog2RetryCnt < DCMGlobal.httpRetryTimes) {
+        _nPlayerLog2RetryCnt < AppGlobal.httpRetryTimes) {
       return true;
     }
 
@@ -1562,27 +1562,17 @@ class PlayLogPostService {
     _pendingUploads.addLast(url);
   }
 
-  String _resolveUrl(String url, String request) {
-    if (request.isEmpty) {
-      return url;
-    }
-    if (url.contains('?')) {
-      return '$url&$request';
-    }
-    return '$url?$request';
-  }
-
   static void updateShutdown() async {
     if (!isEnabled(PlayLogPostFlag.playerLog1)) {
       return;
     }
-    if (_nShutdownLogRetryCnt > DCMGlobal.httpRetryTimes) {
+    if (_nShutdownLogRetryCnt > AppGlobal.httpRetryTimes) {
       return;
     }
     _nShutdownLogRetryCnt++;
 
     String strLogPath =
-        path.join(DCMGlobal.logPath, 'PlayerLog'); //DCMGlobal.strLogPath;
+        path.join(AppGlobal.logPath, 'PlayerLog'); //AppGlobal.strLogPath;
     Directory dir = Directory(strLogPath);
     if (await dir.exists()) {
       await for (FileSystemEntity entity in dir.list(recursive: false)) {
@@ -1621,7 +1611,7 @@ class PlayLogPostService {
     }
 
     String strLogPath =
-        path.join(DCMGlobal.logPath, 'ContentLog'); //DCMGlobal.strLogPath;
+        path.join(AppGlobal.logPath, 'ContentLog'); //AppGlobal.strLogPath;
     Directory dir = Directory(strLogPath);
     if (await dir.exists()) {
       await for (FileSystemEntity entity in dir.list(recursive: false)) {
@@ -1651,14 +1641,14 @@ class PlayLogPostService {
       return 1;
     }
     if (_mapLogRetries.containsKey(strFilePath) &&
-        _mapLogRetries[strFilePath]! >= DCMGlobal.httpRetryTimes) {
+        _mapLogRetries[strFilePath]! >= AppGlobal.httpRetryTimes) {
       _mapLogRetries.remove(strFilePath);
 
       await File(strFilePath).delete();
       return 1;
     }
 
-    String strContentLogApi = DCMGlobal.cmsUrl;
+    String strContentLogApi = AppGlobal.cmsUrl;
     strContentLogApi = fADDSLASH(strContentLogApi);
     strContentLogApi += cmsCONTENTLOGURL;
     String strContentLogLink =
@@ -1699,7 +1689,7 @@ class PlayLogPostService {
 
   static void updateDCMUpdateLog(String strUniqueName, String strPlayer) async {
     String strLogPath =
-        path.join(DCMGlobal.logPath, 'DCMUpdateLog'); //DCMGlobal.strLogPath;
+        path.join(AppGlobal.logPath, 'DCMUpdateLog'); //AppGlobal.strLogPath;
 
     try {
       Directory dir = Directory(strLogPath);
@@ -1740,11 +1730,11 @@ class PlayLogPostService {
     DateTime dtUpdateDate =
         fromDateTimeFormat(strFileName, 1) ?? DateTime.now();
     String strMessage =
-        '''$cDCMXMLHEADEREX<PlayLog $cHTTPUNIQUEKEY="$strUniqueName" strPlayer="$strPlayer" organization="${DCMGlobal.organization}" 
+        '''$cDCMXMLHEADEREX<PlayLog $cHTTPUNIQUEKEY="$strUniqueName" strPlayer="$strPlayer" organization="${AppGlobal.organization}" 
     strBatch="${pLogItem.getItemValue('strBatch')}" strResult="${pLogItem.getItemValue('strResult')}" dtUpdateDate="${DateFormat('yyyy-MM-dd HH:mm:ss').format(dtUpdateDate)}"/>''';
     playerReg.close();
 
-    String patchUpdateLogHTTP = DCMGlobal.cmsUrl;
+    String patchUpdateLogHTTP = AppGlobal.cmsUrl;
     patchUpdateLogHTTP = fADDSLASH(patchUpdateLogHTTP);
     patchUpdateLogHTTP += cmsCONTENTLOGURL;
     String strContentLogLink =
@@ -1773,10 +1763,10 @@ class PlayLogPostService {
       String strBatch, String strTask, String strAPResult, int nStatus) async {
     DateTime dtUpdateDate = DateTime.now();
     String strMessage =
-        '''$cDCMXMLHEADEREX<PlayLogList><PlayLog $cHTTPUNIQUEKEY="$strUniqueName" strPlayerName="$strPlayer" organization="${DCMGlobal.organization}" 
+        '''$cDCMXMLHEADEREX<PlayLogList><PlayLog $cHTTPUNIQUEKEY="$strUniqueName" strPlayerName="$strPlayer" organization="${AppGlobal.organization}" 
     strBatch="$strBatch" strTask="$strTask" strResult="$strAPResult" nStatus="$nStatus" dtUpdateDate="${DateFormat('yyyy-MM-dd HH:mm:ss').format(dtUpdateDate)}"/></PlayLogList>''';
 
-    String strRootHttpLink = DCMGlobal.cmsUrl;
+    String strRootHttpLink = AppGlobal.cmsUrl;
     strRootHttpLink = fADDSLASH(strRootHttpLink);
     strRootHttpLink += cmsCONTENTLOGURL;
     String strContentLogLink =
@@ -1799,7 +1789,7 @@ class PlayLogPostService {
 
   static void updatePlayerLogRetry() async {
     if (!ContentSyncService().bStartupTime &&
-        _nPlayerLogRetryCnt < DCMGlobal.httpRetryTimes) {
+        _nPlayerLogRetryCnt < AppGlobal.httpRetryTimes) {
       String strRequest =
           '''$cHTTPUNIQUEKEY=${globalPlayer.strUniqueName}&dtStartup=${DateFormat('yyyy-MM-dd HH:mm:ss').format(ContentSyncService().dtStartup)}
         &strPublicIP=$strPublicIP&strDCMVersion=$strVerInfo&strUSBPlugin=$strImportVersion&strPlaylistVersion=$strPlaylistVersion''';

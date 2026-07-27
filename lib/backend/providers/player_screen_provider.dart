@@ -3,13 +3,13 @@ import 'dart:io';
 
 import 'package:dcm/backend/app.dart';
 import 'package:dcm/backend/constants.dart';
-import 'package:dcm/backend/models/dcm_global.dart';
+import 'package:dcm/backend/models/app_global.dart';
 import 'package:dcm/backend/models/playitem.dart';
 import 'package:dcm/backend/models/product_data.dart';
 import 'package:dcm/backend/models/zone_data.dart';
 import 'package:dcm/backend/models/zone_rect_data.dart';
 import 'package:dcm/backend/services/ah_playlist_impl.dart';
-import 'package:dcm/backend/services/dcm_skin_impl.dart';
+import 'package:dcm/backend/services/app_skin_impl.dart';
 import 'package:dcm/backend/services/player_zone_impl.dart';
 import 'package:dcm/backend/services/schedulelist_impl.dart';
 import 'package:dcm/backend/utils/extensions.dart';
@@ -396,7 +396,7 @@ class PlayerScreenProvider extends ChangeNotifier {
         DateTime dtCurr = DateTime.now();
         if (bSaveState) {
           // && !_bIsTimeForStopAH) || (bSaveState && _bIsTimeForPlayAH && ScheduleList().IsPlayingEpisode()))
-          if (DCMGlobal.processAHConflict == 1) {
+          if (AppGlobal.processAHConflict == 1) {
             _bIsTimeForPlayAH = ScheduleList().isTimeForPlayEpisode(dtCurr);
           }
           //SaveState(true);
@@ -673,7 +673,7 @@ class PlayerScreenProvider extends ChangeNotifier {
           logD('stop playing Nomal Ad-hoc, Current TID: $pid.');
           _bValidForPlay = false;
           if (ScheduleList().isWaitForPlayAH()) {
-            if (DCMGlobal.processAHConflict == 0) {
+            if (AppGlobal.processAHConflict == 0) {
               DateTime dtAH = DateTime.now();
               ScheduleList().adjustAHTime(dtAH);
             }
@@ -700,7 +700,7 @@ class PlayerScreenProvider extends ChangeNotifier {
           ScheduleList().incrementContentListIndex(false);
           ScheduleList().saveState();
 
-          if (DCMGlobal.processAHConflict == 0) {
+          if (AppGlobal.processAHConflict == 0) {
             DateTime dtAH = DateTime.now();
             ScheduleList().adjustAHTime(dtAH);
           }
@@ -729,7 +729,7 @@ class PlayerScreenProvider extends ChangeNotifier {
           ScheduleList().incrementContentListIndex(bIsPlayingEpisode);
           ScheduleList().saveState();
 
-          if (DCMGlobal.processAHConflict == 0) {
+          if (AppGlobal.processAHConflict == 0) {
             DateTime dtAH = DateTime.now();
             ScheduleList().adjustAHTime(dtAH);
           }
@@ -802,7 +802,7 @@ class PlayerScreenProvider extends ChangeNotifier {
             logD('stop playing Nomal Ad-hoc, Current TID: $pid.');
             _bValidForPlay = false;
             if (ScheduleList().isWaitForPlayAH()) {
-              if (DCMGlobal.processAHConflict == 0) {
+              if (AppGlobal.processAHConflict == 0) {
                 DateTime dtAH = DateTime.now();
                 ScheduleList().adjustAHTime(dtAH);
               }
@@ -829,7 +829,7 @@ class PlayerScreenProvider extends ChangeNotifier {
             ScheduleList().playNextProduct(false);
             ScheduleList().saveState(); //add by john 3/3
 
-            if (DCMGlobal.processAHConflict == 0) {
+            if (AppGlobal.processAHConflict == 0) {
               DateTime dtAH = DateTime.now();
               ScheduleList().adjustAHTime(dtAH);
             }
@@ -858,7 +858,7 @@ class PlayerScreenProvider extends ChangeNotifier {
             ScheduleList().playNextProduct(bIsPlayingEpisode); //add by john 3/3
             ScheduleList().saveState(); //add by john 3/3
 
-            if (DCMGlobal.processAHConflict == 0) {
+            if (AppGlobal.processAHConflict == 0) {
               DateTime dtAH = DateTime.now();
               ScheduleList().adjustAHTime(dtAH);
             }
@@ -896,11 +896,11 @@ class PlayerScreenProvider extends ChangeNotifier {
       } else {
         //touch screen click - play finish, return to playlist
         logD(
-            'PlayerScreenProvider - ChangePlaylist after, _dwLatestUDP: ${_dwLatestUDP != null ? DateFormat('yyyy-MM-dd HH:mm:ss').format(_dwLatestUDP!) : 'null'}; _nEventTimeout: ${DCMGlobal.eventTimeout}.');
-        if ((_dwLatestUDP == null && DCMGlobal.eventTimeout == 0) ||
+            'PlayerScreenProvider - ChangePlaylist after, _dwLatestUDP: ${_dwLatestUDP != null ? DateFormat('yyyy-MM-dd HH:mm:ss').format(_dwLatestUDP!) : 'null'}; _nEventTimeout: ${AppGlobal.eventTimeout}.');
+        if ((_dwLatestUDP == null && AppGlobal.eventTimeout == 0) ||
             (_dwLatestUDP != null ||
                 (DateTime.now().difference(_dwLatestUDP!).inMilliseconds >
-                    DCMGlobal.eventTimeout * 1000))) {
+                    AppGlobal.eventTimeout * 1000))) {
           _bPlayConti = true;
           backToSchedule();
         } else {
@@ -1229,8 +1229,8 @@ class PlayerScreenProvider extends ChangeNotifier {
 
     _nTotalZoneThread = pProductData.getZoneCount();
     int nZone = _nTotalZoneThread;
-    if (nZone < DCMGlobal.maxZoneThread) {
-      nZone = DCMGlobal.maxZoneThread;
+    if (nZone < AppGlobal.maxZoneThread) {
+      nZone = AppGlobal.maxZoneThread;
     }
 
     i = 0;
@@ -1282,8 +1282,8 @@ class PlayerScreenProvider extends ChangeNotifier {
       return;
     }
 
-    if (nZone < DCMGlobal.maxZoneThread) {
-      nZone = DCMGlobal.maxZoneThread;
+    if (nZone < AppGlobal.maxZoneThread) {
+      nZone = AppGlobal.maxZoneThread;
     }
 
     int i = 0;
@@ -1395,7 +1395,7 @@ class PlayerScreenProvider extends ChangeNotifier {
   }
 
   void playNextProduct() {
-    if (!hasFlag(DCMGlobal.playMode, 2) &&
+    if (!hasFlag(AppGlobal.playMode, 2) &&
         ScheduleList().count == 0 &&
         !ScheduleList().catalogue.canPlay()) {
       startPlayingTimer();
@@ -1972,15 +1972,15 @@ class PlayerScreenProvider extends ChangeNotifier {
   bool isValidForPlay() => _bValidForPlay;
 
   bool isNormalCut() {
-    return (DCMGlobal.playListCut == 0 || DCMGlobal.playListCut == 2);
+    return (AppGlobal.playListCut == 0 || AppGlobal.playListCut == 2);
   }
 
   bool isTimeToCut() {
-    return (DCMGlobal.playListCut == 1);
+    return (AppGlobal.playListCut == 1);
   }
 
   bool isDurationCut() {
-    return (DCMGlobal.playListCut == 2);
+    return (AppGlobal.playListCut == 2);
   }
 
   void _readyForPlay() {
@@ -2021,7 +2021,7 @@ class PlayerScreenProvider extends ChangeNotifier {
   }
 
   bool loadPlayerState() {
-    if (DCMGlobal.playStartPoint != 0) {
+    if (AppGlobal.playStartPoint != 0) {
       if (ScheduleList().loadState()) {
         var playResult = ScheduleList().playCurrFile();
         if (playResult.status) {

@@ -1,5 +1,5 @@
 name: dcm
-description: A flutter player for DCM Content Management System.
+description: A flutter player for Content Management System.
 publish_to: "none"
 
 version: 0.25.3
@@ -66,6 +66,7 @@ dependencies:
   flutter_udid: ^4.1.4
   unique_device_identifier: ^2.0.4
   http: ^1.6.0
+  disk_space_2: ^1.0.13
 
 dev_dependencies:
   flutter_test:

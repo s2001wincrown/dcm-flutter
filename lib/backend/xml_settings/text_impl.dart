@@ -26,7 +26,7 @@
 // Construction/Destruction
 import 'package:dcm/backend/constants.dart';
 import 'package:dcm/backend/models/banner_data.dart';
-import 'package:dcm/backend/models/dcm_global.dart';
+import 'package:dcm/backend/models/app_global.dart';
 import 'package:dcm/backend/utils/extensions.dart';
 import 'package:dcm/backend/utils/string_utils.dart';
 import 'package:dcm/backend/utils/utils.dart';
@@ -44,21 +44,21 @@ class TextImpl {
     BannerData pBanner = BannerData();
 
     pBanner.strTextFontName =
-        DCMGlobal.getString('$strDefault.FontName', 'Arial');
-    pBanner.strText = DCMGlobal.getString('$strDefault.TextContent', '');
-    pBanner.bFontItalic = DCMGlobal.getBool('$strDefault.FontItalic');
-    pBanner.bFontBold = DCMGlobal.getBool('$strDefault.FontBold');
-    pBanner.bFontUnderline = DCMGlobal.getBool('$strDefault.FontUnderline');
-    pBanner.bStrikethrough = DCMGlobal.getBool('$strDefault.FontStrikethrough');
-    pBanner.nTextFontSize = DCMGlobal.getInt('$strDefault.FontSize', 50) * 20;
-    pBanner.nDirection = DCMGlobal.getInt('$strDefault.Direction', 0);
-    pBanner.nSpeed = DCMGlobal.getInt('$strDefault.Speed', 2);
-    pBanner.nBehavior = DCMGlobal.getInt('$strDefault.Behavior', 1);
+        AppGlobal.getString('$strDefault.FontName', 'Arial');
+    pBanner.strText = AppGlobal.getString('$strDefault.TextContent', '');
+    pBanner.bFontItalic = AppGlobal.getBool('$strDefault.FontItalic');
+    pBanner.bFontBold = AppGlobal.getBool('$strDefault.FontBold');
+    pBanner.bFontUnderline = AppGlobal.getBool('$strDefault.FontUnderline');
+    pBanner.bStrikethrough = AppGlobal.getBool('$strDefault.FontStrikethrough');
+    pBanner.nTextFontSize = AppGlobal.getInt('$strDefault.FontSize', 50) * 20;
+    pBanner.nDirection = AppGlobal.getInt('$strDefault.Direction', 0);
+    pBanner.nSpeed = AppGlobal.getInt('$strDefault.Speed', 2);
+    pBanner.nBehavior = AppGlobal.getInt('$strDefault.Behavior', 1);
     pBanner.crTextBKColor = fromRGBString(
-        DCMGlobal.getString('$strDefault.BackgroundColor', '0,0,0'));
+        AppGlobal.getString('$strDefault.BackgroundColor', '0,0,0'));
     pBanner.crTextFGColor = fromRGBString(
-        DCMGlobal.getString('$strDefault.FontColor', '255,255,255'));
-    pBanner.nTemplate = DCMGlobal.getInt('$strDefault.Template', 2);
+        AppGlobal.getString('$strDefault.FontColor', '255,255,255'));
+    pBanner.nTemplate = AppGlobal.getInt('$strDefault.Template', 2);
 
     pBanner.customComments = pBanner.strText;
     pBanner.strHtml = pBanner.strText;
@@ -70,32 +70,32 @@ class TextImpl {
     BannerData pBanner = BannerData();
 
     pBanner.strTextFontName =
-        DCMGlobal.getString('TextDefaSettingForEventImp.FontName', 'Arial');
+        AppGlobal.getString('TextDefaSettingForEventImp.FontName', 'Arial');
     pBanner.strText =
-        DCMGlobal.getString('TextDefaSettingForEventImp.TextContent');
+        AppGlobal.getString('TextDefaSettingForEventImp.TextContent');
     pBanner.bFontItalic =
-        DCMGlobal.getBool('TextDefaSettingForEventImp.FontItalic');
+        AppGlobal.getBool('TextDefaSettingForEventImp.FontItalic');
     pBanner.bFontBold =
-        DCMGlobal.getBool('TextDefaSettingForEventImp.FontBold');
+        AppGlobal.getBool('TextDefaSettingForEventImp.FontBold');
     pBanner.bFontUnderline =
-        DCMGlobal.getBool('TextDefaSettingForEventImp.FontUnderline');
+        AppGlobal.getBool('TextDefaSettingForEventImp.FontUnderline');
     pBanner.bStrikethrough =
-        DCMGlobal.getBool('TextDefaSettingForEventImp.FontStrikethrough');
+        AppGlobal.getBool('TextDefaSettingForEventImp.FontStrikethrough');
     pBanner.nTextFontSize =
-        DCMGlobal.getInt('TextDefaSettingForEventImp.FontSize', 50) * 20;
+        AppGlobal.getInt('TextDefaSettingForEventImp.FontSize', 50) * 20;
     pBanner.nDirection =
-        DCMGlobal.getInt('TextDefaSettingForEventImp.Direction', 0);
-    pBanner.nSpeed = DCMGlobal.getInt('TextDefaSettingForEventImp.Speed', 2);
+        AppGlobal.getInt('TextDefaSettingForEventImp.Direction', 0);
+    pBanner.nSpeed = AppGlobal.getInt('TextDefaSettingForEventImp.Speed', 2);
     pBanner.nBehavior =
-        DCMGlobal.getInt('TextDefaSettingForEventImp.Behavior', 1);
-    pBanner.crTextBKColor = fromRGBString(DCMGlobal.getString(
+        AppGlobal.getInt('TextDefaSettingForEventImp.Behavior', 1);
+    pBanner.crTextBKColor = fromRGBString(AppGlobal.getString(
         'TextDefaSettingForEventImp.BackgroundColor', '0,0,0'));
-    pBanner.crTextFGColor = fromRGBString(DCMGlobal.getString(
+    pBanner.crTextFGColor = fromRGBString(AppGlobal.getString(
         'TextDefaSettingForEventImp.FontColor', '255,255,255'));
     pBanner.nTemplate =
-        DCMGlobal.getInt('TextDefaSettingForEventImp.Template', 0);
+        AppGlobal.getInt('TextDefaSettingForEventImp.Template', 0);
     pBanner.strFile =
-        DCMGlobal.getString('TextDefaSettingForEventImp.BackgroundImage');
+        AppGlobal.getString('TextDefaSettingForEventImp.BackgroundImage');
 
     pBanner.customComments = pBanner.strText;
     pBanner.strHtml = pBanner.strText;

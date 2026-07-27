@@ -2,7 +2,7 @@ import 'dart:io';
 
 import 'package:dcm/backend/app.dart';
 import 'package:dcm/backend/constants.dart';
-import 'package:dcm/backend/models/dcm_global.dart';
+import 'package:dcm/backend/models/app_global.dart';
 import 'package:dcm/backend/models/file_info_data.dart';
 import 'package:dcm/backend/utils/file_info_utils.dart';
 import 'package:dcm/backend/utils/utils.dart';
@@ -121,14 +121,14 @@ class ContentFileImpl {
 
       if (bFileList) {
         final fileName =
-            path.join(DCMGlobal.settingPath, 'Filelog', '$batch.xml');
+            path.join(AppGlobal.settingPath, 'Filelog', '$batch.xml');
         Directory(path.dirname(fileName)).createSync(recursive: true);
         bFileList = serialize(fileName, true);
       }
     } else {
       removeFileList();
       final fileName =
-          path.join(DCMGlobal.settingPath, 'Filelog', '$batch.xml');
+          path.join(AppGlobal.settingPath, 'Filelog', '$batch.xml');
       bFileList = serialize(fileName, false);
     }
 
@@ -246,12 +246,12 @@ class ContentFileImpl {
       success = _copyTempFile(priority) && success;
     }
 
-    final fileName = path.join(DCMGlobal.settingPath, 'Filelog', '$batch.xml');
+    final fileName = path.join(AppGlobal.settingPath, 'Filelog', '$batch.xml');
     Directory(path.dirname(fileName)).createSync(recursive: true);
     bool saved = serialize(fileName, true);
     success = success && saved;
 
-    final updateLogPath = path.join(DCMGlobal.tempPath, 'updatelog.xml');
+    final updateLogPath = path.join(AppGlobal.tempPath, 'updatelog.xml');
     final xmlProfile = XmlProfile.fromFile(updateLogPath);
     if (!File(updateLogPath).existsSync()) {
       xmlProfile.createProfile('FileList');
@@ -344,7 +344,7 @@ class ContentFileImpl {
 
     if (ok) {
       final fileName =
-          path.join(DCMGlobal.settingPath, 'Filelog', '$batch.xml');
+          path.join(AppGlobal.settingPath, 'Filelog', '$batch.xml');
       ok = serialize(fileName, true);
       getExportPath(folder, cDCMCALENDARTYPE);
       getExportPath(folder, cDCMMONTHTYPE);
@@ -383,24 +383,24 @@ class ContentFileImpl {
 
   List<String> _getContentPaths() {
     final List<String> contentPaths = [];
-    _addContentPath(DCMGlobal.imagePath, contentPaths);
-    _addContentPath(DCMGlobal.clockPath, contentPaths);
-    _addContentPath(DCMGlobal.ddeDataPath, contentPaths);
-    _addContentPath(DCMGlobal.ddeXmlPath, contentPaths);
-    _addContentPath(DCMGlobal.flashPath, contentPaths);
-    _addContentPath(DCMGlobal.imageSettingPath, contentPaths);
-    _addContentPath(DCMGlobal.linkagePath, contentPaths);
-    _addContentPath(DCMGlobal.ppPath, contentPaths);
-    _addContentPath(DCMGlobal.contentListPath, contentPaths);
-    _addContentPath(DCMGlobal.textPath, contentPaths);
-    _addContentPath(DCMGlobal.vcdPath, contentPaths);
-    _addContentPath(DCMGlobal.weatherPath, contentPaths);
-    _addContentPath(DCMGlobal.webPath, contentPaths);
-    _addContentPath(DCMGlobal.openPath, contentPaths);
-    _addContentPath(DCMGlobal.dayPath, contentPaths);
-    _addContentPath(DCMGlobal.siteContentPath, contentPaths);
-    _addContentPath(DCMGlobal.roomEventPath, contentPaths);
-    _addContentPath(DCMGlobal.lobbyPath, contentPaths);
+    _addContentPath(AppGlobal.imagePath, contentPaths);
+    _addContentPath(AppGlobal.clockPath, contentPaths);
+    _addContentPath(AppGlobal.ddeDataPath, contentPaths);
+    _addContentPath(AppGlobal.ddeXmlPath, contentPaths);
+    _addContentPath(AppGlobal.flashPath, contentPaths);
+    _addContentPath(AppGlobal.imageSettingPath, contentPaths);
+    _addContentPath(AppGlobal.linkagePath, contentPaths);
+    _addContentPath(AppGlobal.ppPath, contentPaths);
+    _addContentPath(AppGlobal.contentListPath, contentPaths);
+    _addContentPath(AppGlobal.textPath, contentPaths);
+    _addContentPath(AppGlobal.vcdPath, contentPaths);
+    _addContentPath(AppGlobal.weatherPath, contentPaths);
+    _addContentPath(AppGlobal.webPath, contentPaths);
+    _addContentPath(AppGlobal.openPath, contentPaths);
+    _addContentPath(AppGlobal.dayPath, contentPaths);
+    _addContentPath(AppGlobal.siteContentPath, contentPaths);
+    _addContentPath(AppGlobal.roomEventPath, contentPaths);
+    _addContentPath(AppGlobal.lobbyPath, contentPaths);
     return contentPaths;
   }
 
@@ -554,7 +554,7 @@ class ContentFileImpl {
   }
 
   bool checksum(String filePath, FileInfoData fileInfo) {
-    if ((DCMGlobal.globalSetting & settingCHECKSUM) == 0) {
+    if ((AppGlobal.globalSetting & settingCHECKSUM) == 0) {
       return true;
     }
 
@@ -589,7 +589,7 @@ class ContentFileImpl {
       return false;
     }
 
-    final fileName = path.join(DCMGlobal.settingPath, 'Filelog', '$batch.xml');
+    final fileName = path.join(AppGlobal.settingPath, 'Filelog', '$batch.xml');
     Directory(path.dirname(fileName)).createSync(recursive: true);
     return serialize(fileName, true);
   }
@@ -602,7 +602,7 @@ class ContentFileImpl {
       }
 
       final fileName =
-          path.join(DCMGlobal.settingPath, 'Filelog', '$batch.xml');
+          path.join(AppGlobal.settingPath, 'Filelog', '$batch.xml');
       Directory(path.dirname(fileName)).createSync(recursive: true);
       final saved = serialize(fileName, true);
       return success && saved;
@@ -670,7 +670,7 @@ class ContentFileImpl {
 
     final usbPath = '$drive:\\$batch';
     final source = path.join(usbPath, 'APUpdate');
-    final target = path.join(DCMGlobal.tempPath, 'APUpdate');
+    final target = path.join(AppGlobal.tempPath, 'APUpdate');
 
     if (!Directory(source).existsSync()) {
       return false;
@@ -800,7 +800,7 @@ class ContentFileImpl {
   }
 
   void _writeLogFile(String source, String dest, int result, String message) {
-    final logPath = path.join(DCMGlobal.tempPath, 'updatelog.xml');
+    final logPath = path.join(AppGlobal.tempPath, 'updatelog.xml');
     final xmlProfile = XmlProfile.fromFile(logPath);
     if (!File(logPath).existsSync()) {
       xmlProfile.createProfile('FileList');

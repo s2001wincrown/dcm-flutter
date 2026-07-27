@@ -3,11 +3,11 @@ import 'dart:io';
 
 import 'package:dcm/backend/constants.dart';
 import 'package:dcm/backend/library_helper.dart';
-import 'package:dcm/backend/models/dcm_global.dart';
+import 'package:dcm/backend/models/app_global.dart';
 import 'package:dcm/backend/models/product_data.dart';
 import 'package:dcm/backend/models/zone_data.dart';
 import 'package:dcm/backend/services/content_list_player_impl.dart';
-import 'package:dcm/backend/services/dcm_skin_impl.dart';
+import 'package:dcm/backend/services/app_skin_impl.dart';
 import 'package:dcm/backend/services/schedulelist_impl.dart';
 import 'package:dcm/backend/utils/log_utils.dart';
 import 'package:dcm/backend/utils/platform_utils.dart';
@@ -597,7 +597,7 @@ class PlayerZoneImpl {
         case cEVENTTYPE:
           break;
         case cPDFTYPE:
-          bool bShowPDFScrollBar = (hasFlag(DCMGlobal.pdfViewMode, 0x0002));
+          bool bShowPDFScrollBar = (hasFlag(AppGlobal.pdfViewMode, 0x0002));
           var strContent = (bShowPDFScrollBar
               ? '$_strZoneFile#toolbar=0&navpanes=0&scrollbar=0&view=FitH'
               : '$_strZoneFile#toolbar=0&navpanes=0&scrollbar=0&view=Fit');
@@ -626,7 +626,7 @@ class PlayerZoneImpl {
     logI(
         'RenderZone finished - Zone: $_zoneId; _nPType: $_nPType; _rtDuration: $_rtDuration; _rtAct $_rtAct; _strZoneFile: $_strZoneFile; _bIsValid: $_bIsValid.');
 
-    return widget ?? Container(color: Utils.fromRGB(DCMGlobal.clrBGColor));
+    return widget ?? Container(color: Utils.fromRGB(AppGlobal.clrBGColor));
   }
 
   void _initContentList(int nType, String strZoneFile, Rect rectWin) {
@@ -1078,7 +1078,7 @@ class PlayerZoneImpl {
       ),
     );
     player.setVolume(
-        DCMGlobal.videoVolume(pZoneData.bZoneMute, pZoneData.dVolume));
+        AppGlobal.videoVolume(pZoneData.bZoneMute, pZoneData.dVolume));
 
     return PreloadedContent(
         type: cVIDEOTYPE,

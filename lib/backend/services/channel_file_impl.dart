@@ -1,14 +1,14 @@
 import 'dart:io';
 
 import 'package:dcm/backend/models/channel_data.dart';
-import 'package:dcm/backend/models/dcm_global.dart';
+import 'package:dcm/backend/models/app_global.dart';
 import 'package:dcm/backend/xmlfile/xmlfile.dart';
 import 'package:dcm/backend/xmlfile/xmlfilepro.dart';
 import 'package:dcm/backend/xmlfile/xmlitem.dart';
 import 'package:path/path.dart' as path;
 
 class ChannelFileImpl {
-  String channelPath = DCMGlobal.settingPath;
+  String channelPath = AppGlobal.settingPath;
 
   String get channelFile => path.join(channelPath, 'channel.xml');
 

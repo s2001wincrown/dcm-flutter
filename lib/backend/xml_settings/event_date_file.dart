@@ -2,7 +2,7 @@
 import 'dart:math';
 
 import 'package:dcm/backend/constants.dart';
-import 'package:dcm/backend/models/dcm_global.dart';
+import 'package:dcm/backend/models/app_global.dart';
 import 'package:dcm/backend/utils/time_utils.dart';
 import 'package:dcm/backend/utils/utils.dart';
 import 'package:dcm/backend/xmlfile/xmlfile.dart';
@@ -522,7 +522,7 @@ class EventDateFile extends XmlFile {
 
   bool loadFile({String? filePath, XfOpen mode = XfOpen.read}) {
     if (filePath == null || filePath.isEmpty) {
-      filePath = path.join(DCMGlobal.lobbyPath,
+      filePath = path.join(AppGlobal.lobbyPath,
           '${DateFormat('yyyyMMdd').format(DateTime.now())}.xml');
     }
 

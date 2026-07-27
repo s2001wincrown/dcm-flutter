@@ -2,7 +2,7 @@ import 'dart:io';
 
 import 'package:dcm/backend/app.dart';
 import 'package:dcm/backend/constants.dart';
-import 'package:dcm/backend/models/dcm_global.dart';
+import 'package:dcm/backend/models/app_global.dart';
 import 'package:dcm/backend/models/player.dart';
 import 'package:dcm/backend/net/player_log_file.dart';
 import 'package:dcm/backend/utils/encoder_utils.dart';
@@ -230,6 +230,18 @@ class PlayerRegisterImpl {
     );
   }
 
+  Future<void> genPlayerInformation(String strPath) async {
+    final serverFile = IniFile(path.join(strPath, 'Server.txt'));
+    serverFile.writeString('PlayerInformation', 'PlayerName',
+        'Player-${DateTime.now().microsecondsSinceEpoch}');
+    serverFile.writeString('PlayerInformation', 'Location', 'Player Location');
+    serverFile.writeString('PlayerInformation', 'Organization', 'SP');
+    serverFile.writeInt('PlayerInformation', 'SettingsGroup', 1);
+    serverFile.writeString(
+        'PlayerInformation', 'HTTPRootLink', 'http://121.40.137.228:8080/demo');
+    await serverFile.save();
+  }
+
   /// Get Network Info (IP/MAC)
   static Future<void> updateNetworkInfo(Player player) async {
     final info = NetworkInfo();
@@ -318,7 +330,7 @@ class PlayerRegisterImpl {
       await genBusNumberFile(App().dataPath, player.strUniqueName);
 
       String strLocalFile =
-          path.join(DCMGlobal.ftpSettingPath, _dcmsitesFileName);
+          path.join(AppGlobal.ftpSettingPath, _dcmsitesFileName);
       await File(strDCMSites).copy(strLocalFile); // Copy to settings path
 
       String strResult = '';
@@ -355,7 +367,7 @@ class PlayerRegisterImpl {
 
   /// Register via CMS (HTTP POST)
   static Future<String> registerCMS(String strXML) async {
-    String strCMSLink = DCMGlobal.cmsUrl;
+    String strCMSLink = AppGlobal.cmsUrl;
     strCMSLink = fADDSLASH(strCMSLink);
     strCMSLink += cmsPLAYERREGISTERURL;
     strCMSLink = Utils.addCMSParam(strCMSLink);

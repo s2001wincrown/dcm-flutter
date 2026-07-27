@@ -3,7 +3,7 @@ import 'dart:math';
 
 import 'package:dcm/backend/models/channel_schedule_data.dart';
 import 'package:dcm/backend/models/day_info_data.dart';
-import 'package:dcm/backend/models/dcm_global.dart';
+import 'package:dcm/backend/models/app_global.dart';
 import 'package:dcm/backend/xmlfile/xmlfile.dart';
 import 'package:dcm/backend/xmlfile/xmlfilepro.dart';
 import 'package:dcm/backend/xmlfile/xmlitem.dart';
@@ -29,14 +29,14 @@ class ChannelScheduleFile extends XmlFile {
   int _nextUniqueId = 1;
 
   String monthlyScheduleFile(String month) =>
-      path.join(DCMGlobal.calendarPath, '$month.xml');
+      path.join(AppGlobal.calendarPath, '$month.xml');
 
   int getChannelScheduleCount() {
     return getItemCount();
   }
 
   String channelMonthScheduleFile(String channelName, String month) {
-    return path.join(DCMGlobal.monthPath, '$channelName$month.xml');
+    return path.join(AppGlobal.monthPath, '$channelName$month.xml');
   }
 
   @override
@@ -59,7 +59,7 @@ class ChannelScheduleFile extends XmlFile {
     }
 
     if ((filePath == null || filePath.isEmpty) && dtSchedule != null) {
-      filePath = path.join(DCMGlobal.calendarPath,
+      filePath = path.join(AppGlobal.calendarPath,
           '${DateFormat('yyyyMMdd').format(dtSchedule)}.xml');
     }
 
@@ -94,7 +94,7 @@ class ChannelScheduleFile extends XmlFile {
     lstSchedule.clear();
     final File fileDisk = File(fullPath);
     if (!fileDisk.existsSync()) {
-      final Directory monthDir = Directory(DCMGlobal.monthPath);
+      final Directory monthDir = Directory(AppGlobal.monthPath);
       if (!monthDir.existsSync()) {
         return false;
       }

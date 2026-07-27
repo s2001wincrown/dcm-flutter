@@ -807,7 +807,7 @@ class DCMFileImpl {
                   if (lstZoneData.isNotEmpty) {
                     for (var pZoneData1 in lstZoneData) {
                       /*if (nType == cWEBPAGETYPE &&
-                          DCMGlobal.webView2Path.IsEmpty() &&
+                          AppGlobal.webView2Path.IsEmpty() &&
                           pZoneData1.strAudioDevice != "Google Chrome") {
                         continue;
                       }*/
@@ -825,7 +825,7 @@ class DCMFileImpl {
         if (lstZoneData.isNotEmpty) {
           for (var pZoneData in lstZoneData) {
             /*if (nType == cWEBPAGETYPE &&
-                DCMGlobal.webView2Path.IsEmpty() &&
+                AppGlobal.webView2Path.IsEmpty() &&
                 pZoneData.strAudioDevice == "Google Chrome") {
               continue;
             }*/

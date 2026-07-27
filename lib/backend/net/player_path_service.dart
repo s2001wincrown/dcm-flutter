@@ -3,7 +3,7 @@ import 'dart:io';
 import 'package:crypto/crypto.dart';
 import 'package:dcm/backend/app.dart';
 import 'package:dcm/backend/constants.dart';
-import 'package:dcm/backend/models/dcm_global.dart';
+import 'package:dcm/backend/models/app_global.dart';
 import 'package:dcm/backend/models/download_file_info_data.dart';
 import 'package:dcm/backend/models/file_info_data.dart';
 import 'package:dcm/backend/net/download_file_list_impl.dart';
@@ -69,8 +69,8 @@ class PlayerPathService {
   /// Initialize paths and load settings
   void _fixServerPaths() {
     // Replace $(HttpRoot)/ with actual root link
-    if (DCMGlobal.cmsUrl.isNotEmpty && !DCMGlobal.cmsUrl.endsWith('/')) {
-      DCMGlobal.cmsUrl += '/';
+    if (AppGlobal.cmsUrl.isNotEmpty && !AppGlobal.cmsUrl.endsWith('/')) {
+      AppGlobal.cmsUrl += '/';
     }
   }
 
@@ -92,57 +92,57 @@ class PlayerPathService {
     int nPriorityFlag = 0;
     switch (nContentType) {
       case cDCMSINGLEIMAGETYPE:
-        strFilePath = DCMGlobal.imagePath;
+        strFilePath = AppGlobal.imagePath;
         nPriorityFlag = 0;
         break;
       case cIMAGETYPE:
-        strFilePath = DCMGlobal.imageSettingPath;
+        strFilePath = AppGlobal.imageSettingPath;
         nPriorityFlag = 0;
         break;
       case cVIDEOTYPE:
-        strFilePath = DCMGlobal.vcdPath;
+        strFilePath = AppGlobal.vcdPath;
         nPriorityFlag = 0;
         break;
       case cPOWERPOINTTYPE:
-        strFilePath = DCMGlobal.ppPath;
+        strFilePath = AppGlobal.ppPath;
         nPriorityFlag = 0;
         break;
       case cTEXTTYPE:
-        strFilePath = DCMGlobal.textPath;
+        strFilePath = AppGlobal.textPath;
         nPriorityFlag = 0;
         break;
       case cTVCAPTURETYPE:
-        //strFilePath = DCMGlobal.t;
+        //strFilePath = AppGlobal.t;
         nPriorityFlag = 0;
         break;
       case cQUEUETYPE:
       case cWEBPAGETYPE:
-        strFilePath = DCMGlobal.webPath;
+        strFilePath = AppGlobal.webPath;
         nPriorityFlag = 0;
         break;
       case cFLASHTYPE:
-        strFilePath = DCMGlobal.flashPath;
+        strFilePath = AppGlobal.flashPath;
         nPriorityFlag = 0;
         break;
       case cCLOCKTYPE:
-        strFilePath = DCMGlobal.clockPath;
+        strFilePath = AppGlobal.clockPath;
         nPriorityFlag = 0;
         break;
       case cWEATHERTYPE:
-        strFilePath = DCMGlobal.weatherPath;
+        strFilePath = AppGlobal.weatherPath;
         nPriorityFlag = 0;
         break;
       case cDCMMONTHTYPE:
-        strFilePath = DCMGlobal.monthPath;
+        strFilePath = AppGlobal.monthPath;
         nPriorityFlag = 3;
         break;
       case cDCMCALENDARTYPE:
-        strFilePath = DCMGlobal.calendarPath;
+        strFilePath = AppGlobal.calendarPath;
         nPriorityFlag = 3;
         break;
       case cDCMDAYTYPE:
       case cDCMAHPLAYLISTTYPE:
-        strFilePath = DCMGlobal.dayPath;
+        strFilePath = AppGlobal.dayPath;
         nPriorityFlag = 2;
         break;
       /*case DCM_AHPLAYLIST_TYPE:
@@ -150,87 +150,87 @@ class PlayerPathService {
         nPriorityFlag = 2;
         break;*/
       case cDCMFILETYPE:
-        strFilePath = DCMGlobal.openPath;
+        strFilePath = AppGlobal.openPath;
         nPriorityFlag = 1;
         break;
       case cDCMSETTINGTYPE:
-        strFilePath = DCMGlobal.settingPath;
+        strFilePath = AppGlobal.settingPath;
         nPriorityFlag = 4;
         break;
       case cDCMLAYOUTTYPE:
-        strFilePath = DCMGlobal.layoutImagePath;
+        strFilePath = AppGlobal.layoutImagePath;
         nPriorityFlag = 0;
         break;
       case cDCMGRAPHICSTYPE:
-        strFilePath = DCMGlobal.graphicsPath;
+        strFilePath = AppGlobal.graphicsPath;
         nPriorityFlag = 0;
         break;
       case cDCMSKINSTYPE:
-        strFilePath = DCMGlobal.skinsPath;
+        strFilePath = AppGlobal.skinsPath;
         nPriorityFlag = 0;
         break;
       case cDCMAHMESSAGETYPE:
-        strFilePath = DCMGlobal.messagePath;
+        strFilePath = AppGlobal.messagePath;
         nPriorityFlag = 0;
         break;
       case cDDETYPE:
       case cDCMCONTENTLISTXMLTYPE:
-        strFilePath = DCMGlobal.ddeXmlPath;
+        strFilePath = AppGlobal.ddeXmlPath;
         nPriorityFlag = 0;
         break;
       case cDCMDDEOTHERTYPE:
-        strFilePath = DCMGlobal.ddeOthersPath;
+        strFilePath = AppGlobal.ddeOthersPath;
         nPriorityFlag = 0;
         break;
       case cDIRECTPLAYTYPE:
-        strFilePath = DCMGlobal.contentListPath;
+        strFilePath = AppGlobal.contentListPath;
         nPriorityFlag = 0;
         break;
       case cLINKAGETYPE:
-        strFilePath = DCMGlobal.linkagePath;
+        strFilePath = AppGlobal.linkagePath;
         nPriorityFlag = 0;
         break;
       case cDCMCONTENTLISTDATATYPE:
-        strFilePath = DCMGlobal.ddeDataPath;
+        strFilePath = AppGlobal.ddeDataPath;
         nPriorityFlag = 0;
         break;
       case cDCMPREDATATYPE:
-        strFilePath = DCMGlobal.preDataPath;
+        strFilePath = AppGlobal.preDataPath;
         nPriorityFlag = 999;
         break;
       //for Event system - room event
       case cDCMROOMTYPE:
-        strFilePath = DCMGlobal.roomPath;
+        strFilePath = AppGlobal.roomPath;
         nPriorityFlag = 1;
         break;
       case cDCMROOMEVENTTYPE:
-        strFilePath = DCMGlobal.roomEventPath;
+        strFilePath = AppGlobal.roomEventPath;
         nPriorityFlag = 1;
         break;
       case cDCMLOBBYTYPE:
-        strFilePath = DCMGlobal.lobbyPath;
+        strFilePath = AppGlobal.lobbyPath;
         nPriorityFlag = 1;
         break;
       case cDCMDYNAMICDATATYPE:
-        strFilePath = DCMGlobal.dynamicDataPath; //DynamicDataDestination;
+        strFilePath = AppGlobal.dynamicDataPath; //DynamicDataDestination;
         nPriorityFlag = 0;
         break;
       case cDCMRLTCONTENTTYPE:
-        strFilePath = DCMGlobal.rltContentPath;
+        strFilePath = AppGlobal.rltContentPath;
         nPriorityFlag = 0;
         break;
       case cDCMSITEDATATYPE:
-        strFilePath = DCMGlobal.siteContentPath;
+        strFilePath = AppGlobal.siteContentPath;
         break;
       case cSITEPLAYLIST:
-        strFilePath = p.join(DCMGlobal.siteContentPath, 'SitePlaylist');
+        strFilePath = p.join(AppGlobal.siteContentPath, 'SitePlaylist');
         break;
 
       case cDCMUPDATETYPE:
-        strFilePath = p.join(DCMGlobal.updateFilePath, 'APUpdate');
+        strFilePath = p.join(AppGlobal.updateFilePath, 'APUpdate');
         break;
       default:
-        strFilePath = p.join(DCMGlobal.cscPath, defaultDataPath); //strCSCPath;
+        strFilePath = p.join(AppGlobal.cscPath, defaultDataPath); //strCSCPath;
         break;
     }
 
@@ -293,19 +293,19 @@ class PlayerPathService {
     }
     _tempFiles.clear();
 
-    String strFileName = p.join(DCMGlobal.ftpSettingPath, 'ftppathlog.xml');
+    String strFileName = p.join(AppGlobal.ftpSettingPath, 'ftppathlog.xml');
     var tempFile = File(strFileName);
     if (await tempFile.exists()) {
       await tempFile.delete();
     }
 
-    strFileName = p.join(DCMGlobal.appDataPath, 'ContentTypes.xml');
+    strFileName = p.join(AppGlobal.appDataPath, 'ContentTypes.xml');
     tempFile = File(strFileName);
     if (await tempFile.exists()) {
       await tempFile.delete();
     }
 
-    strFileName = p.join(DCMGlobal.appDataPath, 'FTPManager.xml');
+    strFileName = p.join(AppGlobal.appDataPath, 'FTPManager.xml');
     tempFile = File(strFileName);
     if (await tempFile.exists()) {
       await tempFile.delete();
@@ -328,7 +328,7 @@ class PlayerPathService {
     removeFileList();
 
     String strFileName =
-        p.join(DCMGlobal.ftpSettingPath, 'Filelog', '$_strBatch.xml');
+        p.join(AppGlobal.ftpSettingPath, 'Filelog', '$_strBatch.xml');
     var listFile = File(strFileName);
     if (await listFile.exists()) {
       listFile.delete();
@@ -382,10 +382,10 @@ class PlayerPathService {
     bool bSuccess6 = await copyTempFiles(5);
     bool bSuccess7 = await copyTempFiles(6);
     bool bSuccess8 = true;
-    String strTempDefaEvent = p.join(DCMGlobal.tempPath, 'DefaultEvent.ini');
+    String strTempDefaEvent = p.join(AppGlobal.tempPath, 'DefaultEvent.ini');
     if (await File(strTempDefaEvent).exists()) {
       bSuccess8 = await copyTempFile(
-          strTempDefaEvent, p.join(DCMGlobal.settingPath, 'DefaultEvent.ini'));
+          strTempDefaEvent, p.join(AppGlobal.settingPath, 'DefaultEvent.ini'));
     }
     bool bSuccess9 = await removeFiles();
 
@@ -555,7 +555,7 @@ class PlayerPathService {
   /// Corresponds to ValidHashData
   static Future<({bool status, String? strMd5})> validHashData(
       String filePath, FileInfoData pFileInfo) async {
-    if ((DCMGlobal.globalSetting & settingCHECKSUM) > 0) {
+    if ((AppGlobal.globalSetting & settingCHECKSUM) > 0) {
       File md5file = File('$filePath.MD5');
       if (await md5file.exists()) {
         try {
@@ -681,7 +681,7 @@ class PlayerPathService {
 
   Future<bool> copyPreData() async {
     String strFileName =
-        p.join(DCMGlobal.ftpSettingPath, 'PreDataFileList.xml');
+        p.join(AppGlobal.ftpSettingPath, 'PreDataFileList.xml');
     bool bSuccess = true;
     if (await File(strFileName).exists()) {
       XmlProfile xmlProfile = XmlProfile.fromFile(strFileName);
@@ -718,7 +718,7 @@ class PlayerPathService {
   /*																	*/
   /// *****************************************************************
   void loadTempPath() {
-    String strFileName = p.join(DCMGlobal.ftpSettingPath, 'ftppathlog.xml');
+    String strFileName = p.join(AppGlobal.ftpSettingPath, 'ftppathlog.xml');
     XmlFile file = XmlFile('DCMTempPath');
     if (file.load(strFileName, null)) {
       XmlItem? pPathItem = file.root().getItem('TempPath');
@@ -738,7 +738,7 @@ class PlayerPathService {
   /// Save temp path log to XML/JSON
   static void saveTempPath() {
     if (_tempFiles.isNotEmpty) {
-      String strFileName = p.join(DCMGlobal.ftpSettingPath, 'ftppathlog.xml');
+      String strFileName = p.join(AppGlobal.ftpSettingPath, 'ftppathlog.xml');
 
       XmlFilePro file = XmlFilePro('DCMTempPath');
       // Save tempoary path information
@@ -757,7 +757,7 @@ class PlayerPathService {
   }
 
   Future<void> removeAllTempFile(String strBatch) async {
-    if (DCMGlobal.deleteContentIfFTPFail) {
+    if (AppGlobal.deleteContentIfFTPFail) {
       DownloadFileListImpl downloadFileList = DownloadFileListImpl(strBatch);
       downloadFileList.loadDownloadFileList(strBatch);
       downloadFileList.removeFileList();
@@ -770,7 +770,7 @@ class PlayerPathService {
     }*/
 
     String strFileName =
-        p.join(DCMGlobal.ftpSettingPath, 'Filelog', '$strBatch.xml');
+        p.join(AppGlobal.ftpSettingPath, 'Filelog', '$strBatch.xml');
     var logFile = File(strFileName);
     if (await logFile.exists()) await logFile.delete();
   }
@@ -795,7 +795,7 @@ class PlayerPathService {
 
   static Future<void> initLocalFiles() async {
     String strFileName =
-        p.join(DCMGlobal.ftpSettingPath, 'FileList.xml'); // + '\\FileList.xml';
+        p.join(AppGlobal.ftpSettingPath, 'FileList.xml'); // + '\\FileList.xml';
     if (await File(strFileName).exists()) {
       return;
     }
@@ -820,35 +820,35 @@ class PlayerPathService {
   }
 
   static bool availableForACU() {
-    if (isBlank(DCMGlobal.availableACUStart) &&
-        isBlank(DCMGlobal.availableACUEnd)) {
+    if (isBlank(AppGlobal.availableACUStart) &&
+        isBlank(AppGlobal.availableACUEnd)) {
       return true;
     }
 
     DateTime dtStart = DateTime.now();
-    if (isNotBlank(DCMGlobal.availableACUStart)) {
-      dtStart = stringToTime(dtStart, DCMGlobal.availableACUStart!, ':');
+    if (isNotBlank(AppGlobal.availableACUStart)) {
+      dtStart = stringToTime(dtStart, AppGlobal.availableACUStart!, ':');
       if (DateTime.now().isBefore(dtStart)) {
         logI(
-            'Auto content update is unavailable, Start time for auto content update: ${DCMGlobal.availableACUStart}');
+            'Auto content update is unavailable, Start time for auto content update: ${AppGlobal.availableACUStart}');
 
         return false;
       }
     }
 
     DateTime dtEnd = DateTime.now();
-    if (isNotBlank(DCMGlobal.availableACUEnd)) {
-      dtEnd = stringToTime(dtEnd, DCMGlobal.availableACUEnd!, ':');
+    if (isNotBlank(AppGlobal.availableACUEnd)) {
+      dtEnd = stringToTime(dtEnd, AppGlobal.availableACUEnd!, ':');
       if (DateTime.now().isAfter(dtEnd)) {
         logI(
-            'Auto content update is unavailable, End time for auto content update: ${DCMGlobal.availableACUEnd}',
+            'Auto content update is unavailable, End time for auto content update: ${AppGlobal.availableACUEnd}',
             syncTag);
 
         return false;
       }
     }
     logI(
-        'It is time for auto content update, Available time: ${DCMGlobal.availableACUStart} - ${DCMGlobal.availableACUEnd}',
+        'It is time for auto content update, Available time: ${AppGlobal.availableACUStart} - ${AppGlobal.availableACUEnd}',
         syncTag);
 
     return true;

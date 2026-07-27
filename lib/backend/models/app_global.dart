@@ -1,4 +1,4 @@
-﻿// Global settings for DCM Flutter app
+﻿// Global settings for Content management Flutter app
 
 import 'dart:io';
 
@@ -11,7 +11,7 @@ import 'package:dcm/backend/xmlfile/xmlfile.dart';
 import 'package:dcm/backend/xmlfile/xmlitem.dart';
 import 'package:path/path.dart' as path;
 
-class DCMGlobal {
+class AppGlobal {
   // File Paths
   static String configFile = '';
   static String cscPath = '';
@@ -61,18 +61,18 @@ class DCMGlobal {
   // Global Settings
   static String rltContentFile = '';
   static String keyMappingFile = '';
-  static String dcmConnectString = '';
+  static String appConnectString = '';
   static int playMode = 0;
   static int globalSetting = 0;
   static int autoReloadDuration = 0;
   static int playStartPoint = 0;
   static int playListCut = 0;
   static int multiMonitor = 0;
-  static int dcmRuntimeType = 1;
+  static int appRuntimeType = 1;
   static int ieSetting = 0x0001;
   static int videoSetting = 0x0001;
   static int videoRender = 3;
-  static double maxDcmDuration = 0;
+  static double maxContentDuration = 0;
   static int maxDefaultEvent = 3;
   static int logFileRecordNum = 100;
   static int logFileKeepDay = 1;
@@ -159,7 +159,7 @@ class DCMGlobal {
     'File Path.Schedule_AHPlaylist_Path': (v) => ahPlaylistPath = v,
     'File Path.Schedule Month Path': (v) => monthPath = v,
     'File Path.Schedule_Calendar_Path': (v) => calendarPath = v,
-    'File Path.DCM_Setting_Path': (v) => settingPath = v,
+    'File Path.App_Setting_Path': (v) => settingPath = v,
     'File Path.DOWNLOAD_Setting_Path': (v) => ftpSettingPath = v,
     'File Path.Reports Path': (v) => reportPath = v,
     'File Path.TempFile_Path': (v) => tempPath = v,
@@ -179,18 +179,19 @@ class DCMGlobal {
     // Global Settings
     'Global Setting.RLTContentFile': (v) => rltContentFile = v,
     'Global Setting.KeyMappingFile': (v) => keyMappingFile = v,
-    'DataBase Setting.DCMDataBaseConnectString': (v) => dcmConnectString = v,
+    'DataBase Setting.DataBaseConnectString': (v) => appConnectString = v,
     'Global Setting.CombSettings': (v) => globalSetting = int.parse(v),
     'Global Setting.Auto Reload Idle Duration': (v) =>
         autoReloadDuration = int.parse(v),
     'Global Setting.PlayStartPoint': (v) => playStartPoint = int.parse(v),
     'Global Setting.PlayListCut': (v) => playListCut = int.parse(v),
     'Global Setting.MultiMonitor': (v) => multiMonitor = int.parse(v),
-    'Global Setting.DCM Client': (v) => dcmRuntimeType = int.parse(v),
+    'Global Setting.Client': (v) => appRuntimeType = int.parse(v),
     'Global Setting.Hide IE Scrollbar': (v) => ieSetting = int.parse(v),
     'Global Setting.VideoSetting': (v) => videoSetting = int.parse(v),
     'Global Setting.Video_Render': (v) => videoRender = int.parse(v),
-    'Global Setting.MaxDCMDuration': (v) => maxDcmDuration = double.parse(v),
+    'Global Setting.MaxContentDuration': (v) =>
+        maxContentDuration = double.parse(v),
     'Global Setting.MaxDefaultEvent': (v) => maxDefaultEvent = int.parse(v),
     'Global Setting.LogFileRecordNum': (v) => logFileRecordNum = int.parse(v),
     'Global Setting.LogFileKeepDay': (v) => logFileKeepDay = int.parse(v),
@@ -243,6 +244,115 @@ class DCMGlobal {
     //retryInterval
     'ContentSync.TaskRetryInterval': (v) => retryInterval = int.parse(v),
     'ContentSync.AutoSyncTime': (v) => autoSyncTime = bool.parse(v),
+  };
+
+  static final Map<String, String Function()> _getters = {
+    // File Paths
+    'File Path.ContentAndSettingCenter': () => cscPath,
+    'File Path.DynamicDataPath': () => ddServerPath,
+    'File Path.Open Path': () => openPath,
+    'File Path.Background Image': () => bgFile,
+    'File Path.Login Image': () => loginFile,
+    'File Path.Image Data': () => imagePath,
+    'File Path.VCD Data': () => vcdPath,
+    'File Path.Powerpoint Data': () => ppPath,
+    'File Path.Flash Data': () => flashPath,
+    'File Path.WebPage Data': () => webPath,
+    'File Path.Text Setting Path': () => textPath,
+    'File Path.Image Setting Path': () => imageSettingPath,
+    'File Path.Clock Setting Path': () => clockPath,
+    'File Path.Weather Setting Path': () => weatherPath,
+    'File Path.Site_Content_Path': () => siteContentPath,
+    'File Path.LayoutImagePath': () => layoutImagePath,
+    'File Path.SkinsPath': () => skinsPath,
+    'File Path.RLTContentDestination': () => rltContentPath,
+    'File Path.DynamicDataDestination': () => dynamicDataPath,
+    'File Path.Skin Setting': () => skinFile,
+    'File Path.GraphicsPath': () => graphicsPath,
+    'File Path.Schedule Day Path': () => dayPath,
+    'File Path.Schedule_AHPlaylist_Path': () => ahPlaylistPath,
+    'File Path.Schedule Month Path': () => monthPath,
+    'File Path.Schedule_Calendar_Path': () => calendarPath,
+    'File Path.App_Setting_Path': () => settingPath,
+    'File Path.DOWNLOAD_Setting_Path': () => ftpSettingPath,
+    'File Path.Reports Path': () => reportPath,
+    'File Path.TempFile_Path': () => tempPath,
+    'File Path.Logfile Path': () => logPath,
+    'File Path.ContentList Path': () => contentListPath,
+    'File Path.Linkage_Path': () => linkagePath,
+    'File Path.DDE_Others_Path': () => ddeOthersPath,
+    'File Path.DDE_Data_Path': () => ddeDataPath,
+    'File Path.DDE_XML_Path': () => ddeXmlPath,
+    'File Path.AHMessage Path': () => messagePath,
+    'File Path.RoomEvent Path': () => roomEventPath,
+    'File Path.Room_Path': () => roomPath,
+    'File Path.Lobby_Path': () => lobbyPath,
+    'File Path.Player Register Path': () => playerPath,
+    'File Path.PreData_Path': () => preDataPath,
+    'File Path.UpdateFile_Path': () => updateFilePath,
+    // Global Settings
+    'Global Setting.RLTContentFile': () => rltContentFile,
+    'Global Setting.KeyMappingFile': () => keyMappingFile,
+    'DataBase Setting.DataBaseConnectString': () => appConnectString,
+    'Global Setting.CombSettings': () => globalSetting.toString(),
+    'Global Setting.Auto Reload Idle Duration': () =>
+        autoReloadDuration.toString(),
+    'Global Setting.PlayStartPoint': () => playStartPoint.toString(),
+    'Global Setting.PlayListCut': () => playListCut.toString(),
+    'Global Setting.MultiMonitor': () => multiMonitor.toString(),
+    'Global Setting.Client': () => appRuntimeType.toString(),
+    'Global Setting.Hide IE Scrollbar': () => ieSetting.toString(),
+    'Global Setting.VideoSetting': () => videoSetting.toString(),
+    'Global Setting.Video_Render': () => videoRender.toString(),
+    'Global Setting.MaxContentDuration': () => maxContentDuration.toString(),
+    'Global Setting.MaxDefaultEvent': () => maxDefaultEvent.toString(),
+    'Global Setting.LogFileRecordNum': () => logFileRecordNum.toString(),
+    'Global Setting.LogFileKeepDay': () => logFileKeepDay.toString(),
+    'Global Setting.CopyFileBuffer': () => copyFileBuffer.toString(),
+    'Global Setting.CopyFileRetries': () => copyFileRetries.toString(),
+    'Global Setting.EventMultiGroup': () => multiGroup.toString(),
+    'Global Setting.ContentExportType': () => exportType.toString(),
+    'Global Setting.PlaybackSettings': () => loopMethod.toString(),
+    'Global Setting.PowerPoint Version': () => powerPoint.toString(),
+    'Global Setting.PPView Path': () => ppViewPath,
+    'Global Setting.EventContentPath': () => eventContentPath,
+    'TVCard.Installed': () => tvInstalled.toString(),
+    // DataCenter
+    'DataCenter.sPassword': () => sPassword,
+    // CMS backend
+    'Global Setting.CMSUrl': () => cmsUrl,
+    'Global Setting.CMSToken': () => cmsToken,
+    'Global Setting.Organization': () => organization,
+    // Other
+    'Global Setting.PrivateTypes': () => privateTypes,
+    'Global Setting.MessagePlayMode': () => messagePlayMode.toString(),
+    'Global Setting.ProcessAHConflict': () => processAHConflict.toString(),
+    'Global Setting.PlayMode': () => playMode.toString(),
+    'Global Setting.EventTimeout': () => eventTimeout.toString(),
+    'Global Setting.ZoneThread': () => maxZoneThread.toString(),
+    'Global Setting.Background Color': () => clrBGColor.toString(),
+    'Global Setting.BackgroundImage': () => bgImageFile,
+    'Global Setting.StartupWallpaper': () => startupWallpaper ?? '',
+    'Global Setting.nPDFViewMode': () => pdfViewMode.toString(),
+    'Global Setting.nPDFPlayMode': () => pdfPlayMode.toString(),
+
+    'ContentSync.StatusCheckInterval': () => statusCheckInterval.toString(),
+    'ContentSync.EnableTaskCheck': () => enableTaskCheck.toString(),
+    'ContentSync.AutoContentUpdate': () => autoContentUpdate.toString(),
+    'ContentSync.FileTransferRetries': () => fileTransferRetries.toString(),
+    'ContentSync.TaskTransferRetries': () => taskTransferRetries.toString(),
+    'ContentSync.TempFileCopyRetries': () => tempFileCopyRetries.toString(),
+    'ContentSync.LogUploadInterval': () => logUploadInterval.toString(),
+    'ContentSync.LogUploadPeriod': () => logUploadPeriod.toString(),
+    'ContentSync.HTTPRetryTimes': () => httpRetryTimes.toString(),
+    'ContentSync.FileIntegrityCheck': () => fileIntegrityCheck.toString(),
+    'ContentSync.DeleteContentIfFTPFail': () =>
+        deleteContentIfFTPFail.toString(),
+    'ContentSync.AvailableACUStart': () => availableACUStart ?? '',
+    'ContentSync.AvailableACUEnd': () => availableACUEnd ?? '',
+    //retryInterval
+    'ContentSync.TaskRetryInterval': () => retryInterval.toString(),
+    'ContentSync.AutoSyncTime': () => autoSyncTime.toString(),
   };
 
   static Map<String, dynamic> snapshot() {
@@ -379,163 +489,163 @@ class DCMGlobal {
     bool? autoSyncTime,
   }) {
     if (cscPath != null) {
-      DCMGlobal.cscPath = cscPath;
+      AppGlobal.cscPath = cscPath;
     }
     if (appDataPath != null) {
-      DCMGlobal.appDataPath = appDataPath;
+      AppGlobal.appDataPath = appDataPath;
     }
     if (ddServerPath != null) {
-      DCMGlobal.ddServerPath = ddServerPath;
+      AppGlobal.ddServerPath = ddServerPath;
     }
     if (openPath != null) {
-      DCMGlobal.openPath = openPath;
+      AppGlobal.openPath = openPath;
     }
     if (imagePath != null) {
-      DCMGlobal.imagePath = imagePath;
+      AppGlobal.imagePath = imagePath;
     }
     if (vcdPath != null) {
-      DCMGlobal.vcdPath = vcdPath;
+      AppGlobal.vcdPath = vcdPath;
     }
     if (ppPath != null) {
-      DCMGlobal.ppPath = ppPath;
+      AppGlobal.ppPath = ppPath;
     }
     if (flashPath != null) {
-      DCMGlobal.flashPath = flashPath;
+      AppGlobal.flashPath = flashPath;
     }
     if (webPath != null) {
-      DCMGlobal.webPath = webPath;
+      AppGlobal.webPath = webPath;
     }
     if (textPath != null) {
-      DCMGlobal.textPath = textPath;
+      AppGlobal.textPath = textPath;
     }
     if (imageSettingPath != null) {
-      DCMGlobal.imageSettingPath = imageSettingPath;
+      AppGlobal.imageSettingPath = imageSettingPath;
     }
     if (clockPath != null) {
-      DCMGlobal.clockPath = clockPath;
+      AppGlobal.clockPath = clockPath;
     }
     if (weatherPath != null) {
-      DCMGlobal.weatherPath = weatherPath;
+      AppGlobal.weatherPath = weatherPath;
     }
     if (siteContentPath != null) {
-      DCMGlobal.siteContentPath = siteContentPath;
+      AppGlobal.siteContentPath = siteContentPath;
     }
     if (layoutImagePath != null) {
-      DCMGlobal.layoutImagePath = layoutImagePath;
+      AppGlobal.layoutImagePath = layoutImagePath;
     }
     if (skinsPath != null) {
-      DCMGlobal.skinsPath = skinsPath;
+      AppGlobal.skinsPath = skinsPath;
     }
     if (rltContentPath != null) {
-      DCMGlobal.rltContentPath = rltContentPath;
+      AppGlobal.rltContentPath = rltContentPath;
     }
     if (dynamicDataPath != null) {
-      DCMGlobal.dynamicDataPath = dynamicDataPath;
+      AppGlobal.dynamicDataPath = dynamicDataPath;
     }
     if (skinFile != null) {
-      DCMGlobal.skinFile = skinFile;
+      AppGlobal.skinFile = skinFile;
     }
     if (graphicsPath != null) {
-      DCMGlobal.graphicsPath = graphicsPath;
+      AppGlobal.graphicsPath = graphicsPath;
     }
     if (dayPath != null) {
-      DCMGlobal.dayPath = dayPath;
+      AppGlobal.dayPath = dayPath;
     }
     if (ahPlaylistPath != null) {
-      DCMGlobal.ahPlaylistPath = ahPlaylistPath;
+      AppGlobal.ahPlaylistPath = ahPlaylistPath;
     }
     if (monthPath != null) {
-      DCMGlobal.monthPath = monthPath;
+      AppGlobal.monthPath = monthPath;
     }
     if (calendarPath != null) {
-      DCMGlobal.calendarPath = calendarPath;
+      AppGlobal.calendarPath = calendarPath;
     }
     if (settingPath != null) {
-      DCMGlobal.settingPath = settingPath;
+      AppGlobal.settingPath = settingPath;
     }
     if (ftpSettingPath != null) {
-      DCMGlobal.ftpSettingPath = ftpSettingPath;
+      AppGlobal.ftpSettingPath = ftpSettingPath;
     }
     if (tempPath != null) {
-      DCMGlobal.tempPath = tempPath;
+      AppGlobal.tempPath = tempPath;
     }
     if (logPath != null) {
-      DCMGlobal.logPath = logPath;
+      AppGlobal.logPath = logPath;
     }
     if (contentListPath != null) {
-      DCMGlobal.contentListPath = contentListPath;
+      AppGlobal.contentListPath = contentListPath;
     }
     if (linkagePath != null) {
-      DCMGlobal.linkagePath = linkagePath;
+      AppGlobal.linkagePath = linkagePath;
     }
     if (ddeOthersPath != null) {
-      DCMGlobal.ddeOthersPath = ddeOthersPath;
+      AppGlobal.ddeOthersPath = ddeOthersPath;
     }
     if (ddeDataPath != null) {
-      DCMGlobal.ddeDataPath = ddeDataPath;
+      AppGlobal.ddeDataPath = ddeDataPath;
     }
     if (ddeXmlPath != null) {
-      DCMGlobal.ddeXmlPath = ddeXmlPath;
+      AppGlobal.ddeXmlPath = ddeXmlPath;
     }
     if (messagePath != null) {
-      DCMGlobal.messagePath = messagePath;
+      AppGlobal.messagePath = messagePath;
     }
     if (roomEventPath != null) {
-      DCMGlobal.roomEventPath = roomEventPath;
+      AppGlobal.roomEventPath = roomEventPath;
     }
     if (roomPath != null) {
-      DCMGlobal.roomPath = roomPath;
+      AppGlobal.roomPath = roomPath;
     }
     if (lobbyPath != null) {
-      DCMGlobal.lobbyPath = lobbyPath;
+      AppGlobal.lobbyPath = lobbyPath;
     }
     if (preDataPath != null) {
-      DCMGlobal.preDataPath = preDataPath;
+      AppGlobal.preDataPath = preDataPath;
     }
     if (updateFilePath != null) {
-      DCMGlobal.updateFilePath = updateFilePath;
+      AppGlobal.updateFilePath = updateFilePath;
     }
     if (availableACUStart != null) {
-      DCMGlobal.availableACUStart = availableACUStart;
+      AppGlobal.availableACUStart = availableACUStart;
     }
     if (availableACUEnd != null) {
-      DCMGlobal.availableACUEnd = availableACUEnd;
+      AppGlobal.availableACUEnd = availableACUEnd;
     }
     if (cmsUrl != null) {
-      DCMGlobal.cmsUrl = cmsUrl;
+      AppGlobal.cmsUrl = cmsUrl;
     }
     if (cmsToken != null) {
-      DCMGlobal.cmsToken = cmsToken;
+      AppGlobal.cmsToken = cmsToken;
     }
     if (organization != null) {
-      DCMGlobal.organization = organization;
+      AppGlobal.organization = organization;
     }
     if (enableTaskCheck != null) {
-      DCMGlobal.enableTaskCheck = enableTaskCheck;
+      AppGlobal.enableTaskCheck = enableTaskCheck;
     }
     if (autoContentUpdate != null) {
-      DCMGlobal.autoContentUpdate = autoContentUpdate;
+      AppGlobal.autoContentUpdate = autoContentUpdate;
     }
     if (fileTransferRetries != null) {
-      DCMGlobal.fileTransferRetries = fileTransferRetries;
+      AppGlobal.fileTransferRetries = fileTransferRetries;
     }
     if (taskTransferRetries != null) {
-      DCMGlobal.taskTransferRetries = taskTransferRetries;
+      AppGlobal.taskTransferRetries = taskTransferRetries;
     }
     if (tempFileCopyRetries != null) {
-      DCMGlobal.tempFileCopyRetries = tempFileCopyRetries;
+      AppGlobal.tempFileCopyRetries = tempFileCopyRetries;
     }
     if (logUploadInterval != null) {
-      DCMGlobal.logUploadInterval = logUploadInterval;
+      AppGlobal.logUploadInterval = logUploadInterval;
     }
     if (logUploadPeriod != null) {
-      DCMGlobal.logUploadPeriod = logUploadPeriod;
+      AppGlobal.logUploadPeriod = logUploadPeriod;
     }
     if (statusCheckInterval != null) {
-      DCMGlobal.statusCheckInterval = statusCheckInterval;
+      AppGlobal.statusCheckInterval = statusCheckInterval;
     }
     if (httpRetryTimes != null) {
-      DCMGlobal.httpRetryTimes = httpRetryTimes;
+      AppGlobal.httpRetryTimes = httpRetryTimes;
     }
   }
 
@@ -576,13 +686,39 @@ class DCMGlobal {
     return validGlobalSetting(appDataPath);
   }
 
+  static Future<void> genConfigFile() async {
+    var iniFile = IniFile(path.join(appDataPath, configFILENAME));
+    for (var entry in _getters.entries) {
+      if ('Global Setting.CombSettings' == entry.key) {
+        writeCombSettings(iniFile);
+      } else if ('Global Setting.PlaybackSettings' == entry.key) {
+        writePlaybackSettings(iniFile);
+      } else {
+        iniFile.setValue(entry.key.split('.').first, entry.key.split('.').last,
+            entry.value.call());
+      }
+    }
+    await iniFile.save();
+  }
+
   static String loadPlaybackSettings(IniFile iniFile) {
     int settingValue =
         iniFile.readInt('Global Setting', 'Schedule Loop Method', 0);
     if (iniFile.readInt('Global Setting', 'PlayLatestPlaylist', 0) > 0) {
-      settingValue |= loopMethod;
+      settingValue |= settingLATESTPLAYLIST;
     }
     return settingValue.toString();
+  }
+
+  static void writePlaybackSettings(IniFile iniFile) {
+    iniFile.setValue('Global Setting', 'PlayLatestPlaylist',
+        (loopMethod & settingLATESTPLAYLIST) > 0);
+    iniFile.setValue(
+        'Global Setting',
+        'Schedule Loop Method',
+        (loopMethod & settingLATESTPLAYLIST) > 0
+            ? loopMethod - settingLATESTPLAYLIST
+            : loopMethod);
   }
 
   static String loadCombSettings(IniFile iniFile) {
@@ -648,6 +784,45 @@ class DCMGlobal {
     return settingValue.toString();
   }
 
+  static void writeCombSettings(IniFile iniFile) {
+    iniFile.setValue('Global Setting', 'Hide Cursor',
+        (globalSetting & settingHIDECURSOR) > 0 ? 1 : 0);
+    iniFile.setValue('Global Setting', 'Language Button',
+        (globalSetting & settingLANGBTN) > 0 ? 1 : 0);
+    iniFile.setValue('Global Setting', 'MuteAll',
+        (globalSetting & settingMUTEALL) > 0 ? 1 : 0); // Mute all
+    iniFile.setValue('Global Setting', 'EnableQueueControl',
+        (globalSetting & settingQC) > 0 ? 1 : 0); //Enable Queue Control
+    iniFile.setValue('Global Setting', 'ContentListTime',
+        (globalSetting & settingVALIDCLONLYTIME) > 0 ? 1 : 0);
+    iniFile.setValue('Global Setting', 'ContentListAsPlaylist',
+        (globalSetting & settingASPLAYLIST) > 0 ? 1 : 0);
+    iniFile.setValue('Global Setting', 'EnableContentClean',
+        (globalSetting & settingCONTENTCLEAN) > 0 ? 1 : 0);
+    iniFile.setValue('Global Setting', 'EnableContentLog',
+        (globalSetting & settingCONTENTLOG) > 0 ? 1 : 0);
+    iniFile.setValue('TVCard', 'MultiSupport',
+        (globalSetting & settingMULTICAPTURE) > 0 ? 1 : 0);
+    iniFile.setValue('Global Setting', 'WebPageRefreshInterval',
+        (globalSetting & settingWEBREFRESHINTERVAL) > 0 ? 1 : 0);
+    iniFile.setValue('Global Setting', 'SimpleFileList',
+        (globalSetting & settingSIMPLEFILELIST) > 0 ? 1 : 0);
+    iniFile.setValue('Global Setting', 'MockDBClickForCapture',
+        (globalSetting & settingMOCKDBCLICK) > 0 ? 1 : 0);
+    iniFile.setValue('Global Setting', 'WebView2Buffer',
+        (globalSetting & settingWEBVIEW2BUFFER) > 0 ? 1 : 0);
+    iniFile.setValue('Global Setting', 'DisablePlayInCatalogueWizard',
+        (globalSetting & settingNOTPLAYCONTENT) > 0 ? 1 : 0);
+    iniFile.setValue('Global Setting', 'DisableLayoutPopup',
+        (globalSetting & settingLAYOUTTIPWINDOWN) > 0 ? 1 : 0);
+    iniFile.setValue('Global Setting', 'CaptureDeviceIdentifier',
+        (globalSetting & settingCDI) > 0 ? 1 : 0);
+    iniFile.setValue('Global Setting', 'EnableContentChecksum',
+        (globalSetting & settingCHECKSUM) > 0 ? 1 : 0);
+    iniFile.setValue('Global Setting', 'EnableAPIBackend',
+        (globalSetting & settingAPIBACKEND) > 0 ? 1 : 0);
+  }
+
   static void init() {
     // Initialize defaults
     ieSetting = 0x0001;
@@ -674,7 +849,7 @@ class DCMGlobal {
     rltContentPath = '';
     rltContentFile = '';
     keyMappingFile = '';
-    dcmRuntimeType = 1;
+    appRuntimeType = 1;
 
     messagePlayMode = 4;
     processAHConflict = 0;
@@ -757,7 +932,7 @@ class DCMGlobal {
 
     copyFileQueueSize = 4 * copyFileBuffer * 1024 * 1024;
     ppViewPath =
-        FileUtils.replaceDCMWildcard(ppViewPath, appPath: szAppDataPath);
+        FileUtils.replaceAppWildcard(ppViewPath, appPath: szAppDataPath);
 
     String strDayPath = path.join(cscPath, defaultSCHEDULEDAYPATH);
     String strMonthPath = path.join(cscPath, defaultSCHEDULEMONTHPATH);
@@ -852,7 +1027,7 @@ class DCMGlobal {
   }
 
   static double videoVolume(bool bMute, double nVolume) {
-    return (((DCMGlobal.globalSetting & settingMUTEALL) > 0)
+    return (((AppGlobal.globalSetting & settingMUTEALL) > 0)
         ? cVOLUMESILENCE
         : (bMute ? cVOLUMESILENCE : nVolume));
   }

@@ -2,7 +2,7 @@ import 'dart:io';
 import 'dart:math';
 
 import 'package:dcm/backend/constants.dart';
-import 'package:dcm/backend/models/dcm_global.dart';
+import 'package:dcm/backend/models/app_global.dart';
 import 'package:dcm/backend/models/dcmfile_data.dart';
 import 'package:dcm/backend/models/product_data.dart';
 import 'package:dcm/backend/models/zone_rect_data.dart';
@@ -12,16 +12,16 @@ import 'package:dcm/backend/xmlfile/inifile.dart';
 import 'package:dcm/main.dart';
 import 'package:nativeapi/nativeapi.dart';
 
-enum DcmSkinType { gdi, html, d2d, html5 }
+enum AppSkinType { gdi, html, d2d, html5 }
 
-class DcmSkinSetting {
-  DcmSkinSetting._() {
+class AppSkinSetting {
+  AppSkinSetting._() {
     _initSetting();
   }
 
-  static final DcmSkinSetting instance = DcmSkinSetting._();
+  static final AppSkinSetting instance = AppSkinSetting._();
 
-  DcmSkinSetting({
+  AppSkinSetting({
     this.skin = 0,
     this.skinCode = '',
     this.screenType = 0,
@@ -237,16 +237,16 @@ class DcmSkinSetting {
   Rect getScreenRect() => screenRect;
   int getAutoReloadDuration() => autoReloadDuration;
 
-  DcmSkinType get skinType {
+  AppSkinType get skinType {
     switch (skinTypeString) {
       case '0':
-        return DcmSkinType.gdi;
+        return AppSkinType.gdi;
       case '1':
-        return DcmSkinType.html;
+        return AppSkinType.html;
       case '2':
-        return DcmSkinType.d2d;
+        return AppSkinType.d2d;
       default:
-        return DcmSkinType.html5;
+        return AppSkinType.html5;
     }
   }
 
@@ -304,13 +304,13 @@ class DcmSkinSetting {
 
   void loadSkinFile() {
     removeAll();
-    final iniFile = IniFile(DCMGlobal.skinFile);
+    final iniFile = IniFile(AppGlobal.skinFile);
     _getMonitorInfo(iniFile, skinCode);
     final cx = monitorRect.width;
     final cy = monitorRect.height;
     screenRect = Rect.fromLTWH(0, 0, cx, cy);
 
-    if (hasFlag(DCMGlobal.playMode, 2)) {
+    if (hasFlag(AppGlobal.playMode, 2)) {
       if (layout != null && layout!.width > 0 && layout!.height > 0) {
         final fitted = _fitToSize(layout!, screenRect);
         screenRect = fitted;
@@ -318,7 +318,7 @@ class DcmSkinSetting {
     }
 
     isTwoWindows = iniFile.readInt(skinCode, 'Two Windows', 0) > 0;
-    hideCursor = DCMGlobal.globalSetting & settingHIDECURSOR > 0;
+    hideCursor = AppGlobal.globalSetting & settingHIDECURSOR > 0;
     if (!hideCursor) {
       hideCursor = iniFile.readInt(skinCode, 'Hide Cursor', 1) > 0;
     }
@@ -337,7 +337,7 @@ class DcmSkinSetting {
     autoReloadDuration =
         iniFile.readInt(skinCode, 'Auto Reload Idle Duration', 0);
     if (autoReloadDuration == 0) {
-      autoReloadDuration = DCMGlobal.autoReloadDuration;
+      autoReloadDuration = AppGlobal.autoReloadDuration;
     }
 
     btnMinWidth = iniFile.readInt(skinCode, 'ButtonMinWidth', btnMinWidth);
@@ -652,21 +652,21 @@ class DcmSkinSetting {
   }
 
   void _getMonitorInfo(IniFile iniFile, String skinCode) async {
-    if (hasFlag(DCMGlobal.playMode, cPLAYOTHER)) {
+    if (hasFlag(AppGlobal.playMode, cPLAYOTHER)) {
       monitorRect = Rect.fromLTRB(0, 0, layout!.width, layout!.height);
       return;
     }
 
     outputs.clear();
     int nMonitor = 0;
-    if (DCMGlobal.output < 80) {
-      nMonitor = DCMGlobal.output;
+    if (AppGlobal.output < 80) {
+      nMonitor = AppGlobal.output;
     }
 
     final displayManager = DisplayManager.instance;
     final allDisplays = displayManager.getAll();
     //final allDisplays = await screenRetriever.getAllDisplays();
-    if (nMonitor == 0 && !hasFlag(DCMGlobal.multiMonitor, cMULTIMONITORDV)) {
+    if (nMonitor == 0 && !hasFlag(AppGlobal.multiMonitor, cMULTIMONITORDV)) {
       String strRect = iniFile.readString(skinCode, 'DisplayMonitor', '');
       var displayMonitors = strRect.split(',');
       monitorRect = Rect.zero;
@@ -708,7 +708,7 @@ class DcmSkinSetting {
 
     if (monitorRect.isEmpty &&
         allDisplays.isNotEmpty &&
-        DCMGlobal.multiMonitor != 99) {
+        AppGlobal.multiMonitor != 99) {
       monitorRect = _displayRect(allDisplays[0]);
     }
     monitorRect = _normalizeRect(monitorRect);
@@ -716,7 +716,7 @@ class DcmSkinSetting {
       outputs.add(0);
     }
     logD(
-        '''GetMonitorInfo Output:'${DCMGlobal.output}'; rect:'$monitorRect'; Skin: '$skinCode', allDisplays: '${allDisplays.toString()}'.''');
+        '''GetMonitorInfo Output:'${AppGlobal.output}'; rect:'$monitorRect'; Skin: '$skinCode', allDisplays: '${allDisplays.toString()}'.''');
   }
 
   Rect _displayRect(Display display) {
@@ -790,4 +790,4 @@ class DcmSkinSetting {
   int btnSpace2 = 0;
 }
 
-final playSkin = DcmSkinSetting.instance;
+final playSkin = AppSkinSetting.instance;

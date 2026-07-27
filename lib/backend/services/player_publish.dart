@@ -1,7 +1,7 @@
 import 'dart:io';
 
 import 'package:dcm/backend/constants.dart';
-import 'package:dcm/backend/models/dcm_global.dart';
+import 'package:dcm/backend/models/app_global.dart';
 import 'package:dcm/backend/models/file_info_data.dart';
 import 'package:dcm/backend/services/content_file_impl.dart';
 import 'package:dcm/backend/utils/utils.dart';
@@ -136,7 +136,7 @@ class PlayerPublish {
     final normalized = path.basename(messageName);
     final fileName =
         path.extension(normalized).isEmpty ? '$normalized.xml' : normalized;
-    final messageFile = path.join(DCMGlobal.messagePath, fileName);
+    final messageFile = path.join(AppGlobal.messagePath, fileName);
     return publishFileTo(messageFile, cDCMAHMESSAGETYPE);
   }
 
@@ -147,7 +147,7 @@ class PlayerPublish {
     }
 
     final fileName =
-        path.join(DCMGlobal.messagePath, '${messageData.strAHName}.xml');
+        path.join(AppGlobal.messagePath, '${messageData.strAHName}.xml');
     if (!File(fileName).existsSync()) {
       _setErrorMessage(
           'AH message file not found: ${messageData.strAHName}.xml');

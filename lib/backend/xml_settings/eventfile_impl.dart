@@ -2,7 +2,7 @@ import 'dart:io';
 
 import 'package:dcm/backend/app.dart';
 import 'package:dcm/backend/constants.dart';
-import 'package:dcm/backend/models/dcm_global.dart';
+import 'package:dcm/backend/models/app_global.dart';
 import 'package:dcm/backend/models/eventitem_data.dart';
 import 'package:dcm/backend/utils/utils.dart';
 import 'package:dcm/backend/xmlfile/xmlfile.dart';
@@ -129,7 +129,7 @@ class EventFileImpl {
       {String? strCompany, bool bMonthSchedule = true}) {
     String strFileName = '';
     if (strCompany == null || strCompany.isEmpty) {
-      strFileName = path.join(DCMGlobal.dayPath, '$strEventFile.xml');
+      strFileName = path.join(AppGlobal.dayPath, '$strEventFile.xml');
       if (!bMonthSchedule) {
         if (File(strFileName).existsSync()) {
           return true;
@@ -138,7 +138,7 @@ class EventFileImpl {
       }
     } else {
       strFileName =
-          path.join(DCMGlobal.dayPath, strCompany, '$strEventFile.xml');
+          path.join(AppGlobal.dayPath, strCompany, '$strEventFile.xml');
       if (!bMonthSchedule) {
         if (File(strFileName).existsSync()) {
           return true;
@@ -265,7 +265,7 @@ class EventFileImpl {
   // 保存到XML
   bool saveToXML(String strEventName, EventFileData pData,
       {String? strCompany, bool bMonthSchedule = true}) {
-    if (DCMGlobal.multiGroup == 2) {
+    if (AppGlobal.multiGroup == 2) {
       String strFileName =
           Utils.getFilePath(strEventName, cDCMDAYTYPE, -1, strCompany);
       if (serialize(pData, strFileName, true)) {

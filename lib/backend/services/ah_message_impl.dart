@@ -1,6 +1,6 @@
 import 'dart:io';
 
-import 'package:dcm/backend/models/dcm_global.dart';
+import 'package:dcm/backend/models/app_global.dart';
 import 'package:dcm/backend/models/file_info_data.dart';
 import 'package:dcm/backend/models/message_data.dart';
 import 'package:dcm/backend/xmlfile/xmlfile.dart';
@@ -13,7 +13,7 @@ class AHMessageImpl {
       'dcCatalogue Version 4.00 - Ad hoc Message List';
 
   List<MessageData> lstMessage = [];
-  String messagePath = DCMGlobal.messagePath;
+  String messagePath = AppGlobal.messagePath;
 
   AHMessageImpl();
 
@@ -85,7 +85,7 @@ class AHMessageImpl {
 
   static MessageData? loadMessageData(String strMessageFile) {
     if (strMessageFile.isEmpty) return null;
-    final fileName = path.join(DCMGlobal.messagePath, '$strMessageFile.xml');
+    final fileName = path.join(AppGlobal.messagePath, '$strMessageFile.xml');
 
     return serializeFrom(fileName);
   }
@@ -114,10 +114,10 @@ class AHMessageImpl {
             (nAction > 79 && nAction < 86))) {
       return true;
     }
-    if (DCMGlobal.messagePath.isEmpty || messageName.isEmpty) {
+    if (AppGlobal.messagePath.isEmpty || messageName.isEmpty) {
       return false;
     }
-    final fileName = path.join(DCMGlobal.messagePath, '$messageName.xml');
+    final fileName = path.join(AppGlobal.messagePath, '$messageName.xml');
     final file = File(fileName);
     if (!file.existsSync()) return false;
     return file.lengthSync() > lpszSignature.length;

@@ -2,7 +2,7 @@ import 'dart:io';
 
 import 'package:dcm/backend/app.dart';
 import 'package:dcm/backend/constants.dart';
-import 'package:dcm/backend/models/dcm_global.dart';
+import 'package:dcm/backend/models/app_global.dart';
 import 'package:dcm/backend/xmlfile/inifile.dart';
 import 'package:dcm/backend/xmlfile/xmlfile.dart';
 import 'package:dcm/backend/xmlfile/xmlitem.dart';
@@ -88,7 +88,7 @@ class SettingsImpl {
   static bool loadFromXml(String strXml) {
     XmlFile playbackSettings = XmlFile('PlaybackSetting');
     if (playbackSettings.loadXml(strXml)) {
-      return (DCMGlobal.loadGlobalSetting(playbackSettings));
+      return (AppGlobal.loadGlobalSetting(playbackSettings));
     }
 
     return false;

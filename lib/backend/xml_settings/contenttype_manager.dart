@@ -15,7 +15,7 @@ import 'package:dcm/backend/xmlfile/xmlitem.dart';
 import 'package:path/path.dart' as path;
 
 import '../models/contenttype_data.dart';
-import '../models/dcm_global.dart';
+import '../models/app_global.dart';
 
 /// Class for ContentType manager
 class ContentTypeManager {
@@ -25,7 +25,7 @@ class ContentTypeManager {
     contentTypeList.clear();
     XmlFile xmlContentTypes = XmlFile('ContentTypes');
     String strContentTypeFile =
-        path.join(DCMGlobal.settingPath, 'ContentTypes.xml');
+        path.join(AppGlobal.settingPath, 'ContentTypes.xml');
     if (xmlContentTypes.load(strContentTypeFile)) {
       XmlItem? xmlItem = xmlContentTypes.getItem('ContentType');
       while (xmlItem != null) {
@@ -275,7 +275,7 @@ class ContentTypeManager {
     XmlFile xmlContentTypes = XmlFile('ContentTypes');
     if (xmlContentTypes.loadXml(strXml)) {
       String strContentTypeFile =
-          path.join(DCMGlobal.appDataPath, 'ContentTypes.xml');
+          path.join(AppGlobal.appDataPath, 'ContentTypes.xml');
 
       return xmlContentTypes.save(strContentTypeFile);
     }
@@ -286,7 +286,7 @@ class ContentTypeManager {
   static bool validContentTypes() {
     XmlFile xmlContentTypes = XmlFile('ContentTypes');
     String strContentTypeFile =
-        path.join(DCMGlobal.appDataPath, 'ContentTypes.xml');
+        path.join(AppGlobal.appDataPath, 'ContentTypes.xml');
     if (xmlContentTypes.load(strContentTypeFile)) {
       XmlItem? pXmlItem = xmlContentTypes.getItem('ContentType');
       return (pXmlItem != null);

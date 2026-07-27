@@ -2,7 +2,7 @@ import 'dart:io';
 
 import 'package:dcm/backend/constants.dart';
 import 'package:dcm/backend/models/day_info_data.dart';
-import 'package:dcm/backend/models/dcm_global.dart';
+import 'package:dcm/backend/models/app_global.dart';
 import 'package:dcm/backend/net/daily_schedule_file.dart';
 import 'package:dcm/backend/net/player_path_service.dart';
 import 'package:dcm/backend/services/channel_schedule_impl.dart';
@@ -55,7 +55,7 @@ class DailyScheduleData {
 
   Future<bool> copyMonthFile() async {
     bool bCopyed = false;
-    String strSource = path.join(DCMGlobal.calendarPath,
+    String strSource = path.join(AppGlobal.calendarPath,
         '$strMonth.xml'); //_strAppPath + 'Schedule/calendar/'
     var monthFile = File(strSource);
     if (await monthFile.exists()) {
@@ -74,7 +74,7 @@ class DailyScheduleData {
     }
 
     if (!bCopyed) {
-      String strSource = path.join(DCMGlobal.monthPath,
+      String strSource = path.join(AppGlobal.monthPath,
           '$strMonth.xml'); //_strAppPath + 'Schedule/month/'
       var monthFile = File(strSource);
       if (await monthFile.exists()) {
@@ -125,7 +125,7 @@ class DailyScheduleData {
     String strTempFile =
         PlayerPathService.getExistedTempPath(cDCMCALENDARTYPE) ?? '';
     String strDestFile = path.join(strTempFile, '$strMonth.xml');
-    String strLogFile = path.join(DCMGlobal.ftpSettingPath, 'ftperror.xml');
+    String strLogFile = path.join(AppGlobal.ftpSettingPath, 'ftperror.xml');
     ;
 
     String strDestChannel = '';
@@ -359,7 +359,7 @@ class DailyScheduleData {
     String strTempFile =
         PlayerPathService.getExistedTempPath(cDCMCALENDARTYPE) ?? '';
     String strDestFile = path.join(strTempFile, '$strMonth.xml');
-    String strLogFile = path.join(DCMGlobal.ftpSettingPath, 'ftperror.xml');
+    String strLogFile = path.join(AppGlobal.ftpSettingPath, 'ftperror.xml');
 
     logI(
         '''Start get event list from schedule file from temp folder:'$strTempFile'\n''');
@@ -485,7 +485,7 @@ class DailyScheduleData {
 
   Future<void> writeDefaultEvent(DailyScheduleFile dailySchedule) async {
     if (DateFormat('yyyyMM').format(DateTime.now()) == strMonth) {
-      String strDefaEvent = path.join(DCMGlobal.tempPath, 'DefaultEvent.ini');
+      String strDefaEvent = path.join(AppGlobal.tempPath, 'DefaultEvent.ini');
       var eventFile = File(strDefaEvent);
       if (await eventFile.exists()) {
         await eventFile.delete();

@@ -1,7 +1,7 @@
 import 'dart:io';
 
 import 'package:dcm/backend/constants.dart';
-import 'package:dcm/backend/models/dcm_global.dart';
+import 'package:dcm/backend/models/app_global.dart';
 import 'package:dcm/backend/models/layout_data.dart';
 import 'package:dcm/backend/models/message_data.dart';
 import 'package:dcm/backend/models/product_data.dart';
@@ -57,11 +57,11 @@ class ContentListPlayerImpl {
 
   ContentListPlayerImpl(this._nContentType, this._nZone) {
     if (_nContentType == cDDETYPE) {
-      _strContentListPath = DCMGlobal.ddeXmlPath;
+      _strContentListPath = AppGlobal.ddeXmlPath;
     } else if (_nContentType == cDIRECTPLAYTYPE) {
-      _strContentListPath = DCMGlobal.contentListPath;
+      _strContentListPath = AppGlobal.contentListPath;
     } else {
-      _strContentListPath = DCMGlobal.siteContentPath;
+      _strContentListPath = AppGlobal.siteContentPath;
     }
   }
 

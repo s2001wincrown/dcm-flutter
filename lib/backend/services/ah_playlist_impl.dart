@@ -3,7 +3,7 @@ import 'dart:io';
 import 'dart:math';
 
 import 'package:dcm/backend/constants.dart';
-import 'package:dcm/backend/models/dcm_global.dart';
+import 'package:dcm/backend/models/app_global.dart';
 import 'package:dcm/backend/models/layout_data.dart';
 import 'package:dcm/backend/models/message_data.dart';
 import 'package:dcm/backend/models/product_data.dart';
@@ -827,7 +827,7 @@ class AHPlayList {
 
   List<String> getDefaultMessages(List<int> arrOutputs) {
     final List<String> arrMessages = [];
-    final settingsPath = DCMGlobal.settingPath;
+    final settingsPath = AppGlobal.settingPath;
     if (settingsPath.isEmpty) return arrMessages;
 
     final directory = Directory(settingsPath);
@@ -858,7 +858,7 @@ class AHPlayList {
   }
 
   String getDefaultMessage(int nOutput) {
-    final settingsPath = DCMGlobal.settingPath;
+    final settingsPath = AppGlobal.settingPath;
     if (settingsPath.isEmpty) return '';
 
     final strDefaEvent = path.join(settingsPath, 'DefaultMessage$nOutput.xml');
@@ -893,7 +893,7 @@ class AHPlayList {
   }
 
   static void resetDefaultMessage() {
-    final settingsPath = DCMGlobal.settingPath;
+    final settingsPath = AppGlobal.settingPath;
     if (settingsPath.isEmpty) return;
 
     final directory = Directory(settingsPath);

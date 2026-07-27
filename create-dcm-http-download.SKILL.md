@@ -3,16 +3,16 @@ name: create-dcm-http-download
 summary: '创建一个 DCM CMS 专用的下载任务技能：通过 REST API POST XML 拉取 FileInfoData 列表，构建队列并进行多线程可断点续传下载。'
 description: |
   该技能专注于 DCM CMS 场景。
-  它描述如何通过 `DCMGlobal.cmsUrl + '/api/pm/players/filelist?authentication-token=' + DCMGlobal.cmsToken` 发起 HTTP POST 请求，向服务器提交 XML 任务查询，并解析返回的 XML `PublishFileInformation` 列表。
+  它描述如何通过 `AppGlobal.cmsUrl + '/api/pm/players/filelist?authentication-token=' + AppGlobal.cmsToken` 发起 HTTP POST 请求，向服务器提交 XML 任务查询，并解析返回的 XML `PublishFileInformation` 列表。
 
   每个响应元素 `FileItem` 需映射为下载任务：
-  - 源文件 URL = `DCMGlobal.cmsUrl + m_strShortPath`
+  - 源文件 URL = `AppGlobal.cmsUrl + m_strShortPath`
   - 目标文件路径 = `Utils.getFilePath(m_strDestFile, m_nContentType)`
 
   最终生成一个带队列管理的多线程下载实现，支持 HTTP 断点续传、重试、任务持久化和基于 `m_tmFileModify` 的文件更新判断。
 arguments:
   - name: cmsApiHost
-    description: 'DCM CMS 根地址，如 DCMGlobal.cmsUrl。'
+    description: 'DCM CMS 根地址，如 AppGlobal.cmsUrl。'
     type: string
   - name: cmsToken
     description: 'DCM CMS 身份验证令牌，拼接到 API URL 中。'
@@ -39,7 +39,7 @@ arguments:
 
 ## 使用说明
 
-1. 确定 REST API 终结点：`DCMGlobal.cmsUrl + '/api/pm/players/filelist?authentication-token=' + DCMGlobal.cmsToken`。
+1. 确定 REST API 终结点：`AppGlobal.cmsUrl + '/api/pm/players/filelist?authentication-token=' + AppGlobal.cmsToken`。
 2. 构造 XML POST 请求体，示例：
 
 ```xml
@@ -62,13 +62,13 @@ arguments:
    - 使用临时文件（例如 `*.part`）写入下载数据，并在完成后重命名为最终目标文件。
    - 如果服务器不支持 `Range`，则退回到单连接完整下载。
    - 当某个任务下载失败时，不中断整体调度流程；将该任务重新加入队列尾部，`retryCount + 1`，并继续处理下一个任务。
-   - 每个任务最多重试 `DCMGlobal.fileTransferRetries` 次；若重试次数超过该上限，则从队列中移除，并记录为最终失败。
+   - 每个任务最多重试 `AppGlobal.fileTransferRetries` 次；若重试次数超过该上限，则从队列中移除，并记录为最终失败。
    - 直到所有任务都被处理完成或全部失败退出，调度流程结束。
 7. 任务完成后记录状态，包括 `success`、`failed`、`retryCount`、`downloadedBytes`、`totalBytes`。
 
 ## DCM 特定流程
 
-- POST URL: `DCMGlobal.cmsUrl + '/api/pm/players/filelist?authentication-token=' + DCMGlobal.cmsToken`
+- POST URL: `AppGlobal.cmsUrl + '/api/pm/players/filelist?authentication-token=' + AppGlobal.cmsToken`
 - 请求头应包含 `Content-Type: application/xml; charset=UTF-8`。
 - 返回 XML 格式类似：
 
@@ -104,7 +104,7 @@ arguments:
 - 队列类型可选：FIFO、LIFO、优先级队列。
 - 每个 worker 从队列中取出任务并开始下载。
 - 当任务下载失败时，将其重新加入队列尾部，同时将 `retryCount` 加一，并继续处理下一个任务。
-- 每个任务最多重试 `DCMGlobal.fileTransferRetries` 次；若已超过该次数，则从队列中移除并标记为最终失败。
+- 每个任务最多重试 `AppGlobal.fileTransferRetries` 次；若已超过该次数，则从队列中移除并标记为最终失败。
 - 失败重试可结合 `retryPolicy` 进行指数退避；在所有任务处理完成前，调度器持续轮询队列直到队列为空。
 - 可选地实现任务优先级和分批调度。
 - 支持“重设队列”操作：停止所有正在执行的任务、清空待处理队列，并将整个下载队列视为结束。
@@ -122,7 +122,7 @@ arguments:
 
 ## 示例提示词
 
-- "请生成一个 Dart 实现，它会向 `DCMGlobal.cmsUrl + '/api/pm/players/filelist?authentication-token=' + DCMGlobal.cmsToken` POST XML，解析 `PublishFileInformation`，并在 `downloads/` 下并发下载所有文件，支持 HTTP Range 断点续传。"
+- "请生成一个 Dart 实现，它会向 `AppGlobal.cmsUrl + '/api/pm/players/filelist?authentication-token=' + AppGlobal.cmsToken` POST XML，解析 `PublishFileInformation`，并在 `downloads/` 下并发下载所有文件，支持 HTTP Range 断点续传。"
 - "给我一个包含 `FileInfoData` 映射、队列持久化、并发 worker 和重试策略的 DCM 下载器设计文档。"
 - "把这个技能改成 Kotlin 实现，使用 OkHttp 进行 POST 和 Range 下载。"
 

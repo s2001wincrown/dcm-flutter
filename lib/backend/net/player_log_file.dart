@@ -1,9 +1,9 @@
 import 'dart:io';
 
 import 'package:dcm/backend/constants.dart';
-import 'package:dcm/backend/models/dcm_global.dart';
+import 'package:dcm/backend/models/app_global.dart';
 import 'package:dcm/backend/models/player_global.dart';
-import 'package:dcm/backend/net/dcm_http_client.dart';
+import 'package:dcm/backend/net/sync_http_client.dart';
 import 'package:dcm/backend/net/player_task_file.dart';
 import 'package:dcm/backend/utils/extensions.dart';
 import 'package:dcm/backend/utils/file_utils.dart';
@@ -47,7 +47,7 @@ class PlayerLogFile {
 
   // 重置日志文件
   static void reset() {
-    String strTaskFile = path.join(DCMGlobal.settingPath, 'synctask.xml');
+    String strTaskFile = path.join(AppGlobal.settingPath, 'synctask.xml');
     File file = File(strTaskFile);
     if (file.existsSync()) {
       file.deleteSync();
@@ -61,7 +61,7 @@ class PlayerLogFile {
       logI('Starting download!', syncTag);
     }
 
-    String strFileName = path.join(DCMGlobal.ftpSettingPath, 'ftperror.xml');
+    String strFileName = path.join(AppGlobal.ftpSettingPath, 'ftperror.xml');
 
     // 模拟临界区锁 (Dart 是单线程事件循环，但在异步操作中需注意原子性，此处简化)
     if (bClear && await File(strFileName).exists()) {
@@ -126,7 +126,7 @@ class PlayerLogFile {
       bool bUpdateStatus = true}) async {
     strStatus = str;
 
-    String strFileName = path.join(DCMGlobal.ftpSettingPath, 'ftperror.xml');
+    String strFileName = path.join(AppGlobal.ftpSettingPath, 'ftperror.xml');
     XmlProfile xmlProfile = XmlProfile.fromFile(strFileName);
     bool bOK = true;
     if (!xmlProfile.loadProfile(szRootItemName: 'FTPError')) {
@@ -219,7 +219,7 @@ class PlayerLogFile {
     strStatus = pStatus;
     logI(pStatus);
 
-    String strFileName = path.join(DCMGlobal.ftpSettingPath, 'ftperror.xml');
+    String strFileName = path.join(AppGlobal.ftpSettingPath, 'ftperror.xml');
     XmlProfile xmlProfile = XmlProfile.fromFile(strFileName);
     bool bOK = true;
     if (!xmlProfile.loadProfile(szRootItemName: 'FTPError')) {
@@ -241,7 +241,7 @@ class PlayerLogFile {
       String strStatusEscape = Utils.urlEscape(strStatus);
       String strRequest;
       if (bFinished) {
-        String strLogPath = path.join(DCMGlobal.logPath, 'FTPlog');
+        String strLogPath = path.join(AppGlobal.logPath, 'FTPlog');
         FileUtils.makeSureDirectoryPathExists(strLogPath);
         String strLogFile = path.join(strLogPath,
             '${DateFormat('yyyyMMddHHmmss').format(DateTime.now())}.xml');
@@ -256,7 +256,7 @@ class PlayerLogFile {
       updateSyncStatus(strRequest);
 
       if (bFinished || strStatus.contains('Transfer Failure')) {
-        var strCMSLink = DCMGlobal.cmsUrl;
+        var strCMSLink = AppGlobal.cmsUrl;
         strCMSLink = fADDSLASH(strCMSLink);
         strCMSLink += cmsSyncSTATUSURL;
         strCMSLink = Utils.addCMSParam(strCMSLink);
@@ -296,7 +296,7 @@ class PlayerLogFile {
   }
 
   static Future<bool> updateCMSSyncStatus(String szRequest) async {
-    var contentSyncStatusUpdateUrl = DCMGlobal.cmsUrl;
+    var contentSyncStatusUpdateUrl = AppGlobal.cmsUrl;
     contentSyncStatusUpdateUrl = fADDSLASH(contentSyncStatusUpdateUrl);
     contentSyncStatusUpdateUrl += cmsSyncSTATUSURL;
 
@@ -328,7 +328,7 @@ class PlayerLogFile {
   static Future<({bool status, String? result})> httpPostAction(
       String url, String request,
       [String? contentType]) async {
-    final client = dcmHttpClientFactory.clientFor(
+    final client = syncHttpClientFactory.clientFor(
       baseUrl: _baseUrl(url),
       timeout: const Duration(seconds: 15),
       defaultHeaders: {

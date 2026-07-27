@@ -1,8 +1,8 @@
 import 'package:dcm/backend/app.dart';
 import 'package:dcm/backend/keymap_helper.dart';
-import 'package:dcm/backend/models/dcm_global.dart';
+import 'package:dcm/backend/models/app_global.dart';
 import 'package:dcm/backend/providers/player_screen_provider.dart';
-import 'package:dcm/backend/services/dcm_background_service.dart';
+import 'package:dcm/backend/services/content_sync_background_service.dart';
 import 'package:dcm/backend/services/schedulelist_impl.dart';
 import 'package:dcm/backend/utils/l10n_utils.dart';
 import 'package:dcm/backend/utils/log_utils.dart';
@@ -36,7 +36,7 @@ void main(List<String> arguments) async {
   await App().init();
   workerManager.log = true;
   await workerManager.init(dynamicSpawning: true);
-  await DcmBackgroundService.instance.init();
+  await ContentSyncBackgroundService.instance.init();
   await L10n.init();
 
   if (!kIsWeb && defaultTargetPlatform == TargetPlatform.windows) {
@@ -68,7 +68,7 @@ void main(List<String> arguments) async {
       //size: Size(0, 0),
       center: false,
       //minimumSize: Size(0, 0),
-      backgroundColor: Utils.fromRGB(DCMGlobal.clrBGColor),
+      backgroundColor: Utils.fromRGB(AppGlobal.clrBGColor),
       titleBarStyle: TitleBarStyle.hidden,
       fullScreen: false,
       skipTaskbar: true,

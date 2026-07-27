@@ -3,7 +3,7 @@ import 'dart:io';
 import 'package:dcm/backend/app.dart';
 import 'package:dcm/backend/constants.dart';
 import 'package:dcm/backend/models/day_info_data.dart';
-import 'package:dcm/backend/models/dcm_global.dart';
+import 'package:dcm/backend/models/app_global.dart';
 import 'package:dcm/backend/models/eventitem_data.dart';
 import 'package:dcm/backend/models/product_data.dart';
 import 'package:dcm/backend/utils/encoder_utils.dart';
@@ -234,125 +234,125 @@ class Utils {
   static String getBasePath(int type, {int ptype = -1}) {
     String basePath;
     if (ptype == cSITEPLAYLIST) {
-      basePath = DCMGlobal.siteContentPath;
+      basePath = AppGlobal.siteContentPath;
     } else if (ptype == cDDETYPE) {
-      basePath = DCMGlobal.ddeDataPath;
+      basePath = AppGlobal.ddeDataPath;
     } else {
       switch (type) {
         case cIMAGETYPE:
         case cCAROUSELTYPE:
           if (ptype == cDCMSINGLEIMAGETYPE) {
             // || ptype == cDIRECTPLAYTYPE
-            basePath = DCMGlobal.imagePath;
+            basePath = AppGlobal.imagePath;
           } else {
-            basePath = DCMGlobal.imageSettingPath;
+            basePath = AppGlobal.imageSettingPath;
           }
           break;
         case cVIDEOTYPE:
-          basePath = DCMGlobal.vcdPath;
+          basePath = AppGlobal.vcdPath;
           break;
         case cPOWERPOINTTYPE:
-          basePath = DCMGlobal.ppPath;
+          basePath = AppGlobal.ppPath;
           break;
         case cTEXTTYPE:
-          basePath = DCMGlobal.textPath;
+          basePath = AppGlobal.textPath;
           break;
         case cWEATHERTYPE:
-          basePath = DCMGlobal.weatherPath;
+          basePath = AppGlobal.weatherPath;
           break;
         case cCLOCKTYPE:
-          basePath = DCMGlobal.clockPath;
+          basePath = AppGlobal.clockPath;
           break;
         case cEVENTTYPE:
-          basePath = DCMGlobal.flashPath;
+          basePath = AppGlobal.flashPath;
           break;
         case cWEBPAGETYPE:
-          basePath = DCMGlobal.webPath;
+          basePath = AppGlobal.webPath;
           break;
         case cQUEUETYPE:
-          basePath = DCMGlobal.webPath;
+          basePath = AppGlobal.webPath;
           break;
         case cFLASHTYPE:
-          basePath = DCMGlobal.flashPath;
+          basePath = AppGlobal.flashPath;
           break;
         case cDDETYPE:
-          basePath = DCMGlobal.ddeDataPath;
+          basePath = AppGlobal.ddeDataPath;
           break;
         case cDIRECTPLAYTYPE:
-          basePath = DCMGlobal.contentListPath;
+          basePath = AppGlobal.contentListPath;
           break;
         case cLINKAGETYPE:
-          basePath = DCMGlobal.linkagePath;
+          basePath = AppGlobal.linkagePath;
           break;
         case cDCMMONTHTYPE:
-          basePath = DCMGlobal.monthPath;
+          basePath = AppGlobal.monthPath;
           break;
         case cDCMCALENDARTYPE:
-          basePath = DCMGlobal.calendarPath;
+          basePath = AppGlobal.calendarPath;
           break;
         case cDCMDAYTYPE:
-          basePath = DCMGlobal.dayPath;
+          basePath = AppGlobal.dayPath;
           break;
         case cDCMAHPLAYLISTTYPE:
-          basePath = DCMGlobal.ahPlaylistPath;
+          basePath = AppGlobal.ahPlaylistPath;
           break;
         case cDCMFILETYPE:
-          basePath = DCMGlobal.openPath;
+          basePath = AppGlobal.openPath;
           break;
         case cDCMSETTINGTYPE:
-          basePath = DCMGlobal.settingPath;
+          basePath = AppGlobal.settingPath;
           break;
         case cDCMLAYOUTTYPE:
-          basePath = DCMGlobal.layoutImagePath;
+          basePath = AppGlobal.layoutImagePath;
           break;
         case cDCMGRAPHICSTYPE:
-          basePath = DCMGlobal.graphicsPath;
+          basePath = AppGlobal.graphicsPath;
           break;
         case cDCMSKINSTYPE:
-          basePath = DCMGlobal.skinsPath;
+          basePath = AppGlobal.skinsPath;
           break;
         case cDCMAHMESSAGETYPE:
-          basePath = DCMGlobal.messagePath;
+          basePath = AppGlobal.messagePath;
           break;
         case cDCMDDEOTHERTYPE:
-          basePath = DCMGlobal.ddeOthersPath;
+          basePath = AppGlobal.ddeOthersPath;
           break;
         case cDCMCONTENTLISTDATATYPE:
-          basePath = DCMGlobal.ddeDataPath;
+          basePath = AppGlobal.ddeDataPath;
           break;
         case cDCMPREDATATYPE:
-          basePath = DCMGlobal.preDataPath;
+          basePath = AppGlobal.preDataPath;
           break;
         case cDCMSINGLEIMAGETYPE:
-          basePath = DCMGlobal.imagePath;
+          basePath = AppGlobal.imagePath;
           break;
         //for Event system - room event
         case cDCMROOMTYPE:
-          basePath = DCMGlobal.roomPath;
+          basePath = AppGlobal.roomPath;
           break;
         case cDCMROOMEVENTTYPE:
-          basePath = DCMGlobal.roomEventPath;
+          basePath = AppGlobal.roomEventPath;
           break;
         case cDCMLOBBYTYPE:
-          basePath = DCMGlobal.lobbyPath;
+          basePath = AppGlobal.lobbyPath;
           break;
         case cDCMDYNAMICDATATYPE:
-          basePath = DCMGlobal.dynamicDataPath;
+          basePath = AppGlobal.dynamicDataPath;
           break;
         case cDCMRLTCONTENTTYPE:
-          basePath = DCMGlobal.rltContentPath;
+          basePath = AppGlobal.rltContentPath;
           break;
         case cDCMSITEDATATYPE:
-          basePath = DCMGlobal.siteContentPath;
+          basePath = AppGlobal.siteContentPath;
           break;
         case cSITEPLAYLIST:
-          basePath = path.join(DCMGlobal.siteContentPath, 'SitePlaylist');
+          basePath = path.join(AppGlobal.siteContentPath, 'SitePlaylist');
           break;
         case cDCMUPDATETYPE:
-          basePath = path.join(DCMGlobal.updateFilePath, 'APUpdate');
+          basePath = path.join(AppGlobal.updateFilePath, 'APUpdate');
           break;
         default:
-          basePath = path.join(DCMGlobal.cscPath, defaultDataPath);
+          basePath = path.join(AppGlobal.cscPath, defaultDataPath);
       }
     }
 
@@ -616,12 +616,12 @@ class Utils {
 
   static String addCMSParam(String strCMSLink, [bool bAddTokenOnly = false]) {
     String cmsParam = '';
-    if (!bAddTokenOnly && DCMGlobal.organization.isNotEmpty) {
-      cmsParam += 'o=${DCMGlobal.organization}';
+    if (!bAddTokenOnly && AppGlobal.organization.isNotEmpty) {
+      cmsParam += 'o=${AppGlobal.organization}';
     }
-    if (DCMGlobal.cmsToken.isNotEmpty) {
+    if (AppGlobal.cmsToken.isNotEmpty) {
       //authentication-token
-      cmsParam += '&authentication-token=${DCMGlobal.cmsToken}';
+      cmsParam += '&authentication-token=${AppGlobal.cmsToken}';
       //strCMSLink += (strCMSLink.Find('?') != -1 ? '&authentication-token=' : '?authentication-token=');
       //strCMSLink += Settings.CMSToken;
     }
@@ -718,7 +718,7 @@ class Utils {
 
     String strVerInfo = '';
     String strPlaylistVersion = '';
-    String strFileName1 = path.join(DCMGlobal.monthPath, '$strCurrMonth.xml');
+    String strFileName1 = path.join(AppGlobal.monthPath, '$strCurrMonth.xml');
     if (await File(strFileName1).exists()) {
       XmlProfile xmlProfile = XmlProfile.fromFile(strFileName1);
       if (xmlProfile.loadProfile()) {
@@ -742,14 +742,14 @@ class Utils {
       List<String> arrEvent = ['Default1', 'Default2', 'Default3'];
       for (int i = 0; i < arrEvent.length; i++) {
         String strFtpSettingFile =
-            path.join(DCMGlobal.dayPath, '${arrEvent[i]}.xml');
+            path.join(AppGlobal.dayPath, '${arrEvent[i]}.xml');
         if (await File(strFtpSettingFile).exists()) {
           strPlaylist = arrEvent[i];
           break;
         }
       }
     } else {
-      String strFileName = path.join(DCMGlobal.dayPath, '$strPlaylist.xml');
+      String strFileName = path.join(AppGlobal.dayPath, '$strPlaylist.xml');
       strPlaylistVersion = getPlaylistVersion(strFileName) ?? '';
     }
 

@@ -2,7 +2,7 @@
 import 'dart:io';
 import 'dart:convert';
 import 'package:dcm/backend/constants.dart';
-import 'package:dcm/backend/models/dcm_global.dart';
+import 'package:dcm/backend/models/app_global.dart';
 import 'package:dcm/backend/models/eventitem_data.dart';
 import 'package:dcm/backend/models/message_data.dart';
 import 'package:dcm/backend/models/product_data.dart';
@@ -37,7 +37,7 @@ class IntegrityCheck {
     String messageFile = '';
     if (messageData != null) {
       filePath =
-          path.join(DCMGlobal.messagePath, '${messageData.strAHName}.xml');
+          path.join(AppGlobal.messagePath, '${messageData.strAHName}.xml');
       messageFile = messageData.strAHName;
     }
     if (File(filePath!).existsSync()) {
@@ -59,7 +59,7 @@ class IntegrityCheck {
   bool integrityCheckPlaylist(String event, {String? company}) {
     _event = event;
 
-    String filePath = path.join(DCMGlobal.dayPath, '$_event.xml');
+    String filePath = path.join(AppGlobal.dayPath, '$_event.xml');
 
     if (!File(filePath).existsSync()) {
       writeLog("Event '$_event' not exist");
@@ -113,8 +113,8 @@ class IntegrityCheck {
 
       return true;
     }
-    if (!File(DCMGlobal.rltContentFile).existsSync()) {
-      writeLog('File \'${DCMGlobal.rltContentFile}\' does not exist!');
+    if (!File(AppGlobal.rltContentFile).existsSync()) {
+      writeLog('File \'${AppGlobal.rltContentFile}\' does not exist!');
       return false;
     }
 
@@ -125,7 +125,7 @@ class IntegrityCheck {
 
       return FALSE;
     }*/
-    logD('Open File \'${DCMGlobal.rltContentFile}\' successfully!');
+    logD('Open File \'${AppGlobal.rltContentFile}\' successfully!');
 
     if (pPlayListData.arrDCMFile!.isNotEmpty) {
       for (int i = 0; i < pPlayListData.arrDCMFile!.length; i++) {
@@ -148,7 +148,7 @@ class IntegrityCheck {
   }
 
   bool integrityCheckDCMFile(String dcmFile, {dynamic file}) {
-    String filePath = path.join(DCMGlobal.openPath, '$dcmFile.dcm');
+    String filePath = path.join(AppGlobal.openPath, '$dcmFile.dcm');
 
     if (!File(filePath).existsSync()) {
       writeLog('catalogue \'$dcmFile\' not exist');
@@ -327,7 +327,7 @@ class IntegrityCheck {
 
       String? imageFile = textSetting['imageFile'];
       if (imageFile != null && imageFile.isNotEmpty) {
-        String imagePath = path.join(DCMGlobal.imagePath, imageFile);
+        String imagePath = path.join(AppGlobal.imagePath, imageFile);
         if (!File(imagePath).existsSync()) {
           writeLog("'$imageFile' not exist");
           return false;
@@ -345,7 +345,7 @@ class IntegrityCheck {
         image = image.replaceAll('%20', ' ');
 
         String fileName = path.basename(image);
-        String fullPath = path.join(DCMGlobal.imagePath, fileName);
+        String fullPath = path.join(AppGlobal.imagePath, fileName);
 
         if (!File(fullPath).existsSync()) {
           writeLog("'$fileName' not exist");
@@ -360,7 +360,7 @@ class IntegrityCheck {
   }
 
   bool integrityCheckClockSetting(String file) {
-    String filePath = path.join(DCMGlobal.clockPath, file);
+    String filePath = path.join(AppGlobal.clockPath, file);
 
     if (!File(filePath).existsSync()) {
       writeLog("'$file' not exist");
@@ -373,7 +373,7 @@ class IntegrityCheck {
 
       String? imageFile = clockSetting['imageFile'];
       if (imageFile != null && imageFile.isNotEmpty) {
-        String imagePath = path.join(DCMGlobal.imagePath, imageFile);
+        String imagePath = path.join(AppGlobal.imagePath, imageFile);
         if (!File(imagePath).existsSync()) {
           writeLog("'$imageFile' not exist");
           return false;
@@ -387,7 +387,7 @@ class IntegrityCheck {
   }
 
   bool integrityCheckWeatherSetting(String file) {
-    String filePath = path.join(DCMGlobal.weatherPath, file);
+    String filePath = path.join(AppGlobal.weatherPath, file);
 
     if (!File(filePath).existsSync()) {
       writeLog("'$file' not exist");
@@ -400,7 +400,7 @@ class IntegrityCheck {
 
       String? imageFile = weatherSetting['imageFile'];
       if (imageFile != null && imageFile.isNotEmpty) {
-        String imagePath = path.join(DCMGlobal.imagePath, imageFile);
+        String imagePath = path.join(AppGlobal.imagePath, imageFile);
         if (!File(imagePath).existsSync()) {
           writeLog("'$imageFile' not exist");
           return false;
@@ -414,7 +414,7 @@ class IntegrityCheck {
   }
 
   bool integrityCheckImageSetting(String file) {
-    String filePath = path.join(DCMGlobal.imagePath, file);
+    String filePath = path.join(AppGlobal.imagePath, file);
 
     if (!File(filePath).existsSync()) {
       writeLog("'$file' not exist");
@@ -429,7 +429,7 @@ class IntegrityCheck {
       for (dynamic img in imageFiles) {
         String imageFile = img.toString();
         if (imageFile.isNotEmpty) {
-          String imagePath = path.join(DCMGlobal.imagePath, imageFile);
+          String imagePath = path.join(AppGlobal.imagePath, imageFile);
           if (!File(imagePath).existsSync()) {
             writeLog("'$imageFile' not exist");
             return false;
@@ -495,7 +495,7 @@ class IntegrityCheck {
         String shortPath = file.getRLTContentShort(currentItem);
 
         if (shortPath.isNotEmpty) {
-          String contentPath = path.join(DCMGlobal.rltContentPath, shortPath);
+          String contentPath = path.join(AppGlobal.rltContentPath, shortPath);
 
           if (File(contentPath).existsSync()) {
             if (!integrityCheckValidityTime(contentPath)) {

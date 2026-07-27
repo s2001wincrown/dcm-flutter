@@ -59,7 +59,7 @@ enum NetCommand {
   weather(13),
   contentList(14),
   monitor(15),
-  resetDcmPlayer(16),
+  resetSelf(16),
   resetHost(17),
   smsControl(18),
   shutdown(19),

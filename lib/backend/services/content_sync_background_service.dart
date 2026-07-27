@@ -1,24 +1,25 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'package:dcm/backend/models/dcm_global.dart';
+import 'package:dcm/backend/models/app_global.dart';
 import 'package:dcm/backend/models/player_global.dart';
 import 'package:dcm/backend/net/content_sync_service.dart';
-import 'package:dcm/backend/net/dcm_http_client.dart';
+import 'package:dcm/backend/net/sync_http_client.dart';
 import 'package:dcm/backend/net/play_log_post.dart';
 import 'package:dcm/backend/net/player_path_service.dart';
 import 'package:dcm/backend/net/player_task_file.dart';
-import 'package:dcm/backend/services/dcm_downloader.dart';
+import 'package:dcm/backend/services/content_downloader.dart';
 import 'package:dcm/backend/utils/log_utils.dart';
 import 'package:dcm/backend/xmlfile/xmlfile.dart';
 import 'package:flutter/services.dart';
 import 'package:path/path.dart' as path;
 import 'package:worker_manager/worker_manager.dart';
 
-class DcmBackgroundService {
-  DcmBackgroundService._();
+class ContentSyncBackgroundService {
+  ContentSyncBackgroundService._();
 
-  static final DcmBackgroundService instance = DcmBackgroundService._();
+  static final ContentSyncBackgroundService instance =
+      ContentSyncBackgroundService._();
 
   bool _started = false;
 
@@ -27,19 +28,19 @@ class DcmBackgroundService {
       return;
     }
 
-    if (!DCMGlobal.autoContentUpdate) {
+    if (!AppGlobal.autoContentUpdate) {
       logW(
           '''Auto sync data width CMS is disabled, please check setting: 'Global.AutoContentUpdate'.''');
       return;
     }
 
-    if (DCMGlobal.cmsUrl.isEmpty) {
+    if (AppGlobal.cmsUrl.isEmpty) {
       logW(
           '''Initialization settings failed for auto sync data, please check file 'server.txt' or settings in Server.''');
       return;
     }
 
-    final workerConfig = DCMGlobal.snapshot();
+    final workerConfig = AppGlobal.snapshot();
     final snapshot = snapshotPlayer();
     // 1. 获取主 Isolate 的 Token
     final rootIsolateToken = RootIsolateToken.instance;
@@ -55,8 +56,8 @@ class DcmBackgroundService {
         // 3. 【核心】使用 Completer 保持后台任务存活
         final completer = Completer<String>();
         //WidgetsFlutterBinding.ensureInitialized();
-        // Apply DCMGlobal config inside worker
-        DCMGlobal.applyWorkerConfig(
+        // Apply AppGlobal config inside worker
+        AppGlobal.applyWorkerConfig(
           cscPath: workerConfig['cscPath']?.toString(),
           appDataPath: workerConfig['appDataPath']?.toString(),
           ddServerPath: workerConfig['ddServerPath']?.toString(),
@@ -116,7 +117,7 @@ class DcmBackgroundService {
           retryInterval: workerConfig['retryInterval'] as int?,
           autoSyncTime: workerConfig['autoSyncTime'] as bool?,
         );
-        dcmHttpClientFactory.dispose();
+        syncHttpClientFactory.dispose();
 
         // transfer player snapshot into worker and apply
         try {
@@ -125,15 +126,17 @@ class DcmBackgroundService {
           applyWorkerPlayer(snapshot);
 
           logI(
-              'starting workerManager: ${globalPlayer.strUniqueName} - ${DCMGlobal.statusCheckInterval}',
+              'starting workerManager: ${globalPlayer.strUniqueName} - ${AppGlobal.statusCheckInterval}',
               syncTag);
 
           PlayerPathService().init();
           PlayerTaskFile.strPlayerTaskFile =
-              path.join(DCMGlobal.ftpSettingPath, 'synctask.xml');
-          PlayerTaskFile.init();
+              path.join(AppGlobal.ftpSettingPath, 'synctask.xml');
           PlayerTaskFile.dtSyncTime = lastSyncTime;
+          PlayerTaskFile.init();
+
           PlayLogPostService.processLogPostFlag(logPostValue);
+
           await ContentSyncService().init();
           await ContentSyncService().startPolling();
         } catch (e) {
@@ -147,7 +150,7 @@ class DcmBackgroundService {
       }));
     } catch (e, stack) {
       _started = false;
-      logE('DcmBackgroundService.init() failed: $e', syncTag);
+      logE('ContentSyncBackgroundService.init() failed: $e', syncTag);
       stderr.writeln(stack);
     }
   }
@@ -159,10 +162,10 @@ class DcmBackgroundService {
     required String token,
     required String organization,
   }) async {
-    final downloader = DcmDownloader(
+    final downloader = ContentDownloader(
       apiUrl: apiUrl,
-      queue: DcmDownloadQueue(persistencePath: queuePath),
-      maxRetries: DCMGlobal.fileTransferRetries,
+      queue: ContentDownloadQueue(persistencePath: queuePath),
+      maxRetries: AppGlobal.fileTransferRetries,
       pollingInterval: Duration(minutes: pollingIntervalMinutes),
       buildRequestBody: () async =>
           _buildRequestBodyForWorker(token, organization),
@@ -180,19 +183,19 @@ class DcmBackgroundService {
 
   Future<String> _buildRequestBody() async {
     final xml = XmlFile('PublishFileInformation');
-    xml.setItemValue('Token', DCMGlobal.cmsToken);
-    xml.setItemValue('Organization', DCMGlobal.organization);
+    xml.setItemValue('Token', AppGlobal.cmsToken);
+    xml.setItemValue('Organization', AppGlobal.organization);
     return xml.export();
   }
 
-  void _onProgress(DcmDownloadTask task) {
+  void _onProgress(ContentDownloadTask task) {
     // keep a lightweight log entry for background progress
     stderr.writeln(
-        'DcmDownloader progress: ${task.title} (${task.downloaded}/${task.remoteSize})');
+        'ContentDownloader progress: ${task.title} (${task.downloaded}/${task.remoteSize})');
   }
 
-  void _onTaskComplete(DcmDownloadTask task) {
+  void _onTaskComplete(ContentDownloadTask task) {
     stderr.writeln(
-        'DcmDownloader completed task ${task.id} status=${task.status.name}');
+        'ContentDownloader completed task ${task.id} status=${task.status.name}');
   }
 }

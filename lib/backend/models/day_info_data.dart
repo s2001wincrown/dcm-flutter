@@ -1,6 +1,6 @@
 import 'dart:io';
 
-import 'package:dcm/backend/models/dcm_global.dart';
+import 'package:dcm/backend/models/app_global.dart';
 import 'package:dcm/backend/xmlfile/xmlfiledata.dart';
 import 'package:dcm/backend/xmlfile/xmlitem.dart';
 import 'package:dcm/backend/xmlfile/xmlprofile.dart';
@@ -115,7 +115,7 @@ class DayInfoData extends XmlFileData {
 
   bool isEventExisted() {
     if (event.isEmpty) return false;
-    String dir = DCMGlobal.dayPath;
+    String dir = AppGlobal.dayPath;
     if (dir.isEmpty) return false;
 
     String fileName = path.join(dir, '$event.xml');

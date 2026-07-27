@@ -1,7 +1,7 @@
 import 'dart:io';
 
 import 'package:dcm/backend/constants.dart';
-import 'package:dcm/backend/models/dcm_global.dart';
+import 'package:dcm/backend/models/app_global.dart';
 import 'package:dcm/backend/models/file_info_data.dart';
 import 'package:dcm/backend/models/message_data.dart';
 import 'package:dcm/backend/models/product_data.dart';
@@ -27,9 +27,9 @@ class ContentListImpl {
   ContentListImpl(this.nContentType) {
     // 初始化内容列表路径
     if (nContentType == cDDETYPE) {
-      strContentListPath = DCMGlobal.ddeXmlPath;
+      strContentListPath = AppGlobal.ddeXmlPath;
     } else {
-      strContentListPath = DCMGlobal.contentListPath;
+      strContentListPath = AppGlobal.contentListPath;
     }
     dtLastModified = DateTime.now();
   }

@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:dcm/backend/constants.dart';
-import 'package:dcm/backend/models/dcm_global.dart';
+import 'package:dcm/backend/models/app_global.dart';
 import 'package:dcm/backend/models/room_event_data.dart';
 import 'package:dcm/backend/xmlfile/xmlfile.dart';
 import 'package:dcm/backend/xmlfile/xmlitem.dart';
@@ -42,10 +42,10 @@ class RoomDateFile extends XmlFile {
       XfOpen mode = XfOpen.read,
       bool ignoreDefaultXml = false}) {
     if (filePath == null || filePath.isEmpty) {
-      filePath = path.join(DCMGlobal.roomEventPath,
+      filePath = path.join(AppGlobal.roomEventPath,
           '${DateFormat('yyyyMMdd').format(DateTime.now())}.xml');
       if (!ignoreDefaultXml && !File(filePath).existsSync()) {
-        filePath = path.join(DCMGlobal.roomEventPath, 'defaultXML.xml');
+        filePath = path.join(AppGlobal.roomEventPath, 'defaultXML.xml');
       }
     }
 
@@ -58,7 +58,7 @@ class RoomDateFile extends XmlFile {
 
   bool loadDefaultXml() {
     // This would load a default XML file
-    String fileName = path.join(DCMGlobal.roomEventPath, 'defaultXML.xml');
+    String fileName = path.join(AppGlobal.roomEventPath, 'defaultXML.xml');
     return load(fileName);
   }
 

@@ -217,6 +217,14 @@ packages:
       url: "https://pub.flutter-io.cn"
     source: hosted
     version: "7.0.3"
+  disk_space_2:
+    dependency: "direct main"
+    description:
+      name: disk_space_2
+      sha256: "7e9952cd5142dccf8a177ad8ae08a58788864625058bd3fa1bf0870e0ef02827"
+      url: "https://pub.flutter-io.cn"
+    source: hosted
+    version: "1.0.13"
   dylib:
     dependency: transitive
     description:

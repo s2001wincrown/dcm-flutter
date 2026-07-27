@@ -4,7 +4,7 @@ import 'dart:ui';
 
 import 'package:dcm/backend/constants.dart';
 import 'package:dcm/backend/models/day_info_data.dart';
-import 'package:dcm/backend/models/dcm_global.dart';
+import 'package:dcm/backend/models/app_global.dart';
 import 'package:dcm/backend/models/dcmfile_data.dart';
 import 'package:dcm/backend/models/eventitem_data.dart';
 import 'package:dcm/backend/models/layout_data.dart';
@@ -75,15 +75,15 @@ class ScheduleList {
 
   bool loadCatalogue(String? fileName, [DCMFileData? pDCMFileData]) {
     if (currEvent.equalsIgnoreCase('StartupWallpaper') &&
-        DCMGlobal.startupWallpaper != null &&
-        DCMGlobal.startupWallpaper!.isNotEmpty) {
+        AppGlobal.startupWallpaper != null &&
+        AppGlobal.startupWallpaper!.isNotEmpty) {
       catalogue.strCatalogueName = 'StartupWallpaper';
       catalogue.nQuantity = 1;
       catalogue.strLayoutName = 'H01';
       catalogue.nSkin = 1;
       catalogue.strSkinCode = 'No Frame and No Button';
 
-      catalogue.productFromFile(DCMGlobal.startupWallpaper!, cIMAGETYPE, 86400);
+      catalogue.productFromFile(AppGlobal.startupWallpaper!, cIMAGETYPE, 86400);
       catalogue.pLayoutDataObj = LayoutData();
       catalogue.pLayoutDataObj!.strLayoutName = 'H01';
       catalogue.pLayoutDataObj!.initFullScreen(1920, 1080);
@@ -105,7 +105,7 @@ class ScheduleList {
     try {
       getCatalogue().initDocument();
       var filePath =
-          DCMFileImpl.getDCMPath(strDCMFile, DCMGlobal.openPath, strCompany);
+          DCMFileImpl.getDCMPath(strDCMFile, AppGlobal.openPath, strCompany);
       if (filePath != null) {
         var catalogueData =
             DCMFileImpl.openCatalogue(szEdit: filePath, bShort: false);
@@ -289,7 +289,7 @@ class ScheduleList {
                 try {
                   for (int i = 0; i < pDayInfoData.arrEvent.length; i++) {
                     if (int.tryParse(pDayInfoData.arrEvent[i].key) ==
-                        DCMGlobal.output) {
+                        AppGlobal.output) {
                       PlayList? pList = createPlayList(
                           pDayInfoData.arrEvent[i].value,
                           pDayInfoData.arrEvent[i].key);
@@ -352,7 +352,7 @@ class ScheduleList {
               }
             }
 
-            if ((DCMGlobal.loopMethod & settingLATESTPLAYLIST) > 0) {
+            if ((AppGlobal.loopMethod & settingLATESTPLAYLIST) > 0) {
               ChannelScheduleImpl.changeToLatestPlaylist(pDayInfoData);
             }
 
@@ -364,11 +364,11 @@ class ScheduleList {
       bool bExisted = arrEvent.isNotEmpty;
       if (!bExisted) {
         String strDefaEvent =
-            path.join(DCMGlobal.settingPath, 'DefaultEvent.ini');
+            path.join(AppGlobal.settingPath, 'DefaultEvent.ini');
         if (File(strDefaEvent).existsSync()) {
           IniFile? inifile = IniFile(strDefaEvent);
           String strEvent = inifile.readString(
-              'DefaultEvent', 'Output${DCMGlobal.output}', '');
+              'DefaultEvent', 'Output${AppGlobal.output}', '');
           if (EventFileImpl.isEventExisted(strEvent)) {
             createPlayList(strEvent);
             bLoad = (!strCurrEvent.equalsIgnoreCase(strEvent));
@@ -1428,7 +1428,7 @@ class ScheduleList {
     }
 
     //bool bReload = false;
-    if (DCMGlobal.processAHConflict == 1) {
+    if (AppGlobal.processAHConflict == 1) {
       for (var pPlayList in lstScheduleList) {
         pPlayList.checkAHSchedule(dtStart);
       }

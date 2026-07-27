@@ -1,9 +1,9 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'package:dcm/backend/models/dcm_global.dart';
+import 'package:dcm/backend/models/app_global.dart';
 import 'package:dcm/backend/providers/player_screen_provider.dart';
-import 'package:dcm/backend/services/dcm_skin_impl.dart';
+import 'package:dcm/backend/services/app_skin_impl.dart';
 import 'package:dcm/backend/utils/log_utils.dart';
 import 'package:dcm/backend/utils/utils.dart';
 import 'package:dcm/pages/home.dart';
@@ -214,13 +214,13 @@ class _DigitalSignageScreenState extends State<DigitalSignageScreen> {
         behavior: HitTestBehavior.opaque,
         onTap: _handleExitTap,
         child: Scaffold(
-          backgroundColor: Colors.red, //Color(DCMGlobal.clrBGColor),
+          backgroundColor: Colors.red, //Color(AppGlobal.clrBGColor),
           body: Consumer<PlayerScreenProvider>(
             builder:
                 (BuildContext context, playerScreenProvider, Widget? child) {
               if (!playerScreenProvider.isValidForPlay()) {
                 return Container(
-                  color: Utils.fromRGB(DCMGlobal.clrBGColor),
+                  color: Utils.fromRGB(AppGlobal.clrBGColor),
                 );
               }
               return LayoutBuilder(
@@ -265,7 +265,7 @@ class _DigitalSignageScreenState extends State<DigitalSignageScreen> {
                                     height: h,
                                     decoration: const BoxDecoration(
                                       color: Colors
-                                          .blue, //Utils.fromRGB(DCMGlobal.clrBGColor),
+                                          .blue, //Utils.fromRGB(AppGlobal.clrBGColor),
                                       border: null,
                                       borderRadius: BorderRadius.zero,
                                     ),

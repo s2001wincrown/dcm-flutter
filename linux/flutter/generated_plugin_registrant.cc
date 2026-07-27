@@ -6,6 +6,7 @@
 
 #include "generated_plugin_registrant.h"
 
+#include <disk_space_2/disk_space_2_plugin.h>
 #include <flutter_libserialport/flutter_libserialport_plugin.h>
 #include <flutter_udid/flutter_udid_plugin.h>
 #include <media_kit_libs_linux/media_kit_libs_linux_plugin.h>
@@ -17,6 +18,9 @@
 #include <window_manager/window_manager_plugin.h>
 
 void fl_register_plugins(FlPluginRegistry* registry) {
+  g_autoptr(FlPluginRegistrar) disk_space_2_registrar =
+      fl_plugin_registry_get_registrar_for_plugin(registry, "DiskSpace_2Plugin");
+  disk_space_2_plugin_register_with_registrar(disk_space_2_registrar);
   g_autoptr(FlPluginRegistrar) flutter_libserialport_registrar =
       fl_plugin_registry_get_registrar_for_plugin(registry, "FlutterLibserialportPlugin");
   flutter_libserialport_plugin_register_with_registrar(flutter_libserialport_registrar);

@@ -1,5 +1,5 @@
 import 'package:dcm/backend/models/banner_data.dart';
-import 'package:dcm/backend/models/dcm_global.dart';
+import 'package:dcm/backend/models/app_global.dart';
 import 'package:dcm/backend/utils/extensions.dart';
 import 'package:dcm/backend/utils/utils.dart';
 import 'package:dcm/backend/xml_settings/text_impl.dart';
@@ -38,7 +38,7 @@ class _ScrollTextState extends State<ScrollText> {
   Widget build(BuildContext context) {
     if (_bannerData == null) {
       return Container(
-        color: Utils.fromRGB(DCMGlobal.clrBGColor),
+        color: Utils.fromRGB(AppGlobal.clrBGColor),
       );
     }
 

@@ -2,7 +2,7 @@ import 'dart:io';
 
 import 'package:dcm/backend/models/channel_player.dart';
 import 'package:dcm/backend/models/channel_player_data.dart';
-import 'package:dcm/backend/models/dcm_global.dart';
+import 'package:dcm/backend/models/app_global.dart';
 import 'package:dcm/backend/xmlfile/xmlfile.dart';
 import 'package:dcm/backend/xmlfile/xmlfilepro.dart';
 import 'package:dcm/backend/xmlfile/xmlitem.dart';
@@ -12,8 +12,8 @@ class ChannelPlayerImpl {
   bool replaceFile = false;
   String diskSerial = '';
   String channel = '';
-  String channelPath = DCMGlobal.settingPath;
-  String publishPath = DCMGlobal.ftpSettingPath;
+  String channelPath = AppGlobal.settingPath;
+  String publishPath = AppGlobal.ftpSettingPath;
   String ftpTime = '';
   int ftpPeriod = 7;
   DateTime? startDate;
@@ -319,8 +319,8 @@ class ChannelPlayerImpl {
   }
 
   void loadPathSetting() {
-    channelPath = DCMGlobal.settingPath;
-    publishPath = DCMGlobal.ftpSettingPath;
+    channelPath = AppGlobal.settingPath;
+    publishPath = AppGlobal.ftpSettingPath;
     ftpPeriod = 7;
   }
 }

@@ -9,7 +9,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:dcm/backend/constants.dart';
-import 'package:dcm/backend/models/dcm_global.dart';
+import 'package:dcm/backend/models/app_global.dart';
 import 'package:dcm/backend/utils/string_utils.dart';
 import 'package:dcm/backend/utils/utils.dart';
 import 'package:flutter/foundation.dart';
@@ -198,14 +198,14 @@ Page resource error:
 
     // setBackgroundColor is not currently supported on macOS.
     if (kIsWeb || !Platform.isMacOS) {
-      controller.setBackgroundColor(Utils.fromRGB(DCMGlobal.clrBGColor));
+      controller.setBackgroundColor(Utils.fromRGB(AppGlobal.clrBGColor));
     }
 
     if (await controller.supportsSetScrollBarsEnabled()) {
       controller
-          .setVerticalScrollBarEnabled(hasFlag(DCMGlobal.ieSetting, 0x0001));
+          .setVerticalScrollBarEnabled(hasFlag(AppGlobal.ieSetting, 0x0001));
       controller
-          .setHorizontalScrollBarEnabled(hasFlag(DCMGlobal.ieSetting, 0x0002));
+          .setHorizontalScrollBarEnabled(hasFlag(AppGlobal.ieSetting, 0x0002));
     }
 
     // #docregion platform_features

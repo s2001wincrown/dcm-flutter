@@ -3,8 +3,8 @@ import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 
-class DcmHttpClient {
-  DcmHttpClient({
+class SyncHttpClient {
+  SyncHttpClient({
     http.Client? client,
     required this.baseUrl,
     this.timeout = const Duration(seconds: 15),
@@ -154,14 +154,14 @@ class DcmHttpClient {
   }
 }
 
-class DcmHttpClientFactory {
-  DcmHttpClientFactory({http.Client? sharedClient})
+class SyncHttpClientFactory {
+  SyncHttpClientFactory({http.Client? sharedClient})
       : _sharedClient = sharedClient;
 
   final http.Client? _sharedClient;
-  final Map<String, DcmHttpClient> _clients = <String, DcmHttpClient>{};
+  final Map<String, SyncHttpClient> _clients = <String, SyncHttpClient>{};
 
-  DcmHttpClient clientFor({
+  SyncHttpClient clientFor({
     required String baseUrl,
     Duration timeout = const Duration(seconds: 15),
     Map<String, String>? defaultHeaders,
@@ -171,7 +171,7 @@ class DcmHttpClientFactory {
     final normalizedBaseUrl = _normalizeBaseUrl(baseUrl);
     return _clients.putIfAbsent(
       normalizedBaseUrl,
-      () => DcmHttpClient(
+      () => SyncHttpClient(
         client: _sharedClient,
         baseUrl: normalizedBaseUrl,
         timeout: timeout,
@@ -201,10 +201,10 @@ class DcmHttpClientFactory {
   }
 }
 
-final DcmHttpClientFactory dcmHttpClientFactory = DcmHttpClientFactory();
+final SyncHttpClientFactory syncHttpClientFactory = SyncHttpClientFactory();
 
-class DcmHttpException implements Exception {
-  DcmHttpException(
+class SyncHttpException implements Exception {
+  SyncHttpException(
       {required this.statusCode, required this.message, required this.url});
 
   final int statusCode;
@@ -212,5 +212,5 @@ class DcmHttpException implements Exception {
   final String url;
 
   @override
-  String toString() => 'DcmHttpException($statusCode, $url, $message)';
+  String toString() => 'SyncHttpException($statusCode, $url, $message)';
 }

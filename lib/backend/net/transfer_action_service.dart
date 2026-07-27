@@ -2,7 +2,7 @@ import 'dart:io';
 
 import 'package:dcm/backend/constants.dart';
 import 'package:dcm/backend/models/channel_player_data.dart';
-import 'package:dcm/backend/models/dcm_global.dart';
+import 'package:dcm/backend/models/app_global.dart';
 import 'package:dcm/backend/models/file_info_data.dart';
 import 'package:dcm/backend/models/player_global.dart';
 import 'package:dcm/backend/net/content_sync_service.dart';
@@ -13,7 +13,7 @@ import 'package:dcm/backend/net/player_log_file.dart';
 import 'package:dcm/backend/net/player_path_service.dart';
 import 'package:dcm/backend/net/player_task_file.dart';
 import 'package:dcm/backend/net/file_filter_service.dart';
-import 'package:dcm/backend/services/dcm_downloader.dart';
+import 'package:dcm/backend/services/content_downloader.dart';
 import 'package:dcm/backend/utils/encoder_utils.dart';
 import 'package:dcm/backend/utils/extensions.dart';
 import 'package:dcm/backend/utils/file_info_utils.dart';
@@ -85,7 +85,7 @@ class TransferActionService {
   /// *****************************************************************
   Future<bool> download() async {
     if (_pTaskItem.nRetries > 0) {
-      List<DcmDownloadTask> syncTasks = [];
+      List<ContentDownloadTask> syncTasks = [];
       for (var iter in _fileListImpl.fileList) {
         FileInfoData pData = iter;
         if (pData.fileStatus == FileItemStatus.download) {
@@ -98,8 +98,8 @@ class TransferActionService {
           String strRemoteFile = pData.strShortPath;
           if (pData.nContentType != cDCMPREDATATYPE) {
             strRemoteFile = FileUtils.appendUrls(strRemotePath, strRemoteFile);
-            syncTasks
-                .add(DcmDownloadTask.fromFileInfoData(pData, DCMGlobal.cmsUrl));
+            syncTasks.add(
+                ContentDownloadTask.fromFileInfoData(pData, AppGlobal.cmsUrl));
             logI(
                 '''Add remote file '$strRemoteFile' to download queue; target file '$strDest'.''',
                 syncTag);
@@ -215,7 +215,7 @@ class TransferActionService {
       return false;
     }
 
-    String strGetFileListHttpLink = DCMGlobal.cmsUrl;
+    String strGetFileListHttpLink = AppGlobal.cmsUrl;
     strGetFileListHttpLink = fADDSLASH(strGetFileListHttpLink);
     strGetFileListHttpLink += cmsGETFILELISTURL;
     strGetFileListHttpLink = Utils.addCMSParam(strGetFileListHttpLink);
@@ -284,7 +284,7 @@ class TransferActionService {
 
       String strResult = '';
       String strRequest;
-      var getSitePlaylistHttpLink = DCMGlobal.cmsUrl;
+      var getSitePlaylistHttpLink = AppGlobal.cmsUrl;
       getSitePlaylistHttpLink = fADDSLASH(getSitePlaylistHttpLink);
       getSitePlaylistHttpLink += cmsDAILYLISTURL;
       strRequest = 'o=$strSitePlaylists&d=$nSyncPeriod';
@@ -398,7 +398,7 @@ class TransferActionService {
       String strResult = '';
       String strRequest;
       strRequest = 'c=$strContentLists&p=${globalPlayer.strUniqueName}';
-      String strLink = DCMGlobal.cmsUrl;
+      String strLink = AppGlobal.cmsUrl;
       strLink = fADDSLASH(strLink);
       strLink += cmsCONTENTLISTURL;
       strLink += '?${Utils.urlEscape(strRequest)}';
@@ -517,7 +517,7 @@ class TransferActionService {
     DateTime dtStart = _dtStartFtpTime!.add(const Duration(days: 1));
     strRequest =
         'p=${globalPlayer.strName}&d=$nSyncPeriod&ds=${DateFormat('yyyyMMdd').format(dtStart)}';
-    String strLink = DCMGlobal.cmsUrl;
+    String strLink = AppGlobal.cmsUrl;
     strLink = fADDSLASH(strLink);
     strLink += cmsEVENTDISPLAYURL;
     strLink += '?${Utils.urlEscape(strRequest)}';
@@ -733,7 +733,7 @@ class TransferActionService {
         strRequest =
             '$cHTTPUNIQUEKEY=${globalPlayer.strUniqueName}&nDays=$nSyncPeriod';
         String strResult = '';
-        String strLink = DCMGlobal.cmsUrl;
+        String strLink = AppGlobal.cmsUrl;
         strLink = fADDSLASH(strLink);
         strLink += cmsGETPLAYLISTURL;
         strLink += ('?${Utils.urlEscape(strRequest)}');
@@ -871,7 +871,7 @@ class TransferActionService {
         String strRequest =
             'strUniqueName=$strMacAddress&strTask=${_pTaskItem.strJobItem}';
         String strResult = '';
-        var eventHttpLink = DCMGlobal.cmsUrl;
+        var eventHttpLink = AppGlobal.cmsUrl;
         eventHttpLink = fADDSLASH(eventHttpLink);
         eventHttpLink += cmsEVENTDISPLAYURL;
         eventHttpLink += ('?${Utils.urlEscape(strRequest)}');
@@ -926,7 +926,7 @@ class TransferActionService {
     strRequest =
         'strBatch=$_strSyncContent&OSVersion=${await Utils.getOSVersion()}';
     String strResult = '';
-    String strLink = DCMGlobal.cmsUrl;
+    String strLink = AppGlobal.cmsUrl;
     strLink = fADDSLASH(strLink);
     strLink += cmsAPPUPDATEURL;
     strLink += '?${Utils.urlEscape(strRequest)}'; //cmsAPPUPDATEURL
@@ -941,7 +941,7 @@ class TransferActionService {
           updateFile.setItemValue('strPlayerName', globalPlayer.strName);
           updateFile.setItemValue('strTask', _strBatch);
           updateFile.setItemValue('strBatch', _strSyncContent);
-          updateFile.setItemValue('RootHttpLink', DCMGlobal.cmsUrl);
+          updateFile.setItemValue('RootHttpLink', AppGlobal.cmsUrl);
           XmlItem? hItem = updateFile.getFirstUpdateItem();
           if (hItem != null) {
             XmlItem? hUpdateItem = updateFile.getFirstUpdateItem(hItem);
@@ -1005,7 +1005,7 @@ class TransferActionService {
   }
 
   Future<bool> genDailyScheduleDCMPlayerLog() async {
-    Directory dir = Directory(DCMGlobal.logPath);
+    Directory dir = Directory(AppGlobal.logPath);
     List<FileInfoData> fileInfos = [];
 
     if (await dir.exists()) {
@@ -1041,7 +1041,7 @@ class TransferActionService {
 
   Future<bool> genDailyScheduleDCMTransferLog() async {
     //String strFileName = globalPlayer.strUniqueName.isEmpty ? await Utils.getUniqueKey() ??'' : globalPlayer.strUniqueName;
-    Directory dir = Directory(DCMGlobal.ftpSettingPath);
+    Directory dir = Directory(AppGlobal.ftpSettingPath);
     List<FileInfoData> fileInfos = [];
 
     if (await dir.exists()) {
@@ -1511,7 +1511,7 @@ class TransferActionService {
       for (i = 0; i < arrDDE.length; i++) {
         String strDDE = arrDDE[i];
         String strFtpSettingFile =
-            path.join(DCMGlobal.ftpSettingPath, 'contentlist');
+            path.join(AppGlobal.ftpSettingPath, 'contentlist');
         strFtpSettingFile = path.join(strFtpSettingFile, '$strDDE.dat');
         var ddeFile = File(strFtpSettingFile);
         if (await ddeFile.exists()) {
@@ -1525,7 +1525,7 @@ class TransferActionService {
           dwSyncContent == cSyncAPCONTENTLIST) {
         for (i = 0; i < DailyScheduleData.arrEvent.length; i++) {
           String strFtpSettingFile =
-              path.join(DCMGlobal.ftpSettingPath, 'DailySchedule');
+              path.join(AppGlobal.ftpSettingPath, 'DailySchedule');
           strFtpSettingFile = path.join(
               strFtpSettingFile, '${DailyScheduleData.arrEvent[i]}.dat');
           var eventFile = File(strFtpSettingFile);
@@ -1535,7 +1535,7 @@ class TransferActionService {
         }
         for (i = 0; i < DailyScheduleData.arrDCMFile.length; i++) {
           String strFtpSettingFile =
-              path.join(DCMGlobal.ftpSettingPath, 'DCMFile');
+              path.join(AppGlobal.ftpSettingPath, 'DCMFile');
           strFtpSettingFile = path.join(
               strFtpSettingFile, '${DailyScheduleData.arrDCMFile[i]}.dat');
           var dcmFile = File(strFtpSettingFile);
@@ -1546,7 +1546,7 @@ class TransferActionService {
       }
       if ((dwSyncContent & cSyncDDEDATA) > 0) {
         for (i = 0; i < DailyScheduleData.arrContentList.length; i++) {
-          String strFtpSettingFile = path.join(DCMGlobal.ftpSettingPath,
+          String strFtpSettingFile = path.join(AppGlobal.ftpSettingPath,
               'contentlist', '${DailyScheduleData.arrContentList[i]}.dat');
           var clFile = File(strFtpSettingFile);
           if (await clFile.exists()) {
@@ -1556,7 +1556,7 @@ class TransferActionService {
       }
     }
     if ((dwSyncContent & cSyncPLAYLISTUPDATE) > 0) {
-      String strFtpSettingFile = path.join(DCMGlobal.ftpSettingPath, 'Playlist',
+      String strFtpSettingFile = path.join(AppGlobal.ftpSettingPath, 'Playlist',
           '${globalPlayer.strUniqueName.isEmpty ? await Utils.getUniqueKey() ?? '' : globalPlayer.strUniqueName}.dat');
       var plFile = File(strFtpSettingFile);
       if (await plFile.exists()) {
@@ -1582,7 +1582,7 @@ class TransferActionService {
   Future<bool> isDownloadEventExisted() async {
     for (int i = 0; i < DailyScheduleData.arrEvent.length; i++) {
       String strFtpSettingFile =
-          path.join(DCMGlobal.dayPath, '${DailyScheduleData.arrEvent[i]}.xml');
+          path.join(AppGlobal.dayPath, '${DailyScheduleData.arrEvent[i]}.xml');
       if (!await File(strFtpSettingFile).exists()) {
         String str = '''PlayList '$strFtpSettingFile' not exist in player!''';
         logE(str, syncTag);

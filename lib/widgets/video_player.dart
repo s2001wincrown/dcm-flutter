@@ -3,7 +3,7 @@ import 'dart:io';
 
 import 'package:dcm/backend/app.dart';
 import 'package:dcm/backend/library_helper.dart';
-import 'package:dcm/backend/models/dcm_global.dart';
+import 'package:dcm/backend/models/app_global.dart';
 import 'package:dcm/backend/models/zone_data.dart';
 import 'package:dcm/backend/utils/log_utils.dart';
 import 'package:dcm/widgets/basic_video.dart';
@@ -72,7 +72,7 @@ class _VideoPlayerState extends State<VideoPlayer> {
   }
 
   double _zoneVolume() {
-    return DCMGlobal.videoVolume(
+    return AppGlobal.videoVolume(
         widget.pZoneData.bZoneMute, widget.pZoneData.dVolume);
   }
 

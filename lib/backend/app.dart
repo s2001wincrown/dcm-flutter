@@ -4,7 +4,7 @@ import 'dart:math';
 
 import 'package:dcm/backend/keymap_helper.dart';
 import 'package:dcm/backend/library_helper.dart';
-import 'package:dcm/backend/models/dcm_global.dart';
+import 'package:dcm/backend/models/app_global.dart';
 import 'package:dcm/backend/models/player_global.dart';
 import 'package:dcm/backend/models/playitem.dart';
 import 'package:dcm/backend/models/playlist_item.dart';
@@ -63,10 +63,10 @@ class App {
     initFileLogger(dataPath);
     // Get Device ID
     uniqueKey = await Utils.getUniqueKey();
-    //await DCMGlobal.loadFromIni();
+    //await AppGlobal.loadFromIni();
     //ContentTypeManager.loadContentTypes();
     await loadAppSetting(uniqueKey);
-    if (DCMGlobal.autoContentUpdate) {
+    if (AppGlobal.autoContentUpdate) {
       // Ensure globalPlayer is initialized from CMS or local fallback
       await initGlobalPlayer();
     }

@@ -2,7 +2,7 @@
 import 'dart:io';
 
 import 'package:dcm/backend/constants.dart';
-import 'package:dcm/backend/models/dcm_global.dart';
+import 'package:dcm/backend/models/app_global.dart';
 import 'package:dcm/backend/models/dcmfile_data.dart';
 import 'package:dcm/backend/models/eventitem_data.dart';
 import 'package:dcm/backend/models/product_data.dart';
@@ -363,7 +363,7 @@ class PlayList {
   }
 
   ({bool status, int? nFlag}) isTimeForLoadEpisode(DateTime dtStart) {
-    if (DCMGlobal.processAHConflict == 0) {
+    if (AppGlobal.processAHConflict == 0) {
       if (eventFile.bIsTimeSchedule) {
         if (isTimeForPlayEpisode(dtStart)) {
           /*nCurrPlayFile = nPlayFile;
@@ -662,7 +662,7 @@ class PlayList {
       playlistZone.resetPlaylistZone();
     } else {
       //if (g_Global.m_dwLoopMethod == 0)
-      if ((DCMGlobal.loopMethod & settingRETURNBRKPTS) == 0) {
+      if ((AppGlobal.loopMethod & settingRETURNBRKPTS) == 0) {
         playlistZone.resetPlaylistZone();
         nCurrPlayFile = 0;
       }
@@ -945,7 +945,7 @@ class PlayList {
       var result = playFileList();
       if (result.status) return result;
     } else {
-      if ((DCMGlobal.loopMethod & settingRETURNBRKPTS) == 0) {
+      if ((AppGlobal.loopMethod & settingRETURNBRKPTS) == 0) {
         getPlaylistZone(isPlayEpisode).resetPlaylistZone();
         nPlayFile = 0;
       }
@@ -1047,7 +1047,7 @@ class PlayList {
   }
 
   void adjustAHTime(DateTime dtStart) {
-    if (DCMGlobal.processAHConflict == 0) {
+    if (AppGlobal.processAHConflict == 0) {
       if (!isPlayEpisode) {
         return;
       }
@@ -1467,7 +1467,7 @@ class PlayList {
   }
 
   bool isTimeForPlayEpisode(DateTime dtStart) {
-    if (DCMGlobal.processAHConflict == 1) {
+    if (AppGlobal.processAHConflict == 1) {
       checkAHSchedule(dtStart);
     }
 
@@ -1475,7 +1475,7 @@ class PlayList {
       return false;
     }
 
-    if (DCMGlobal.processAHConflict == 0) {
+    if (AppGlobal.processAHConflict == 0) {
       //startEpisodeDateTime = dtStart;
       DateTime dtStartTime;
       DateTime dtEndTime;
@@ -1625,7 +1625,7 @@ class PlayList {
       return true;
     }
 
-    if (DCMGlobal.processAHConflict == 0) {
+    if (AppGlobal.processAHConflict == 0) {
       DateTime dtEndTime;
       DateTime dtStartTime;
       bool bExisted = false;
@@ -1794,7 +1794,7 @@ class PlayList {
       return true;
     }
 
-    if (DCMGlobal.processAHConflict == 0) {
+    if (AppGlobal.processAHConflict == 0) {
       DateTime dtEndTime;
       DateTime dtStartTime;
       bool bExisted = false;
@@ -1937,7 +1937,7 @@ class PlayList {
   }
 
   void changeTVChannelForDCMFile(String strDCMFile, int nNewChannel) {
-    String strEdit = path.join(DCMGlobal.openPath, '$strDCMFile.dcm'); //szDir;
+    String strEdit = path.join(AppGlobal.openPath, '$strDCMFile.dcm'); //szDir;
     if (File(strEdit).existsSync()) {
       bool bFileChanged = false;
       DCMFileData? dcmFileData = DCMFileImpl.openCatalogue(szEdit: strEdit);
@@ -2004,7 +2004,7 @@ class PlayList {
         }
       }
     } else {
-      String strEdit = path.join(DCMGlobal.openPath, '$strDCMFile.dcm');
+      String strEdit = path.join(AppGlobal.openPath, '$strDCMFile.dcm');
       if (File(strEdit).existsSync()) {
         DCMFileData? dcmFileData = DCMFileImpl.openCatalogue(szEdit: strEdit);
         if (dcmFileData != null) {

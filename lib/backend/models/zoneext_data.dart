@@ -7,7 +7,7 @@
 //
 // Date  : 03/03/2004
 import 'package:dcm/backend/constants.dart';
-import 'package:dcm/backend/models/dcm_global.dart';
+import 'package:dcm/backend/models/app_global.dart';
 import 'package:dcm/backend/xmlfile/xmlitem.dart';
 
 import 'zone_data.dart';
@@ -54,7 +54,7 @@ class ZoneExtData extends ZoneData {
     DateTime? endTime = dtEndTime;
 
     // Note: SETTING_VALIDCLONLYTIME would need to be checked from constants
-    if ((DCMGlobal.globalSetting & settingVALIDCLONLYTIME) > 0) {
+    if ((AppGlobal.globalSetting & settingVALIDCLONLYTIME) > 0) {
       endTime = DateTime(dtCurr.year, dtCurr.month, dtCurr.day,
           dtEndTime?.hour ?? 0, dtEndTime?.minute ?? 0, dtEndTime?.second ?? 0);
       startTime = DateTime(
@@ -84,7 +84,7 @@ class ZoneExtData extends ZoneData {
     final dtCurr = DateTime.now();
 
     // Note: SETTING_VALIDCLONLYTIME would need to be checked from constants
-    if ((DCMGlobal.globalSetting & settingVALIDCLONLYTIME) > 0) {
+    if ((AppGlobal.globalSetting & settingVALIDCLONLYTIME) > 0) {
       if (dtEndTime != null) {
         var endTime = DateTime(
             dtCurr.year,

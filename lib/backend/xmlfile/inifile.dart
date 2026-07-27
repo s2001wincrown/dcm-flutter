@@ -2,14 +2,17 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:dcm/backend/utils/log_utils.dart';
+import 'package:dcm/backend/utils/string_utils.dart';
 
 /// INI文件类
 class IniFile {
   Map<String, Map<String, String>> sections = {};
   String currentSection = '';
+  String? _fileName;
   Map<String, String> currentProperties = {};
 
   IniFile(String filename) {
+    _fileName = filename;
     try {
       String content = File(filename).readAsStringSync();
       _parse(content);
@@ -45,6 +48,11 @@ class IniFile {
   String? getValue(String section, String name) {
     Map<String, String>? props = sections[section];
     return props?[name];
+  }
+
+  void setValue(String section, String name, dynamic value) {
+    sections.putIfAbsent(section, () => {});
+    sections[section]?[name] = value;
   }
 
   String readString(String section, String name, [String defaultValue = '']) {
@@ -92,8 +100,11 @@ class IniFile {
     return true;
   }
 
-  Future<bool> save(String strFName) async {
-    final textfile = File(strFName);
+  Future<bool> save([String? strFName]) async {
+    strFName ??= _fileName;
+    if (isBlank(strFName)) return false;
+
+    final textfile = File(strFName!);
     String content = '';
     for (var i in sections.keys) {
       content += '[$i]';

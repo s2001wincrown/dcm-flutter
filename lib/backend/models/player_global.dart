@@ -2,9 +2,9 @@
 
 import 'package:dcm/backend/app.dart';
 import 'package:dcm/backend/constants.dart';
-import 'package:dcm/backend/models/dcm_global.dart';
+import 'package:dcm/backend/models/app_global.dart';
 import 'package:dcm/backend/models/player.dart';
-import 'package:dcm/backend/net/dcm_http_client.dart';
+import 'package:dcm/backend/net/sync_http_client.dart';
 import 'package:dcm/backend/net/play_log_post.dart';
 import 'package:dcm/backend/net/player_log_file.dart';
 import 'package:dcm/backend/net/player_log_impl.dart';
@@ -34,12 +34,12 @@ Future<bool> initGlobalPlayer() async {
 }
 
 Future<bool> getPlayerRegInfo() async {
-  if (DCMGlobal.cmsUrl.isEmpty) {
+  if (AppGlobal.cmsUrl.isEmpty) {
     return false;
   }
 
   final strGetRegInfoHttpLink =
-      '${fADDSLASH(DCMGlobal.cmsUrl)}$cmsPLAYERSITEURL';
+      '${fADDSLASH(AppGlobal.cmsUrl)}$cmsPLAYERSITEURL';
   final guidReg = globalPlayer.guidReg;
   final strUniqueName = globalPlayer.strUniqueName;
   final strRequest =
@@ -84,7 +84,7 @@ Future<bool> getPlayerRegInfo() async {
               PlayerRegisterImpl.changeComputerName(globalPlayer, true);
 
               final strLocalFile =
-                  path.join(DCMGlobal.ftpSettingPath, 'dcmsites.dat');
+                  path.join(AppGlobal.ftpSettingPath, 'dcmsites.dat');
               await File(strDCMSites).copy(strLocalFile);
             } else {
               logE('Failed to serialize player settings to dcmsites.dat');
@@ -121,7 +121,7 @@ Future<bool> getPublicIP() async {
 
 Future<({bool status, String? result})> httpGet(String url,
     [String? contentType]) async {
-  final client = DcmHttpClient(
+  final client = SyncHttpClient(
     baseUrl: Utils.apiBaseUrl(url),
     timeout: const Duration(seconds: 15),
     defaultHeaders: {
@@ -155,11 +155,11 @@ Future<({bool status, String? result})> httpGet(String url,
 Future<String?> httpGetPublicIP() async {
   //todo retrieve Mobile network information
   String strResult = '';
-  if (DCMGlobal.cmsUrl.isEmpty) {
+  if (AppGlobal.cmsUrl.isEmpty) {
     return null;
   }
 
-  String strGetPublicIPHttpLink = DCMGlobal.cmsUrl;
+  String strGetPublicIPHttpLink = AppGlobal.cmsUrl;
   strGetPublicIPHttpLink = fADDSLASH(strGetPublicIPHttpLink);
   strGetPublicIPHttpLink += cmsPLAYERIPURL;
   strGetPublicIPHttpLink = Utils.addCMSParam(strGetPublicIPHttpLink, true);
@@ -312,7 +312,7 @@ Future<({bool status, bool isNeedRestart})> loadPlaybackSettings(
       var httpResult = await httpGet(strGetSettings);
       if (httpResult.status) {
         if (SettingsImpl.loadFromXml(httpResult.result!)) {
-          if (await DCMGlobal.loadFromIni()) {
+          if (await AppGlobal.loadFromIni()) {
             return (status: true, isNeedRestart: true);
           }
         }
@@ -322,7 +322,7 @@ Future<({bool status, bool isNeedRestart})> loadPlaybackSettings(
           '''loadPlaybackSettings - 'server.txt' file not found or invalid'.''');
     }
   } else {
-    return (status: await DCMGlobal.loadFromIni(), isNeedRestart: false);
+    return (status: await AppGlobal.loadFromIni(), isNeedRestart: false);
   }
 
   return (status: false, isNeedRestart: false);
@@ -361,7 +361,7 @@ Future<bool> loadContentTypeSettings(String deviceId) async {
 }
 
 Future<void> resetPlayerSettings() async {
-  String strIniFile = path.join(DCMGlobal.appDataPath, configFILENAME);
+  String strIniFile = path.join(AppGlobal.appDataPath, configFILENAME);
   var file = File(strIniFile);
   if (await file.exists()) {
     await file.delete();

@@ -2,15 +2,15 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:dcm/backend/models/dcm_global.dart';
+import 'package:dcm/backend/models/app_global.dart';
 import 'package:dcm/backend/models/file_info_data.dart';
-import 'package:dcm/backend/net/dcm_http_client.dart';
+import 'package:dcm/backend/net/sync_http_client.dart';
 import 'package:dcm/backend/utils/utils.dart';
 import 'package:dcm/backend/xmlfile/xmlfile.dart';
 import 'package:dcm/backend/xmlfile/xmlitem.dart';
 import 'package:worker_manager/worker_manager.dart';
 
-enum DcmDownloadStatus {
+enum ContentDownloadStatus {
   pending,
   running,
   success,
@@ -18,8 +18,8 @@ enum DcmDownloadStatus {
   skipped,
 }
 
-class DcmDownloadTask {
-  DcmDownloadTask({
+class ContentDownloadTask {
+  ContentDownloadTask({
     required this.id,
     required this.url,
     required this.targetPath,
@@ -30,7 +30,7 @@ class DcmDownloadTask {
     this.title = '',
     this.uuid = '',
     this.priority = 0,
-  })  : status = DcmDownloadStatus.pending,
+  })  : status = ContentDownloadStatus.pending,
         downloaded = 0,
         retryCount = 0,
         errorMessage = null,
@@ -49,7 +49,7 @@ class DcmDownloadTask {
 
   int downloaded;
   int retryCount;
-  DcmDownloadStatus status;
+  ContentDownloadStatus status;
   String? errorMessage;
   DateTime? lastUpdated;
 
@@ -75,8 +75,8 @@ class DcmDownloadTask {
     };
   }
 
-  factory DcmDownloadTask.fromJson(Map<String, dynamic> json) {
-    return DcmDownloadTask(
+  factory ContentDownloadTask.fromJson(Map<String, dynamic> json) {
+    return ContentDownloadTask(
       id: json['id']?.toString() ?? UniqueKeyGenerator.generate(),
       url: json['url']?.toString() ?? '',
       targetPath: json['targetPath']?.toString() ?? '',
@@ -104,9 +104,9 @@ class DcmDownloadTask {
       ..retryCount = json['retryCount'] is int
           ? json['retryCount'] as int
           : int.tryParse(json['retryCount']?.toString() ?? '0') ?? 0
-      ..status = DcmDownloadStatus.values.firstWhere(
+      ..status = ContentDownloadStatus.values.firstWhere(
         (element) => element.name == json['status']?.toString(),
-        orElse: () => DcmDownloadStatus.pending,
+        orElse: () => ContentDownloadStatus.pending,
       )
       ..errorMessage = json['errorMessage']?.toString()
       ..lastUpdated = json['lastUpdated'] != null
@@ -114,7 +114,7 @@ class DcmDownloadTask {
           : null;
   }
 
-  factory DcmDownloadTask.fromFileInfoData(
+  factory ContentDownloadTask.fromFileInfoData(
       FileInfoData fileInfo, String cmsUrl) {
     final String shortPath = fileInfo.strShortPath.trim();
     final String destFile = fileInfo.strDestFile.trim();
@@ -129,7 +129,7 @@ class DcmDownloadTask {
     final String url = buildCmsUrl(cmsUrl, shortPath);
     final String targetPath = Utils.getFilePath(destFile, contentType);
 
-    return DcmDownloadTask(
+    return ContentDownloadTask(
       id: id,
       url: url,
       targetPath: targetPath,
@@ -179,13 +179,13 @@ class TempFileInfo {
   }
 }
 
-class DcmDownloadQueue {
-  DcmDownloadQueue({required this.persistencePath, this.queueMode = 'fifo'})
+class ContentDownloadQueue {
+  ContentDownloadQueue({required this.persistencePath, this.queueMode = 'fifo'})
       : tasks = [];
 
   final String persistencePath;
   final String queueMode;
-  final List<DcmDownloadTask> tasks;
+  final List<ContentDownloadTask> tasks;
   int finalFailedTaskCount = 0;
   int finalSuccessTaskCount = 0;
   String lastTaskOutcome = 'unknown';
@@ -203,12 +203,12 @@ class DcmDownloadQueue {
       if (decoded is List<dynamic>) {
         tasks.addAll(decoded
             .cast<Map<String, dynamic>>()
-            .map(DcmDownloadTask.fromJson)
+            .map(ContentDownloadTask.fromJson)
             .toList());
       } else if (decoded is Map<String, dynamic>) {
         tasks.addAll((decoded['tasks'] as List<dynamic>?)
                 ?.cast<Map<String, dynamic>>()
-                .map(DcmDownloadTask.fromJson)
+                .map(ContentDownloadTask.fromJson)
                 .toList() ??
             []);
         finalFailedTaskCount = decoded['finalFailedTaskCount'] is int
@@ -224,7 +224,7 @@ class DcmDownloadQueue {
         lastTaskOutcome = decoded['lastTaskOutcome']?.toString() ?? 'unknown';
       }
     } catch (e) {
-      stderr.writeln('DcmDownloadQueue.load() failed: $e');
+      stderr.writeln('ContentDownloadQueue.load() failed: $e');
     }
   }
 
@@ -244,7 +244,7 @@ class DcmDownloadQueue {
     return tasks.any((task) => task.url == url);
   }
 
-  void addTasks(List<DcmDownloadTask> newTasks) {
+  void addTasks(List<ContentDownloadTask> newTasks) {
     for (final task in newTasks) {
       if (!containsUrl(task.url)) {
         tasks.add(task);
@@ -252,7 +252,7 @@ class DcmDownloadQueue {
     }
   }
 
-  void addTask(DcmDownloadTask task) {
+  void addTask(ContentDownloadTask task) {
     if (!containsUrl(task.url)) {
       tasks.add(task);
     }
@@ -266,10 +266,10 @@ class DcmDownloadQueue {
     tasks.removeWhere((task) => ids.contains(task.id));
   }
 
-  DcmDownloadTask? nextPendingTask() {
+  ContentDownloadTask? nextPendingTask() {
     final pending = tasks.where((task) {
-      return task.status == DcmDownloadStatus.pending ||
-          task.status == DcmDownloadStatus.failed;
+      return task.status == ContentDownloadStatus.pending ||
+          task.status == ContentDownloadStatus.failed;
     }).toList();
     if (pending.isEmpty) return null;
 
@@ -283,8 +283,8 @@ class DcmDownloadQueue {
     return pending.first;
   }
 
-  bool handleTaskFailure(DcmDownloadTask task, {required int maxRetries}) {
-    final existingTask = tasks.cast<DcmDownloadTask?>().firstWhere(
+  bool handleTaskFailure(ContentDownloadTask task, {required int maxRetries}) {
+    final existingTask = tasks.cast<ContentDownloadTask?>().firstWhere(
           (candidate) => candidate?.id == task.id,
           orElse: () => null,
         );
@@ -293,7 +293,7 @@ class DcmDownloadQueue {
     }
 
     existingTask.retryCount = task.retryCount + 1;
-    existingTask.status = DcmDownloadStatus.failed;
+    existingTask.status = ContentDownloadStatus.failed;
     existingTask.errorMessage = task.errorMessage;
     existingTask.lastUpdated = DateTime.now();
 
@@ -317,19 +317,22 @@ class DcmDownloadQueue {
     }
   }
 
-  DcmDownloadQueueStatus getStatus() {
-    final successCount =
-        tasks.where((task) => task.status == DcmDownloadStatus.success).length;
-    final failedCount =
-        tasks.where((task) => task.status == DcmDownloadStatus.failed).length;
+  ContentDownloadQueueStatus getStatus() {
+    final successCount = tasks
+        .where((task) => task.status == ContentDownloadStatus.success)
+        .length;
+    final failedCount = tasks
+        .where((task) => task.status == ContentDownloadStatus.failed)
+        .length;
     final pendingCount = tasks
         .where((task) =>
-            task.status == DcmDownloadStatus.pending ||
-            task.status == DcmDownloadStatus.running)
+            task.status == ContentDownloadStatus.pending ||
+            task.status == ContentDownloadStatus.running)
         .length;
-    final runningCount =
-        tasks.where((task) => task.status == DcmDownloadStatus.running).length;
-    return DcmDownloadQueueStatus(
+    final runningCount = tasks
+        .where((task) => task.status == ContentDownloadStatus.running)
+        .length;
+    return ContentDownloadQueueStatus(
       totalCount: tasks.length + finalFailedTaskCount,
       successCount: successCount + finalSuccessTaskCount,
       failedCount: failedCount + finalFailedTaskCount,
@@ -341,8 +344,8 @@ class DcmDownloadQueue {
   }
 }
 
-class DcmDownloadQueueStatus {
-  DcmDownloadQueueStatus({
+class ContentDownloadQueueStatus {
+  ContentDownloadQueueStatus({
     required this.totalCount,
     required this.successCount,
     required this.failedCount,
@@ -361,8 +364,8 @@ class DcmDownloadQueueStatus {
   final String lastOutcome;
 }
 
-class DcmDownloadWorkerPayload {
-  DcmDownloadWorkerPayload({
+class ContentDownloadWorkerPayload {
+  ContentDownloadWorkerPayload({
     required this.apiUrl,
     required this.persistencePath,
     required this.timeoutSeconds,
@@ -389,8 +392,8 @@ class DcmDownloadWorkerPayload {
     };
   }
 
-  factory DcmDownloadWorkerPayload.fromJson(Map<String, dynamic> json) {
-    return DcmDownloadWorkerPayload(
+  factory ContentDownloadWorkerPayload.fromJson(Map<String, dynamic> json) {
+    return ContentDownloadWorkerPayload(
       apiUrl: json['apiUrl']?.toString() ?? '',
       persistencePath: json['persistencePath']?.toString() ?? '',
       timeoutSeconds: json['timeoutSeconds'] is int
@@ -407,8 +410,8 @@ class DcmDownloadWorkerPayload {
   }
 }
 
-class DcmDownloadWorkerResult {
-  DcmDownloadWorkerResult({required this.taskJson, required this.success});
+class ContentDownloadWorkerResult {
+  ContentDownloadWorkerResult({required this.taskJson, required this.success});
 
   final Map<String, dynamic> taskJson;
   final bool success;
@@ -420,16 +423,16 @@ class DcmDownloadWorkerResult {
     };
   }
 
-  factory DcmDownloadWorkerResult.fromJson(Map<String, dynamic> json) {
-    return DcmDownloadWorkerResult(
+  factory ContentDownloadWorkerResult.fromJson(Map<String, dynamic> json) {
+    return ContentDownloadWorkerResult(
       taskJson: Map<String, dynamic>.from(json['taskJson'] ?? const {}),
       success: json['success'] == true,
     );
   }
 }
 
-class DcmDownloader {
-  DcmDownloader({
+class ContentDownloader {
+  ContentDownloader({
     required this.apiUrl,
     required this.queue,
     this.concurrency = 4,
@@ -440,30 +443,30 @@ class DcmDownloader {
     this.onTaskComplete,
     this.pollingInterval,
     this.buildRequestBody,
-    DcmHttpClientFactory? httpClientFactory,
-  })  : maxRetries = maxRetries ?? DCMGlobal.fileTransferRetries,
-        _httpClientFactory = httpClientFactory ?? dcmHttpClientFactory {
+    SyncHttpClientFactory? httpClientFactory,
+  })  : maxRetries = maxRetries ?? AppGlobal.fileTransferRetries,
+        _httpClientFactory = httpClientFactory ?? syncHttpClientFactory {
     _client = _createClient();
   }
 
   final String apiUrl;
-  final DcmDownloadQueue queue;
+  final ContentDownloadQueue queue;
   final int concurrency;
   final Duration timeout;
   final int maxRetries;
   final Duration backoffBase;
-  final void Function(DcmDownloadTask task)? onProgress;
-  final void Function(DcmDownloadTask task)? onTaskComplete;
+  final void Function(ContentDownloadTask task)? onProgress;
+  final void Function(ContentDownloadTask task)? onTaskComplete;
   final Duration? pollingInterval;
   final Future<String> Function()? buildRequestBody;
-  final DcmHttpClientFactory _httpClientFactory;
+  final SyncHttpClientFactory _httpClientFactory;
 
-  late final DcmHttpClient _client;
+  late final SyncHttpClient _client;
   bool _isRunning = false;
   Timer? _pollTimer;
   bool _pollInProgress = false;
 
-  Future<List<DcmDownloadTask>> fetchTasksFromApi(String xmlBody) async {
+  Future<List<ContentDownloadTask>> fetchTasksFromApi(String xmlBody) async {
     _client = _createClient();
 
     final response = await _client.postString(
@@ -481,13 +484,13 @@ class DcmDownloader {
     final body = response.body;
     final fileInfoList = _parsePublishFileInformation(body);
     return fileInfoList
-        .map((fileInfo) =>
-            DcmDownloadTask.fromFileInfoData(fileInfo, apiUrlToCmsBase(apiUrl)))
+        .map((fileInfo) => ContentDownloadTask.fromFileInfoData(
+            fileInfo, apiUrlToCmsBase(apiUrl)))
         .where((task) => task.url.isNotEmpty && task.targetPath.isNotEmpty)
         .toList();
   }
 
-  DcmHttpClient _createClient() {
+  SyncHttpClient _createClient() {
     return _httpClientFactory.clientFor(
       baseUrl: apiUrlToCmsBase(apiUrl),
       timeout: timeout,
@@ -565,11 +568,11 @@ class DcmDownloader {
     await queue.save();
   }
 
-  DcmDownloadQueueStatus getQueueStatus() {
+  ContentDownloadQueueStatus getQueueStatus() {
     return queue.getStatus();
   }
 
-  Future<void> addTask(DcmDownloadTask task) async {
+  Future<void> addTask(ContentDownloadTask task) async {
     queue.addTask(task);
     await queue.save();
     if (!_isRunning && queue.nextPendingTask() != null) {
@@ -577,7 +580,7 @@ class DcmDownloader {
     }
   }
 
-  Future<void> addTasksToQueue(List<DcmDownloadTask> tasksList) async {
+  Future<void> addTasksToQueue(List<ContentDownloadTask> tasksList) async {
     queue.addTasks(tasksList);
     await queue.save();
     if (!_isRunning && queue.nextPendingTask() != null) {
@@ -618,7 +621,7 @@ class DcmDownloader {
         await start();
       }
     } catch (e, stack) {
-      stderr.writeln('DcmDownloader polling failed: $e');
+      stderr.writeln('ContentDownloader polling failed: $e');
       stderr.writeln(stack);
     }
   }
@@ -629,7 +632,7 @@ class DcmDownloader {
       if (task == null) {
         return;
       }
-      task.status = DcmDownloadStatus.running;
+      task.status = ContentDownloadStatus.running;
       task.lastUpdated = DateTime.now();
       await queue.save();
 
@@ -641,7 +644,7 @@ class DcmDownloader {
         task.errorMessage = processedTask.errorMessage;
         task.lastUpdated = processedTask.lastUpdated;
 
-        if (task.status == DcmDownloadStatus.success) {
+        if (task.status == ContentDownloadStatus.success) {
           queue.finalSuccessTaskCount += 1;
           queue.lastTaskOutcome = 'success';
           await queue.save();
@@ -658,7 +661,7 @@ class DcmDownloader {
           }
         }
       } catch (e) {
-        task.status = DcmDownloadStatus.failed;
+        task.status = ContentDownloadStatus.failed;
         task.errorMessage = e.toString();
         task.lastUpdated = DateTime.now();
         queue.handleTaskFailure(task, maxRetries: maxRetries);
@@ -668,8 +671,9 @@ class DcmDownloader {
     }
   }
 
-  Future<DcmDownloadTask> _processTaskWithWorker(DcmDownloadTask task) async {
-    final payload = DcmDownloadWorkerPayload(
+  Future<ContentDownloadTask> _processTaskWithWorker(
+      ContentDownloadTask task) async {
+    final payload = ContentDownloadWorkerPayload(
       apiUrl: apiUrl,
       persistencePath: queue.persistencePath,
       timeoutSeconds: timeout.inSeconds,
@@ -679,18 +683,18 @@ class DcmDownloader {
     );
 
     final result = await workerManager.executeGentle(
-      (_) => DcmDownloader.executeTaskInWorker(payload),
+      (_) => ContentDownloader.executeTaskInWorker(payload),
     );
 
-    return DcmDownloadTask.fromJson(result.taskJson);
+    return ContentDownloadTask.fromJson(result.taskJson);
   }
 
-  static Future<DcmDownloadWorkerResult> executeTaskInWorker(
-      DcmDownloadWorkerPayload payload) async {
-    final task = DcmDownloadTask.fromJson(payload.taskJson);
-    final downloader = DcmDownloader(
+  static Future<ContentDownloadWorkerResult> executeTaskInWorker(
+      ContentDownloadWorkerPayload payload) async {
+    final task = ContentDownloadTask.fromJson(payload.taskJson);
+    final downloader = ContentDownloader(
       apiUrl: payload.apiUrl,
-      queue: DcmDownloadQueue(persistencePath: payload.persistencePath),
+      queue: ContentDownloadQueue(persistencePath: payload.persistencePath),
       timeout: Duration(seconds: payload.timeoutSeconds),
       maxRetries: payload.maxRetries,
       backoffBase: Duration(seconds: payload.backoffSeconds),
@@ -699,19 +703,20 @@ class DcmDownloader {
     final success =
         await downloader._attemptDownload(task, persistState: false);
     task.status =
-        success ? DcmDownloadStatus.success : DcmDownloadStatus.failed;
+        success ? ContentDownloadStatus.success : ContentDownloadStatus.failed;
     task.lastUpdated = DateTime.now();
-    return DcmDownloadWorkerResult(taskJson: task.toJson(), success: success);
+    return ContentDownloadWorkerResult(
+        taskJson: task.toJson(), success: success);
   }
 
-  Future<bool> _attemptDownload(DcmDownloadTask task,
+  Future<bool> _attemptDownload(ContentDownloadTask task,
       {bool persistState = true}) async {
     try {
       await _downloadTask(task);
       return true;
     } catch (e) {
       task.errorMessage = e.toString();
-      task.status = DcmDownloadStatus.failed;
+      task.status = ContentDownloadStatus.failed;
       task.lastUpdated = DateTime.now();
       if (persistState) {
         await queue.save();
@@ -720,14 +725,14 @@ class DcmDownloader {
     }
   }
 
-  Future<void> _downloadTask(DcmDownloadTask task) async {
+  Future<void> _downloadTask(ContentDownloadTask task) async {
     final targetFile = File(task.targetPath);
     final partialFile = File(task.partialPath);
     await partialFile.parent.create(recursive: true);
 
     final currentBytes = await _prepareResume(task, targetFile, partialFile);
     task.downloaded = currentBytes;
-    task.status = DcmDownloadStatus.running;
+    task.status = ContentDownloadStatus.running;
     task.lastUpdated = DateTime.now();
 
     final headers = <String, String>{};
@@ -779,12 +784,12 @@ class DcmDownloader {
   }
 
   Future<int> _prepareResume(
-      DcmDownloadTask task, File targetFile, File partialFile) async {
+      ContentDownloadTask task, File targetFile, File partialFile) async {
     if (await targetFile.exists()) {
       final localModified = await targetFile.lastModified();
       if (task.remoteModified == null ||
           !localModified.isBefore(task.remoteModified!)) {
-        task.status = DcmDownloadStatus.skipped;
+        task.status = ContentDownloadStatus.skipped;
         task.errorMessage = 'Target already up to date';
         return 0;
       }

@@ -1,7 +1,7 @@
 import 'dart:io';
 
 import 'package:dcm/backend/constants.dart';
-import 'package:dcm/backend/models/dcm_global.dart';
+import 'package:dcm/backend/models/app_global.dart';
 import 'package:dcm/backend/models/file_info_data.dart';
 import 'package:dcm/backend/net/download_file_list_impl.dart';
 import 'package:dcm/backend/net/file_replace_service.dart';
@@ -250,7 +250,7 @@ class FileFilterService {
 
     if (_lstFileInfo.isNotEmpty) {
       bool bWriteLog = false;
-      String strFileName = path.join(DCMGlobal.ftpSettingPath, 'ftperror.xml');
+      String strFileName = path.join(AppGlobal.ftpSettingPath, 'ftperror.xml');
       XmlProfile xmlProfile = XmlProfile.fromFile(strFileName);
       if (xmlProfile.loadProfile(szRootItemName: 'FTPError')) {
         bWriteLog = true;
@@ -352,7 +352,7 @@ class FileFilterService {
     }
 
     String strFileName =
-        path.join(DCMGlobal.ftpSettingPath, 'PreDataFileList.xml');
+        path.join(AppGlobal.ftpSettingPath, 'PreDataFileList.xml');
     await File(strFileName).delete();
 
     XmlProfile xmlProfile = XmlProfile.fromFile(strFileName);
@@ -415,7 +415,7 @@ class FileFilterService {
   }
 
   bool saveUnFilterFileList(String strBatch) {
-    String strFileName = path.join(DCMGlobal.ftpSettingPath, 'Filelog');
+    String strFileName = path.join(AppGlobal.ftpSettingPath, 'Filelog');
     FileUtils.makeSureDirectoryPathExists(strFileName);
     strFileName = path.join(strFileName, '$strBatch.xml');
 
@@ -423,7 +423,7 @@ class FileFilterService {
   }
 
   bool loadUnFilterFileList(String strBatch) {
-    String strFileName = path.join(DCMGlobal.ftpSettingPath, 'Filelog');
+    String strFileName = path.join(AppGlobal.ftpSettingPath, 'Filelog');
     FileUtils.makeSureDirectoryPathExists(strFileName);
     strFileName = path.join(strFileName, '$strBatch.xml');
 

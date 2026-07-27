@@ -2,7 +2,7 @@
 
 import 'package:dcm/backend/constants.dart';
 import 'package:dcm/backend/models/day_info_data.dart';
-import 'package:dcm/backend/models/dcm_global.dart';
+import 'package:dcm/backend/models/app_global.dart';
 import 'package:dcm/backend/utils/log_utils.dart';
 import 'package:dcm/backend/xml_settings/channel_schedule_file.dart';
 import 'package:dcm/backend/xmlfile/xmlitem.dart';
@@ -49,11 +49,11 @@ class ChannelScheduleImpl {
     List<DayInfoData> lstDayInfo = [];
 
     String strPath =
-        ((schedulePath == null) ? DCMGlobal.calendarPath : schedulePath);
+        ((schedulePath == null) ? AppGlobal.calendarPath : schedulePath);
     String strFileName = path.join(strPath, '$scheduleMonth.xml');
 
     String strPath1 =
-        ((schedulePath == null) ? DCMGlobal.monthPath : schedulePath);
+        ((schedulePath == null) ? AppGlobal.monthPath : schedulePath);
     String strFileName1 = path.join(strPath1, '$channelName$scheduleMonth.xml');
     if (File(strFileName1).existsSync()) {
       XmlProfile xmlProfile = XmlProfile.fromFile(strFileName1);
@@ -134,7 +134,7 @@ class ChannelScheduleImpl {
 
   bool deleteChannel(String channelName) {
     try {
-      final directory = Directory(DCMGlobal.calendarPath);
+      final directory = Directory(AppGlobal.calendarPath);
       if (!directory.existsSync()) {
         return true;
       }
@@ -195,7 +195,7 @@ class ChannelScheduleImpl {
         }
       }
 
-      String strFileName = path.join(DCMGlobal.monthPath,
+      String strFileName = path.join(AppGlobal.monthPath,
           '${DateFormat('yyyyMM').format(dtSchedule)}.xml');
       XmlProfile xmlProfile = XmlProfile.fromFile(strFileName);
       if (xmlProfile.loadProfile(szRootItemName: 'MonthlySchedule')) {
@@ -329,7 +329,7 @@ class ChannelScheduleImpl {
         file.saveEx();
       }
 
-      String strFileName = path.join(DCMGlobal.monthPath, '$scheduleMonth.xml');
+      String strFileName = path.join(AppGlobal.monthPath, '$scheduleMonth.xml');
       XmlProfile xmlProfile = XmlProfile.fromFile(strFileName);
       if (xmlProfile.loadProfile(szRootItemName: 'MonthlySchedule')) {
         List<int> lstExists = [];

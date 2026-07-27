@@ -1,7 +1,7 @@
 import 'dart:collection';
 
 import 'package:dcm/backend/constants.dart';
-import 'package:dcm/backend/models/dcm_global.dart';
+import 'package:dcm/backend/models/app_global.dart';
 import 'package:dcm/backend/utils/log_utils.dart';
 import 'package:dcm/backend/utils/string_utils.dart';
 import 'package:dcm/main.dart';
@@ -29,8 +29,8 @@ class _WebviewDesktopPlayerState extends State<WebviewDesktopPlayer> {
       mediaPlaybackRequiresUserGesture: false,
       allowsInlineMediaPlayback: true,
       disableContextMenu: true,
-      verticalScrollBarEnabled: hasFlag(DCMGlobal.ieSetting, 0x0001),
-      horizontalScrollBarEnabled: hasFlag(DCMGlobal.ieSetting, 0x0002),
+      verticalScrollBarEnabled: hasFlag(AppGlobal.ieSetting, 0x0001),
+      horizontalScrollBarEnabled: hasFlag(AppGlobal.ieSetting, 0x0002),
       iframeAllow: "camera; microphone",
       iframeAllowFullscreen: true);
 
@@ -92,7 +92,7 @@ class _WebviewDesktopPlayerState extends State<WebviewDesktopPlayer> {
       },
       onLoadStart: (controller, url) async {
         logD(
-            'onLoadStart: ${url.toString()}; DCMGlobal.ieSetting=${DCMGlobal.ieSetting}');
+            'onLoadStart: ${url.toString()}; AppGlobal.ieSetting=${AppGlobal.ieSetting}');
         this.url = url.toString();
       },
       onPermissionRequest: (controller, request) async {
@@ -118,7 +118,7 @@ class _WebviewDesktopPlayerState extends State<WebviewDesktopPlayer> {
         return NavigationActionPolicy.ALLOW;
       },
       onLoadStop: (controller, url) async {
-        if (DCMGlobal.ieSetting == 0x0000) {
+        if (AppGlobal.ieSetting == 0x0000) {
           await controller.evaluateJavascript(
               source: "document.querySelector('body').style.overflow='hidden'");
         }

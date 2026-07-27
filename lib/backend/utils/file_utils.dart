@@ -2,7 +2,7 @@ import 'dart:io';
 import 'dart:math';
 
 import 'package:dcm/backend/app.dart';
-import 'package:dcm/backend/models/dcm_global.dart';
+import 'package:dcm/backend/models/app_global.dart';
 import 'package:dcm/backend/utils/extensions.dart';
 import 'package:dcm/backend/utils/log_utils.dart';
 import 'package:dcm/backend/utils/string_utils.dart';
@@ -459,7 +459,7 @@ class FileUtils {
     return p;
   }
 
-  static String replaceDCMWildcard(String str,
+  static String replaceAppWildcard(String str,
       {String? appPath, String? cscPath}) {
     String? szAppPath = appPath;
     if (isBlank(szAppPath)) {
@@ -468,7 +468,7 @@ class FileUtils {
       szAppPath = FileUtils.removeBackslash(szAppPath!);
     }
     if (isBlank(cscPath)) {
-      cscPath = DCMGlobal.cscPath;
+      cscPath = AppGlobal.cscPath;
     } else {
       cscPath = FileUtils.removeBackslash(cscPath!);
     }
@@ -509,7 +509,7 @@ class FileUtils {
       strFile = strDefault;
     }
 
-    strFile = replaceDCMWildcard(strFile, appPath: strAppPath);
+    strFile = replaceAppWildcard(strFile, appPath: strAppPath);
     if (bFile) {
       return await File(strFile).exists() ? strFile : strDefault;
     } else {
@@ -527,7 +527,7 @@ class FileUtils {
       strFile = strDefault;
     }
 
-    strFile = replaceDCMWildcard(strFile, appPath: strAppPath);
+    strFile = replaceAppWildcard(strFile, appPath: strAppPath);
     if (bFile) {
       return File(strFile).existsSync() ? strFile : strDefault;
     } else {
