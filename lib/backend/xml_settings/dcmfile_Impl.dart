@@ -126,7 +126,7 @@ class DCMFileImpl {
   }
 
   static DCMFileData? serializeFromFile(String strFilename) {
-    XmlFilePro file = XmlFilePro("DCMDocument", Encodes.cDCMFILECRYPTKEY);
+    XmlFilePro file = XmlFilePro("DCMDocument", Encodes.cCONTENTFILECRYPTKEY);
     if (!file.open(strFilename, XfOpen.read)) {
       return null;
     }

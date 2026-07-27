@@ -364,7 +364,7 @@ class Utils {
 
     double dDuration = 0.00;
 
-    XmlFilePro file = XmlFilePro('DCMDocument', Encodes.cDCMFILECRYPTKEY);
+    XmlFilePro file = XmlFilePro('DCMDocument', Encodes.cCONTENTFILECRYPTKEY);
     if (file.open(strEdit, XfOpen.read, false)) {
       if (file.loadEx()) {
         if (file.decrypt()) {

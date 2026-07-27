@@ -84,12 +84,12 @@ class PlayerRegisterImpl {
 
       // encrypt prior to setting checkout status and file info (so these are visible without decryption)
       // this simply fails if password is empty
-      playerReg.encrypt(Encodes.cDCMFILECRYPTKEY);
+      playerReg.encrypt(Encodes.cCONTENTFILECRYPTKEY);
 
       return (status: playerReg.save(strFile), playerFile: playerFile);
     } else {
       XmlFilePro file =
-          XmlFilePro('PlayerRegisterInformation', Encodes.cDCMFILECRYPTKEY);
+          XmlFilePro('PlayerRegisterInformation', Encodes.cCONTENTFILECRYPTKEY);
       if (!file.open(strFile, XfOpen.read)) {
         return (status: false, playerFile: null);
       }
@@ -138,12 +138,12 @@ class PlayerRegisterImpl {
 
       // encrypt prior to setting checkout status and file info (so these are visible without decryption)
       // this simply fails if password is empty
-      playerReg.encrypt(Encodes.cDCMFILECRYPTKEY);
+      playerReg.encrypt(Encodes.cCONTENTFILECRYPTKEY);
 
       return playerReg.save(strFile);
     } else {
       XmlFilePro file =
-          XmlFilePro('PlayerRegisterInformation', Encodes.cDCMFILECRYPTKEY);
+          XmlFilePro('PlayerRegisterInformation', Encodes.cCONTENTFILECRYPTKEY);
       if (!file.open(strFile, XfOpen.read)) {
         return false;
       }

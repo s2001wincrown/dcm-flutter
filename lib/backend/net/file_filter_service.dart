@@ -455,12 +455,12 @@ class FileFilterService {
 
       // encrypt prior to setting checkout status and file info (so these are visible without decryption)
       // this simply fails if password is empty
-      playerReg.encrypt(Encodes.cDCMFILECRYPTKEY);
+      playerReg.encrypt(Encodes.cCONTENTFILECRYPTKEY);
 
       return playerReg.save(strFilename);
     } else {
       XmlFilePro file =
-          XmlFilePro('PublishFileInformation', Encodes.cDCMFILECRYPTKEY);
+          XmlFilePro('PublishFileInformation', Encodes.cCONTENTFILECRYPTKEY);
       if (!file.open(strFilename, XfOpen.read)) {
         return false;
       }

@@ -1,8 +1,8 @@
 ---
-name: create-dcm-http-download
-summary: '创建一个 DCM CMS 专用的下载任务技能：通过 REST API POST XML 拉取 FileInfoData 列表，构建队列并进行多线程可断点续传下载。'
+name: create-sync-http-download
+summary: '创建一个 CMS 专用的下载任务技能：通过 REST API POST XML 拉取 FileInfoData 列表，构建队列并进行多线程可断点续传下载。'
 description: |
-  该技能专注于 DCM CMS 场景。
+  该技能专注于 CMS 场景。
   它描述如何通过 `AppGlobal.cmsUrl + '/api/pm/players/filelist?authentication-token=' + AppGlobal.cmsToken` 发起 HTTP POST 请求，向服务器提交 XML 任务查询，并解析返回的 XML `PublishFileInformation` 列表。
 
   每个响应元素 `FileItem` 需映射为下载任务：
@@ -12,10 +12,10 @@ description: |
   最终生成一个带队列管理的多线程下载实现，支持 HTTP 断点续传、重试、任务持久化和基于 `m_tmFileModify` 的文件更新判断。
 arguments:
   - name: cmsApiHost
-    description: 'DCM CMS 根地址，如 AppGlobal.cmsUrl。'
+    description: 'CMS 根地址，如 AppGlobal.cmsUrl。'
     type: string
   - name: cmsToken
-    description: 'DCM CMS 身份验证令牌，拼接到 API URL 中。'
+    description: 'CMS 身份验证令牌，拼接到 API URL 中。'
     type: string
   - name: xmlRequestBody
     description: '用于查询文件列表的 XML POST 负载。'
@@ -128,6 +128,6 @@ arguments:
 
 ## 何时使用
 
-- 需要为 DCM CMS 集成自动下载任务流程时
-- 需要从 DCM REST API 获取文件列表并执行可靠的多线程下载时
+- 需要为 CMS 集成自动下载任务流程时
+- 需要从 CMS REST API 获取文件列表并执行可靠的多线程下载时
 - 需要支持断点续传和基于 `m_tmFileModify` 的文件更新判断时

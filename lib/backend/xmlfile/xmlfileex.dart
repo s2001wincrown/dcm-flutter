@@ -194,7 +194,7 @@ class XmlFileEx extends XmlFile {
   // --- 内部解密方法 ---
   String? _decrypt(String szInput, String szPassword) {
     try {
-      return Encodes.dcmDecrypt(szInput, szPassword);
+      return Encodes.contentDecrypt(szInput, szPassword);
     } catch (e) {
       logE('XML file decrypt failed: $e');
       // e.printStackTrace(); // Dart doesn't have stack trace printing like Java

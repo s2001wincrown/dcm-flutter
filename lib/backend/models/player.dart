@@ -371,7 +371,7 @@ class Player implements IPlayer {
     }
 
     XmlFilePro file =
-        XmlFilePro('PlayerRegisterInformation', Encodes.cDCMFILECRYPTKEY);
+        XmlFilePro('PlayerRegisterInformation', Encodes.cCONTENTFILECRYPTKEY);
     if (!file.open(strFilename, XfOpen.read)) {
       return false;
     }

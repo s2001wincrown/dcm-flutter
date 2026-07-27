@@ -285,17 +285,12 @@ class PlayerLogFile {
     String szRequest =
         '$cHTTPUNIQUEKEY=${globalPlayer.strUniqueName}&strTask=$strJob&strStatus=Reset&nTotalSize=0&nDownloaded=0&dtEndTime=${DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now())}';
     //wxString strRequest;
-    //strRequest.Format(_T("%s=%s&strTask=%s&strStatus=%s&nTotalSize=%llu&nDownloaded=%llu"), HTTP_UNIQUE_KEY, m_FtpSite.m_strUniqueName, m_strJob, _T("Reset"), 0, 0, COleDateTime::GetCurrentTime().Format(_T("%Y-%m-%d %H:%M:%S")));
+    //strRequest.Format(_T("%s=%s&strTask=%s&strStatus=%s&nTotalSize=%llu&nDownloaded=%llu"), HTTP_UNIQUE_KEY, globalPlayer.m_strUniqueName, m_strJob, _T("Reset"), 0, 0, COleDateTime::GetCurrentTime().Format(_T("%Y-%m-%d %H:%M:%S")));
     updateSyncStatus(szRequest);
   }
 
   // 更新 Sync 状态 (HTTP POST)
   static Future<bool> updateSyncStatus(String szRequest) async {
-    // 检查是否使用 CMS Backend
-    return updateCMSSyncStatus(szRequest);
-  }
-
-  static Future<bool> updateCMSSyncStatus(String szRequest) async {
     var contentSyncStatusUpdateUrl = AppGlobal.cmsUrl;
     contentSyncStatusUpdateUrl = fADDSLASH(contentSyncStatusUpdateUrl);
     contentSyncStatusUpdateUrl += cmsSyncSTATUSURL;
