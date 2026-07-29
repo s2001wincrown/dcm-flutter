@@ -108,6 +108,7 @@ class ChannelScheduleImpl {
             return false;
           }
         }
+
         XmlItem? hScheduleItem = file.getChannelScheduleItem(channelName);
         if (hScheduleItem != null) {
           for (var pData in lstDayInfo) {

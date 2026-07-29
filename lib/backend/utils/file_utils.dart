@@ -6,11 +6,11 @@ import 'package:dcm/backend/models/app_global.dart';
 import 'package:dcm/backend/utils/extensions.dart';
 import 'package:dcm/backend/utils/log_utils.dart';
 import 'package:dcm/backend/utils/string_utils.dart';
+import 'package:disk_space_2/disk_space_2.dart';
 import 'package:intl/intl.dart';
 import 'package:mime_type/mime_type.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as path;
-import 'package:storage_info/storage_info.dart';
+import 'package:path_provider/path_provider.dart';
 
 class FileUtils {
   static String waPath = '/storage/emulated/0/WhatsApp/Media/.Statuses';
@@ -322,8 +322,9 @@ class FileUtils {
   /// Returns a map of storage root -> { 'total': <bytes>, 'free': <bytes> }
   static Future<double> getDiskUsage() async {
     try {
-      final storageInfoPlugin = StorageInfo();
-      return await storageInfoPlugin.getStorageFreeSpace(SpaceUnit.GB);
+      //final storageInfoPlugin = StorageInfo();
+      return await DiskSpace.getFreeDiskSpace ?? 0.0;
+      //return await storageInfoPlugin.getStorageFreeSpace(SpaceUnit.GB);
     } catch (e) {
       logE('Error getting disk usage: $e');
       return 0.0;
@@ -463,7 +464,7 @@ class FileUtils {
       {String? appPath, String? cscPath}) {
     String? szAppPath = appPath;
     if (isBlank(szAppPath)) {
-      szAppPath = App().dataPath;
+      szAppPath = AppGlobal.appDataPath;
     } else {
       szAppPath = FileUtils.removeBackslash(szAppPath!);
     }

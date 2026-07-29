@@ -57,8 +57,34 @@ DateTime? fromDateTimeFormat(String strTime, [int nFormat = 0]) {
         components.isNotEmpty ? components[0].split('/') : null;
     var timeComponents =
         components.length > 1 ? components[1].split(':') : null;
-    noFields = (dateComponents != null ? dateComponents.length : 0) +
-        (timeComponents != null ? timeComponents.length : 0);
+    if (dateComponents != null) {
+      if (dateComponents.isNotEmpty) {
+        noFields++;
+        d = int.tryParse(dateComponents[0]) ?? 0;
+        if (dateComponents.length > 1) {
+          m = int.tryParse(dateComponents[1]) ?? 0;
+          noFields++;
+        }
+        if (dateComponents.length > 2) {
+          y = int.tryParse(dateComponents[2]) ?? 0;
+          noFields++;
+        }
+      }
+    }
+    if (timeComponents != null) {
+      if (timeComponents.isNotEmpty) {
+        h = int.tryParse(timeComponents[0]) ?? 0;
+        noFields++;
+        if (timeComponents.length > 1) {
+          mm = int.tryParse(timeComponents[1]) ?? 0;
+          noFields++;
+        }
+        if (timeComponents.length > 2) {
+          s = int.tryParse(timeComponents[2]) ?? 0;
+          noFields++;
+        }
+      }
+    }
   } else if (nFormat == 1) {
     if (strTime.isNotEmpty) {
       noFields++;

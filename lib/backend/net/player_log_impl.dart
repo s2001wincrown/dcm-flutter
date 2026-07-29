@@ -36,7 +36,7 @@ class PlayerLogImpl {
   static DateTime dtFileList = DateTime.now();
   static DateTime dtLastReSync = DateTime(0);
   static DateTime dtLastSync = DateTime(0);
-  static DateTime dtCMDTime = DateTime.now().subtract(Duration(days: 1));
+  static DateTime dtCMDTime = DateTime.now().subtract(const Duration(days: 1));
   static DateTime? dtShutdown;
   static bool bIsDirty = false;
 
@@ -161,7 +161,7 @@ class PlayerLogImpl {
     // 假设解析出一个 MessageInfo
     // 这里简化处理，实际需要根据二进制协议解析
     String taskName = "CMD_Task_${cmdData[offset]}";
-    return await isNewTask(taskName);
+    return isNewTask(taskName);
   }
 
   // 重启动作

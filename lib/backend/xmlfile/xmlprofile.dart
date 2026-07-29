@@ -168,7 +168,7 @@ class XmlProfile extends XmlFile {
   }
 
   bool writeProfileInt(String lpszSection, String lpszEntry, int nValue) {
-    XmlItem? pSec = root().addItem(lpszSection, '', XiType.element);
+    XmlItem? pSec = root().newItem(lpszSection);
     if (pSec != null) {
       pSec.setItemValue(lpszEntry, nValue.toString(), XiType.element);
       return true;
@@ -179,7 +179,7 @@ class XmlProfile extends XmlFile {
 
   bool writeProfileString(
       String lpszSection, String lpszEntry, String lpszData) {
-    XmlItem? pSec = root().addItem(lpszSection, '', XiType.element);
+    XmlItem? pSec = root().newItem(lpszSection);
     if (pSec != null) {
       pSec.setItemValue(lpszEntry, lpszData, XiType.element);
       return true;
@@ -190,9 +190,8 @@ class XmlProfile extends XmlFile {
 
   bool writeProfileDateTime(
       String lpszSection, String lpszEntry, DateTime dtData) {
-    XmlItem? pSec = setItemValue(lpszSection, '', XiType.element);
+    XmlItem? pSec = root().newItem(lpszSection);
     if (pSec != null) {
-      //"%d/%m/%Y %H:%M:%S"
       String attrText = DateFormat('dd/MM/yyyy HH:mm:ss').format(dtData);
       pSec.setItemValue(lpszEntry, attrText, XiType.element);
       return true;

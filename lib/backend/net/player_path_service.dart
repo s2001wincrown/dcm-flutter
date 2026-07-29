@@ -74,8 +74,9 @@ class PlayerPathService {
     }
   }
 
-  void init() {
+  Future<void> init() async {
     contentTypeManager.loadContentTypes();
+    await loadTempPath();
   }
 
   /********************************************************************/
@@ -234,13 +235,13 @@ class PlayerPathService {
         break;
     }
 
-    FileUtils.validFilePath(strFilePath, '', false);
+    await FileUtils.validFilePath(strFilePath, '', false);
     if (!bIsTemp || nContentType == cDCMPREDATATYPE) {
       // || nContentType == DCM_AHMESSAGE_TYPE
       return strFilePath;
     }
 
-    String? strTempPath = getExistedTempPath(nContentType);
+    String? strTempPath = await getExistedTempPath(nContentType);
     if (strTempPath == null) {
       String strTempPath = const Uuid().toString(); //DCMMisc::GenerateGUID();
       String strDest = strFilePath;
@@ -270,9 +271,11 @@ class PlayerPathService {
   }
 
   /// Check if a temp path exists for the content type
-  static String? getExistedTempPath(int contentType) {
+  static Future<String?> getExistedTempPath(int contentType) async {
     for (var temp in _tempFiles) {
       if (temp.nContentType == contentType) {
+        await FileUtils.makeSureDirectoryPathExists(temp.strSourcePath);
+
         // Ensure directory exists (async check usually not needed for string logic,
         // but in real usage you might want to verify Directory.exists)
         return temp.strSourcePath;
@@ -717,14 +720,14 @@ class PlayerPathService {
   /* Description   : Load Ftp Setting.                    			*/
   /*																	*/
   /// *****************************************************************
-  void loadTempPath() {
+  Future<void> loadTempPath() async {
     String strFileName = p.join(AppGlobal.ftpSettingPath, 'ftppathlog.xml');
     XmlFile file = XmlFile('DCMTempPath');
     if (file.load(strFileName, null)) {
       XmlItem? pPathItem = file.root().getItem('TempPath');
       while (pPathItem != null) {
         String strTemp = pPathItem.getItemValue('TempPath');
-        FileUtils.makeSureDirectoryPathExists(strTemp);
+        await FileUtils.makeSureDirectoryPathExists(strTemp);
         int nContentType = pPathItem.getItemValueI('ContentType');
         String strDest = pPathItem.getItemValue('DestPath');
         int nFlag = pPathItem.getItemValueI('PriorityFlag');

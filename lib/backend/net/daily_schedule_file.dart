@@ -217,17 +217,18 @@ class DailyScheduleFile extends XmlFile {
 
       pItem ??= root();
 
-      pDayItem = pItem.getItem('DayItem');
-      while (pDayItem != null) {
-        XmlItem? xiDay = pDayItem.getItem('m_nDay');
+      var pDayItemLoop = pItem.getItem('DayItem');
+      while (pDayItemLoop != null) {
+        XmlItem? xiDay = pDayItemLoop.getItem('m_nDay');
         if (xiDay != null) {
           String strDateValue = xiDay.getValue();
           if (strDateValue.equalsIgnoreCase(strDate)) {
+            pDayItem = pDayItemLoop;
             break;
           }
         }
 
-        pDayItem = pDayItem.getSibling();
+        pDayItemLoop = pDayItemLoop.getSibling();
       }
 
       return pDayItem;
@@ -311,8 +312,7 @@ class DailyScheduleFile extends XmlFile {
     return arrEvent;
   }
 
-  bool getEventByOutput(
-      String strEvent, DateTime dtDate, int nOutput /* = 0*/) {
+  String getEventByOutput(DateTime dtDate, int nOutput /* = 0*/) {
     //XmlItem? pItem = getItem('Output');
     XmlItem? pItem;
     XmlItem? pxiID = findItem('ID', nOutput);
@@ -322,25 +322,27 @@ class DailyScheduleFile extends XmlFile {
 
     pItem ??= root();
 
+    String strEvent = '';
+    String currDate = DateFormat('dd/MM/yyyy').format(dtDate);
     XmlItem? pDayItem = pItem.getItem('DayItem');
     while (pDayItem != null) {
       XmlItem? xiDay = pDayItem.getItem('m_nDay');
       if (xiDay != null) {
         String strDate = xiDay.getValue();
-        if (strDate.equalsIgnoreCase(DateFormat('dd/MM/yyyy').format(dtDate))) {
+        if (strDate.equalsIgnoreCase(currDate)) {
           XmlItem? xiEvent = pDayItem.getItem('m_strEvent');
           if (xiEvent != null) {
             strEvent = xiEvent.getValue();
           }
 
-          return true;
+          return strEvent;
         }
       }
 
       pDayItem = pDayItem.getSibling();
     }
 
-    return false;
+    return strEvent;
   }
 
   bool addSchedule(DateTime dtDate, String strChannel, [int nOutput = 0]) {

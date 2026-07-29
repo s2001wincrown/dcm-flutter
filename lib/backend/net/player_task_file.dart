@@ -330,7 +330,7 @@ class PlayerTaskFile {
   static String strPlayerTaskFile = '';
 
   static bool bSyncTime = false;
-  static DateTime dtSyncTime = fromOleDateTime(0.00);
+  static DateTime dtSyncTime = fromOleDateTime();
 
   static String strFtpTime =
       '${DateFormat('yyyyMMdd').format(DateTime.now())}000000';
@@ -396,8 +396,8 @@ class PlayerTaskFile {
     if (strResult.isNotEmpty) {
       if (strResult.length > 14 &&
           !strResult.startsWithIgnoreCase('no player task')) {
-        var vTaskQueue = getTaskFromXml(strXML: strResult);
-        await dispatchTask(vTaskQueue);
+        var taskQueues = await getTaskFromXml(strXML: strResult);
+        await dispatchTask(taskQueues);
       }
     }
     return false;
@@ -439,7 +439,7 @@ class PlayerTaskFile {
         task.nBeforeDay = nBeforeDay;
         task.dwJobStatus = FileTransferStatus.eNOTTRANSFER;
         if (updateTask(task)) {
-          writeTaskFile();
+          await writeTaskFile();
         }
       }
     }
@@ -485,17 +485,17 @@ class PlayerTaskFile {
       return false;
     }
 
-    vTaskQueue.add(pTask);
+    vTaskQueue.add(PlayerJobItem.copy(pTask));
     return true;
   }
 
-  static void removeTask(PlayerJobItem pTask) {
+  static Future<void> removeTask(PlayerJobItem pTask) async {
     logI('''CPlayerTaskFile::RemoveTask: '${pTask.strJobItem}'!''', syncTag);
     int index = vTaskQueue.indexOf(pTask);
     if (index != -1) {
       vTaskQueue.removeAt(index);
     }
-    writeTaskFile();
+    await writeTaskFile();
   }
 
   static Future<bool> loadTaskFile() async {
@@ -541,10 +541,12 @@ class PlayerTaskFile {
       //return true;
     }
     String strTaskFile = path.join(AppGlobal.ftpSettingPath, 'PlayerTasks.xml');
-    XmlFile syncTassk = XmlFile('PlayerTasks');
-    if (syncTassk.load(strTaskFile)) {
-      var taskQueues = getTaskFromXml(syncTassk: syncTassk);
-      dispatchTask(taskQueues);
+    if (await File(strTaskFile).exists()) {
+      XmlFile syncTaskFile = XmlFile('PlayerTasks');
+      if (syncTaskFile.load(strTaskFile)) {
+        var taskQueues = await getTaskFromXml(syncTask: syncTaskFile);
+        await dispatchTask(taskQueues);
+      }
     }
 
     return (vTaskQueue.isNotEmpty);
@@ -556,7 +558,7 @@ class PlayerTaskFile {
       if (dwStatus != null) {
         pTask.dwJobStatus = dwStatus;
       }
-      return writeTaskFile();
+      return await writeTaskFile();
     } else {
       XmlFile file = XmlFile('PlayerTasks');
 
@@ -626,11 +628,12 @@ class PlayerTaskFile {
         updateTask(it);
       }
       taskQueues.remove(it);
+      logI('dispatchTask: ${it.strJobItem}\n', syncTag);
     }
 
-    PlayerLogImpl.saveTaskLog();
+    await PlayerLogImpl.saveTaskLog();
     if (bSave) {
-      writeTaskFile();
+      await writeTaskFile();
     }
     String strTaskFile = path.join(AppGlobal.ftpSettingPath, 'PlayerTasks.xml');
     File tempFile = File(strTaskFile);
@@ -648,7 +651,8 @@ class PlayerTaskFile {
     strLink += cmsPLAYERTASKUPDATEURL;
     strLink = Utils.addCMSParam(strLink);
 
-    var result = await PlayerLogFile.httpPostAction(strLink, strXml);
+    var result = await PlayerLogFile.httpPostAction(
+        strLink, strXml, 'application/xml; charset=utf-8');
     if (result.status) {
       strResult = result.result!;
       if (strResult.equalsIgnoreCase('Successful')) {
@@ -663,16 +667,16 @@ class PlayerTaskFile {
     return true;
   }
 
-  static List<PlayerJobItem>? getTaskFromXml(
-      {String? strXML, XmlFile? syncTassk}) {
-    if (syncTassk == null) {
+  static Future<List<PlayerJobItem>?> getTaskFromXml(
+      {String? strXML, XmlFile? syncTask}) async {
+    if (syncTask == null) {
       if (isNotBlank(strXML)) {
         XmlFile xmlTask = XmlFile('PlayerTasks');
         if (xmlTask.loadXml(strXML!)) {
           String strTaskFile =
               path.join(AppGlobal.ftpSettingPath, 'PlayerTasks.xml');
           xmlTask.save(strTaskFile);
-          return getTaskFromXml(syncTassk: xmlTask);
+          return await getTaskFromXml(syncTask: xmlTask);
         }
       }
       logE('CPlayerTaskFile::QueueTask - Empty XML orLoad XML failure!',
@@ -681,24 +685,24 @@ class PlayerTaskFile {
       return null;
     }
 
-    String ftpTime = syncTassk.getItemValue('m_strFtpTime');
+    String ftpTime = syncTask.getItemValue('m_strFtpTime');
     if (ftpTime.isNotEmpty) {
       strFtpTime = ftpTime;
-      nBeforeDay = syncTassk.getItemValueI('m_nBeforeDay');
-      bReplaceFile = syncTassk.getItemValueB('m_bReplaceFile');
+      nBeforeDay = syncTask.getItemValueI('m_nBeforeDay');
+      bReplaceFile = syncTask.getItemValueB('m_bReplaceFile');
     }
-    String timeOuts = syncTassk.getItemValue('m_strTimeOuts');
+    String timeOuts = syncTask.getItemValue('m_strTimeOuts');
     if (timeOuts.isNotEmpty) {
       strTimeOuts = timeOuts;
     }
-    int syncPeriod = syncTassk.getItemValueI('m_nFtpPeriod');
+    int syncPeriod = syncTask.getItemValueI('m_nFtpPeriod');
     if (syncPeriod > 0) {
       nSyncPeriod = syncPeriod;
     }
-    bIsTimeForACU = (syncTassk.getItemValueI('IsTimeForAutoUpdate') > 0);
+    bIsTimeForACU = (syncTask.getItemValueI('IsTimeForAutoUpdate') > 0);
 
     List<PlayerJobItem> taskQueue = [];
-    XmlItem? pItem = syncTassk.getItem('TaskItem');
+    XmlItem? pItem = syncTask.getItem('TaskItem');
     if (pItem != null) {
       String strPlayerTask =
           '<?xml version="1.0" encoding="UTF-8"?><PlayerTasks $cHTTPUNIQUEKEY="${globalPlayer.strUniqueName}">';
@@ -714,7 +718,7 @@ class PlayerTaskFile {
         pItem = pItem.getSibling();
       }
       strPlayerTask += '</PlayerTasks>';
-      updateTaskStatus(strPlayerTask);
+      await updateTaskStatus(strPlayerTask);
     }
 
     return taskQueue;
@@ -752,29 +756,31 @@ class PlayerTaskFile {
           it.dwSyncContent == cTASKCOMMAND ||
           it.dwSyncContent == cTASKRESETSETTINGS) {
         pTask = it;
-        vTaskQueue.remove(it);
         break;
       }
+    }
+    if (pTask != null) {
+      vTaskQueue.remove(pTask);
     }
 
     return pTask;
   }
 
-  static void resetTasks() {
+  static Future<void> resetTasks() async {
     vTaskQueue.clear();
-    writeTaskFile();
+    await writeTaskFile();
   }
 
-  static void removeAllTask() {
-    writeTaskFile();
+  static Future<void> removeAllTask() async {
+    await writeTaskFile();
     vTaskQueue.clear();
   }
 
-  static void resetSyncStatus() {
+  static Future<void> resetSyncStatus() async {
     if (pCurrJob != null) {
       pCurrJob!.nRetries = AppGlobal.taskTransferRetries;
-      writeTaskFile(pCurrJob, FileTransferStatus.eTRANSFERFAILED);
-      PlayerLogFile.resetSyncStatus();
+      await writeTaskFile(pCurrJob, FileTransferStatus.eTRANSFERFAILED);
+      await PlayerLogFile.resetSyncStatus();
     }
     //restart app
   }
@@ -824,7 +830,7 @@ class PlayerTaskFile {
 }
 
 // 示例用法
-void main() {
+Future<void> main() async {
   print('Player Task Manager Initialized');
 
   // 初始化
@@ -841,12 +847,12 @@ void main() {
   PlayerTaskFile.updateTask(job);
 
   // 写入文件
-  PlayerTaskFile.writeTaskFile();
+  await PlayerTaskFile.writeTaskFile();
 
   // 记录日志
-  PlayerLogFile.openLogFile(job);
+  await PlayerLogFile.openLogFile(job);
 
-  PlayerLogFile.writeLogFile(cTRANSFERERR, 'Test Error Message');
+  await PlayerLogFile.writeLogFile(cTRANSFERERR, 'Test Error Message');
 
   print('Tasks in queue: ${PlayerTaskFile.vTaskQueue.length}');
 }

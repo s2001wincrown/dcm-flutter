@@ -39,6 +39,8 @@ class ChannelScheduleFile extends XmlFile {
     return path.join(AppGlobal.monthPath, '$channelName$month.xml');
   }
 
+  ChannelScheduleFile() : super(_scheduleRoot);
+
   @override
   bool load(String szFilePath,
       [String? szRootItemName, bool bDecrypt = false]) {
@@ -527,10 +529,6 @@ class ChannelScheduleFile extends XmlFile {
     }
 
     return true;
-  }
-
-  XmlItem newItem(String name) {
-    return newItem(name);
   }
 
   bool _parseChannelScheduleFile(

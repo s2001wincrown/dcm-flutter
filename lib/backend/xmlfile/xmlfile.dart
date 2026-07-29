@@ -215,6 +215,13 @@ class XmlFile {
       for (var attribute in element.attributes) {
         xi.addItem(attribute.name.local, attribute.value);
       }
+
+      var nodeText = element.children
+          .where((e) => e.nodeType == xml.XmlNodeType.TEXT)
+          .firstOrNull;
+      if (nodeText != null) {
+        xi.setValue(nodeText.value);
+      }
     }
 
     for (var child in pNode.children) {
@@ -234,8 +241,7 @@ class XmlFile {
           nType = XiType.cdata;
         }*/
         if (cdata == null) {
-          XmlItem? xiAdd =
-              xi.addItem(element.name.local, element.innerText, nType);
+          XmlItem? xiAdd = xi.addItem(element.name.local, '', nType);
           parseItem(xiAdd!, element);
         } else {
           nType = XiType.cdata;
@@ -243,8 +249,8 @@ class XmlFile {
         }
       } else {
         // if (child.nodeType == xml.XmlNodeType.TEXT)
-        logD('child attrib: ${child.toXmlString()}');
-        xi.setValue(child.toXmlString());
+        logD('child attrib: ${child.innerText}', 'XmlFile');
+        xi.setValue(child.innerText);
         xi.setType(XiType.attrib);
       }
     }
@@ -269,8 +275,9 @@ class XmlFile {
 
   void exportItem(XmlItem pItem, xml.XmlBuilder builder) {
     if (pItem.getValue().isNotEmpty) {
-      //logI(
-      //    'Export current item: ${pItem.getName()}, value: ${pItem.getValue()}');
+      /*logI(
+          'Export current item: ${pItem.getName()}, value: ${pItem.getValue()}',
+          'XmlFile');*/
       builder.text(pItem.getValue());
     }
 
@@ -288,8 +295,10 @@ class XmlFile {
       } else {
         XmlItem? pXIChild = pos.current;
         while (pXIChild != null) {
+          sItem = pXIChild.getName();
           /*logI(
-              'exportItem element: $sItem, value: ${pXIChild.getValue()}, item count: ${pXIChild.getItemCount()}');*/
+              'exportItem element: $sItem, value: ${pXIChild.getValue()}, item count: ${pXIChild.getItemCount()}',
+              'XmlFile');*/
           builder.element(sItem, nest: () {
             exportItem(pXIChild!, builder);
           });

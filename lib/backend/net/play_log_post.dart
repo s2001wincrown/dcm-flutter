@@ -1269,7 +1269,8 @@ class PlayLogPostService {
     }
     strLink = Utils.addCMSParam(strLink);
 
-    return await PlayerLogFile.httpPostAction(strLink, strRequest);
+    return await PlayerLogFile.httpPostAction(
+        strLink, strRequest, bXML ? 'application/xml; charset=utf-8' : null);
   }
 
   Future<bool> usbLogPost() async {
@@ -1484,8 +1485,7 @@ class PlayLogPostService {
 
     String strCMSLink = AppGlobal.cmsUrl;
     strCMSLink = fADDSLASH(strCMSLink);
-    strCMSLink += cmsPLAYERLOG2URL;
-    strCMSLink += '?$strRequest1';
+    strCMSLink += '$cmsPLAYERLOG2URL?$strRequest1';
     strCMSLink = Utils.addCMSParam(strCMSLink);
 
     var result = await PlayerLogFile.httpPostAction(strCMSLink, '');
@@ -1562,7 +1562,7 @@ class PlayLogPostService {
     _pendingUploads.addLast(url);
   }
 
-  static void updateShutdown() async {
+  static Future<void> updateShutdown() async {
     if (!isEnabled(PlayLogPostFlag.playerLog1)) {
       return;
     }
@@ -1578,34 +1578,39 @@ class PlayLogPostService {
       await for (FileSystemEntity entity in dir.list(recursive: false)) {
         if (entity is File &&
             !path.extension(entity.path).toLowerCase().endsWith('.txt')) {
-          logI('''Find Player log file: '${entity.path}'.''');
+          logI('''Find Player log file: '${entity.path}'.''', syncTag);
           try {
             var logFile = File(entity.path);
             String strRequest = await logFile.readAsString();
             logI(
-                '''Load Player log file: '${entity.path}' successful; Content: $strRequest''');
+                '''Load Player log file: '${entity.path}' successful; Content: $strRequest''',
+                syncTag);
             if (strRequest.isNotEmpty &&
                 strRequest
                     .substring(0, cHTTPUNIQUEKEY.length)
                     .equalsIgnoreCase(cHTTPUNIQUEKEY)) {
               if (await updatePlayerLog(request: strRequest)) {
-                logI('''Upate Player log file: '${entity.path}' successful.''');
-                FileUtils.deleteFile(logFile, false);
+                logI('''Upate Player log file: '${entity.path}' successful.''',
+                    syncTag);
+                await FileUtils.deleteFile(logFile, false);
               } else {
-                logI('''Upate Player log file: '${entity.path}' failure.''');
+                logI('''Upate Player log file: '${entity.path}' failure.''',
+                    syncTag);
               }
             } else {
-              FileUtils.deleteFile(logFile, false);
+              await FileUtils.deleteFile(logFile, false);
             }
           } catch (e) {
-            logE('Failed to read Player log file: ${entity.path}. Error: $e');
+            logE('Failed to read Player log file: ${entity.path}. Error: $e',
+                syncTag);
           }
         }
       }
     }
   }
 
-  static void updateContentLog(String strUniqueName, String strPlayer) async {
+  static Future<void> updateContentLog(
+      String strUniqueName, String strPlayer) async {
     if (!isEnabled(PlayLogPostFlag.contentLog)) {
       return;
     }
@@ -1633,7 +1638,7 @@ class PlayLogPostService {
     try {
       strContentLog = await File(strFilePath).readAsString();
     } catch (e) {
-      logE('Failed to read Content log file: $strFilePath. Error: $e');
+      logE('Failed to read Content log file: $strFilePath. Error: $e', syncTag);
     }
 
     if (strContentLog == null || !strContentLog.contains('<FileList')) {
@@ -1651,14 +1656,15 @@ class PlayLogPostService {
     String strContentLogApi = AppGlobal.cmsUrl;
     strContentLogApi = fADDSLASH(strContentLogApi);
     strContentLogApi += cmsCONTENTLOGURL;
+    String strRequest = '$cHTTPUNIQUEKEY=$strUniqueName';
     String strContentLogLink =
-        '$strContentLogApi?$cHTTPUNIQUEKEY=$strUniqueName'; // % strContentLogApi % HTTP_UNIQUE_KEY % strUniqueName;
+        '$strContentLogApi?${Utils.urlEscape(strRequest)}'; // % strContentLogApi % HTTP_UNIQUE_KEY % strUniqueName;
     strContentLogLink = Utils.addCMSParam(strContentLogLink);
 
     int nRes = 0;
     String strResult = 'HTTP Post failure';
-    var result =
-        await PlayerLogFile.httpPostAction(strContentLogLink, strContentLog);
+    var result = await PlayerLogFile.httpPostAction(
+        strContentLogLink, strContentLog, 'application/xml; charset=utf-8');
     if (result.status) {
       strResult = result.result!;
       if (strResult.equalsIgnoreCase('Successful')) {
@@ -1687,7 +1693,8 @@ class PlayLogPostService {
     return nRes;
   }
 
-  static void updateDCMUpdateLog(String strUniqueName, String strPlayer) async {
+  static Future<void> updateDCMUpdateLog(
+      String strUniqueName, String strPlayer) async {
     String strLogPath =
         path.join(AppGlobal.logPath, 'DCMUpdateLog'); //AppGlobal.strLogPath;
 
@@ -1737,14 +1744,15 @@ class PlayLogPostService {
     String patchUpdateLogHTTP = AppGlobal.cmsUrl;
     patchUpdateLogHTTP = fADDSLASH(patchUpdateLogHTTP);
     patchUpdateLogHTTP += cmsCONTENTLOGURL;
+    String strRequest = '$cHTTPUNIQUEKEY=$strUniqueName';
     String strContentLogLink =
-        '$patchUpdateLogHTTP?$cHTTPUNIQUEKEY=$strUniqueName'; // % strContentLogApi % HTTP_UNIQUE_KEY % strUniqueName;
+        '$patchUpdateLogHTTP?${Utils.urlEscape(strRequest)}'; // % strContentLogApi % HTTP_UNIQUE_KEY % strUniqueName;
     strContentLogLink = Utils.addCMSParam(strContentLogLink);
 
     int nRes = 0;
     String strResult = 'HTTP Post failure';
-    var result =
-        await PlayerLogFile.httpPostAction(strContentLogLink, strMessage);
+    var result = await PlayerLogFile.httpPostAction(
+        strContentLogLink, strMessage, 'application/xml; charset=utf-8');
     if (result.status) {
       strResult = result.result!;
       if (strResult.equalsIgnoreCase('Successful')) {
@@ -1754,7 +1762,8 @@ class PlayLogPostService {
     } else {
       await File(strFilePath).delete();
     }
-    logI('''Upate Patch update log file: '$strFilePath' $strResult''');
+    logI('''Upate Patch update log file: '$strFilePath', result: $strResult''',
+        syncTag);
 
     return nRes;
   }
@@ -1769,14 +1778,15 @@ class PlayLogPostService {
     String strRootHttpLink = AppGlobal.cmsUrl;
     strRootHttpLink = fADDSLASH(strRootHttpLink);
     strRootHttpLink += cmsCONTENTLOGURL;
+    String strRequest = '$cHTTPUNIQUEKEY=$strUniqueName';
     String strContentLogLink =
-        '$strRootHttpLink?$cHTTPUNIQUEKEY=$strUniqueName'; // % strContentLogApi % HTTP_UNIQUE_KEY % strUniqueName;
+        '$strRootHttpLink?${Utils.urlEscape(strRequest)}'; // % strContentLogApi % HTTP_UNIQUE_KEY % strUniqueName;
     strContentLogLink = Utils.addCMSParam(strContentLogLink);
 
     int nRes = 0;
     String strResult = 'HTTP Post failure';
-    var result =
-        await PlayerLogFile.httpPostAction(strRootHttpLink, strMessage);
+    var result = await PlayerLogFile.httpPostAction(
+        strRootHttpLink, strMessage, 'application/xml; charset=utf-8');
     if (result.status) {
       strResult = result.result!;
       if (strResult.equalsIgnoreCase('Successful')) {
@@ -1787,7 +1797,7 @@ class PlayLogPostService {
     return nRes > 0;
   }
 
-  static void updatePlayerLogRetry() async {
+  static Future<void> updatePlayerLogRetry() async {
     if (!ContentSyncService().bStartupTime &&
         _nPlayerLogRetryCnt < AppGlobal.httpRetryTimes) {
       String strRequest =
@@ -1799,13 +1809,12 @@ class PlayLogPostService {
     }
   }
 
-  static void updatePlayerLog2() async {
+  static Future<void> updatePlayerLog2() async {
     if (isPlayerLog2Post()) {
       var diskUsage = await FileUtils.getDiskUsage();
       String strRequest =
           '''$cHTTPUNIQUEKEY=${globalPlayer.strUniqueName}&dtLastSyncTime=${DateFormat('yyyy-MM-dd HH:mm:ss').format(PlayerTaskFile.dtSyncTime)}
       &strMACID=$strMACID&strDeviceID=$strDeviceID&strMACAddress=${globalPlayer.strMACAddress}&strMACAddress1=${globalPlayer.strMACAddress1}&nUsedSpace=$diskUsage''';
-
       await updatePlayerLog2Retry(request: strRequest);
     }
   }

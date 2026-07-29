@@ -60,7 +60,7 @@ class DailyScheduleData {
     var monthFile = File(strSource);
     if (await monthFile.exists()) {
       String strLocalFile =
-          PlayerPathService.getExistedTempPath(cDCMCALENDARTYPE) ?? '';
+          await PlayerPathService.getExistedTempPath(cDCMCALENDARTYPE) ?? '';
       strLocalFile = path.join(strLocalFile, '$strMonth.xml');
       try {
         await monthFile.copy(strLocalFile);
@@ -79,7 +79,7 @@ class DailyScheduleData {
       var monthFile = File(strSource);
       if (await monthFile.exists()) {
         String strLocalFile =
-            PlayerPathService.getExistedTempPath(cDCMCALENDARTYPE) ?? '';
+            await PlayerPathService.getExistedTempPath(cDCMCALENDARTYPE) ?? '';
         strLocalFile = path.join(strLocalFile, '$strMonth.xml');
         try {
           await monthFile.copy(strLocalFile);
@@ -96,8 +96,8 @@ class DailyScheduleData {
   }
 
   bool isTodayInclude() {
-    String strMonth = DateFormat('yyyyMM').format(DateTime.now());
-    if (strMonth == strMonth) {
+    String currMonth = DateFormat('yyyyMM').format(DateTime.now());
+    if (strMonth == currMonth) {
       String strDay = '${DateTime.now().day}';
       for (int i = 0; i < arrDay.length; i++) {
         if (arrDay[i] == strDay) {
@@ -123,10 +123,9 @@ class DailyScheduleData {
 
   Future<bool> addEventToMonthSchedule() async {
     String strTempFile =
-        PlayerPathService.getExistedTempPath(cDCMCALENDARTYPE) ?? '';
+        await PlayerPathService.getExistedTempPath(cDCMCALENDARTYPE) ?? '';
     String strDestFile = path.join(strTempFile, '$strMonth.xml');
     String strLogFile = path.join(AppGlobal.ftpSettingPath, 'ftperror.xml');
-    ;
 
     String strDestChannel = '';
     ChannelScheduleFile destfile = ChannelScheduleFile();
@@ -284,7 +283,7 @@ class DailyScheduleData {
   Future<bool> parseCalendarInfo(DailyScheduleFile dailySchedule) async {
     String strLocalFile;
     String strTempFile =
-        PlayerPathService.getExistedTempPath(cDCMCALENDARTYPE) ?? '';
+        await PlayerPathService.getExistedTempPath(cDCMCALENDARTYPE) ?? '';
 
     logI('''Parsing calendar information from temp folder:'$strTempFile'.''');
 
@@ -355,14 +354,15 @@ class DailyScheduleData {
   }
 
   Future<bool> getEventList(DailyScheduleFile dailySchedule) async {
-    writeDefaultEvent(dailySchedule);
+    await writeDefaultEvent(dailySchedule);
     String strTempFile =
-        PlayerPathService.getExistedTempPath(cDCMCALENDARTYPE) ?? '';
+        await PlayerPathService.getExistedTempPath(cDCMCALENDARTYPE) ?? '';
     String strDestFile = path.join(strTempFile, '$strMonth.xml');
     String strLogFile = path.join(AppGlobal.ftpSettingPath, 'ftperror.xml');
 
     logI(
-        '''Start get event list from schedule file from temp folder:'$strTempFile'\n''');
+        '''Start get event list from schedule file temp folder: '$strTempFile'\n''',
+        syncTag);
 
     ChannelScheduleFile destfile = ChannelScheduleFile();
     bool bInclude = isTodayInclude();
@@ -392,7 +392,7 @@ class DailyScheduleData {
       for (int i = 0; i < arrDay.length; i++) {
         int nDay = int.parse(arrDay[i]);
         String strDate =
-            '${arrDay[i]}/${strMonth.substring(4, 6)}/${strMonth.substring(0, 4)}';
+            '${arrDay[i].padLeft(2, '0')}/${strMonth.substring(4, 6)}/${strMonth.substring(0, 4)}';
         DateTime? dtDate = fromDateTimeFormat('$strDate 00:00:00');
 
         List<String> arrOutputs = [];
@@ -400,8 +400,8 @@ class DailyScheduleData {
         if (nOutputs > 1) {
           List<Pair<String, String>> aItems = [];
           for (int nOutput = 0; nOutput < nOutputs; nOutput++) {
-            String strEvent = '';
-            if (dailySchedule.getEventByOutput(strEvent, dtDate!, nOutput)) {
+            String strEvent = dailySchedule.getEventByOutput(dtDate!, nOutput);
+            if (strEvent.isNotEmpty) {
               addToEventList(strEvent);
             }
             if (strEvent.isEmpty && await hasDCMPlay(bDCMPlay)) {
@@ -434,31 +434,30 @@ class DailyScheduleData {
           String strInfo = '';
           int nPMethod = 0;
 
+          List<Pair<String, String>> arrEvents = [];
+          XmlItem? pDayItem = dailySchedule.getDayItemByOutput(dtDate: dtDate);
+          if (pDayItem != null) {
+            strEvent = dailySchedule.getEvent(pDayItem);
+            arrEvents = dailySchedule.getEvents(pDayItem);
+            nPMethod = dailySchedule.getPMethod(pDayItem);
+          }
+          if (strEvent.isEmpty &&
+              arrEvents.isEmpty &&
+              await hasDCMPlay(bDCMPlay)) {
+            strEvent = 'dcmplay';
+          }
+
+          if (bInclude && nDay == nToday) {
+            _strTodayEventNew = strEvent;
+          }
+          if (arrEvents.isNotEmpty) {
+            addToEventLists(arrEvents);
+          } else {
+            addToEventList(strEvent);
+          }
+
           XmlItem? hNewItem = destfile.getChannelDayItem(nDay, hChannelDest);
           if (hNewItem != null) {
-            List<Pair<String, String>> arrEvents = [];
-            XmlItem? pDayItem =
-                dailySchedule.getDayItemByOutput(dtDate: dtDate);
-            if (pDayItem != null) {
-              strEvent = dailySchedule.getEvent(pDayItem);
-              arrEvents = dailySchedule.getEvents(pDayItem);
-              nPMethod = dailySchedule.getPMethod(pDayItem);
-            }
-            if (strEvent.isEmpty &&
-                arrEvents.isEmpty &&
-                await hasDCMPlay(bDCMPlay)) {
-              strEvent = 'dcmplay';
-            }
-
-            if (bInclude && nDay == nToday) {
-              _strTodayEventNew = strEvent;
-            }
-            if (arrEvents.isNotEmpty) {
-              addToEventLists(arrEvents);
-            } else {
-              addToEventList(strEvent);
-            }
-
             destfile.setChannelScheduleEvent(hNewItem, strEvent);
             destfile.setChannelScheduleInfo(hNewItem, strInfo);
             destfile.setChannelSchedulePlayMeth(hNewItem, nPMethod);
@@ -477,7 +476,7 @@ class DailyScheduleData {
       destfile.setNextUniqueID(destfile.getNextUniqueID());
       destfile.save(strDestFile);
 
-      return (genOldMonthSchedule(destfile) == true);
+      return (await genOldMonthSchedule(destfile));
     }
 
     return false;
@@ -503,7 +502,7 @@ class DailyScheduleData {
     }
   }
 
-  bool genOldMonthSchedule(ChannelScheduleFile destfile) {
+  Future<bool> genOldMonthSchedule(ChannelScheduleFile destfile) async {
     XmlItem? hScheduleItem = destfile.getChannelScheduleItem(null, bNew: false);
     List<DayInfoData> lstDayInfo = [];
     if (hScheduleItem != null) {
@@ -523,7 +522,7 @@ class DailyScheduleData {
     }
 
     String strTempFile =
-        PlayerPathService.getExistedTempPath(cDCMMONTHTYPE) ?? '';
+        await PlayerPathService.getExistedTempPath(cDCMMONTHTYPE) ?? '';
     String strFileName = path.join(strTempFile, '$strMonth.xml');
 
     bool bSuccess = false;

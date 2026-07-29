@@ -370,7 +370,7 @@ class TransferActionService {
         logE(
             '''Generate file list from Site Playlist '$strSitePlaylists' failure!''',
             syncTag);
-        PlayerLogFile.writeLogFile(cTRANSFEROTHERERR,
+        await PlayerLogFile.writeLogFile(cTRANSFEROTHERERR,
             '''Generate file list from Site Playlist '$strSitePlaylists' failure!''');
 
         return false;
@@ -485,7 +485,7 @@ class TransferActionService {
         logE(
             '''Generate file list from Content Lists '$strContentLists' failure!''',
             syncTag);
-        PlayerLogFile.writeLogFile(cTRANSFEROTHERERR,
+        await PlayerLogFile.writeLogFile(cTRANSFEROTHERERR,
             '''Generate file list from Content Lists '$strContentLists' failure!''');
 
         return false;
@@ -514,7 +514,7 @@ class TransferActionService {
 
     String strResult = '';
     String strRequest;
-    DateTime dtStart = _dtStartFtpTime!.add(const Duration(days: 1));
+    DateTime dtStart = _dtStartFtpTime.add(const Duration(days: 1));
     strRequest =
         'p=${globalPlayer.strName}&d=$nSyncPeriod&ds=${DateFormat('yyyyMMdd').format(dtStart)}';
     String strLink = AppGlobal.cmsUrl;
@@ -692,7 +692,7 @@ class TransferActionService {
         logE(
             '''Event Display: Parse XML result for '${globalPlayer.strName}' failure!''',
             syncTag);
-        PlayerLogFile.writeLogFile(cTRANSFEROTHERERR,
+        await PlayerLogFile.writeLogFile(cTRANSFEROTHERERR,
             '''Event Display: Parse XML result for '${globalPlayer.strName}' failure!''');
 
         return false;
@@ -701,7 +701,7 @@ class TransferActionService {
       logE(
           '''Event Display: Generate file list for '${globalPlayer.strName}' failure!''',
           syncTag);
-      PlayerLogFile.writeLogFile(cTRANSFEROTHERERR,
+      await PlayerLogFile.writeLogFile(cTRANSFEROTHERERR,
           '''Event Display: Generate file list for '${globalPlayer.strName}' failure!''');
 
       return false;
@@ -718,86 +718,94 @@ class TransferActionService {
   /// *****************************************************************
   Future<bool> downloadDailySchedule() async {
     DailyScheduleData.clear();
-    if ((dwSyncContent & cSyncDCMDATA) > 0) {
-      bool bOK = false;
-      await PlayerPathService.getLocalPath(cDCMMONTHTYPE, true);
-      await PlayerPathService.getLocalPath(cDCMCALENDARTYPE, true);
-      getChannelList(lstDailySchedule: _lstDailySchedule);
+    try {
+      if ((dwSyncContent & cSyncDCMDATA) > 0) {
+        bool bOK = false;
+        await PlayerPathService.getLocalPath(cDCMMONTHTYPE, true);
+        await PlayerPathService.getLocalPath(cDCMCALENDARTYPE, true);
+        var result = await getChannelList(false);
+        if (result.lstDailySchedule != null) {
+          _lstDailySchedule.addAll(result.lstDailySchedule!);
+        }
 
-      DailyScheduleFile dailySchedule = DailyScheduleFile();
-      if (_pTaskItem.dwJobStatus == FileTransferStatus.eTRANSFEREDCHANNEL) {
-        logI(
-            'Retrieving calendar and playlist information via HTTP\n', syncTag);
+        DailyScheduleFile dailySchedule = DailyScheduleFile();
+        if (_pTaskItem.dwJobStatus == FileTransferStatus.eTRANSFEREDCHANNEL) {
+          logI('Retrieving calendar and playlist information via HTTP\n',
+              syncTag);
 
-        String strRequest;
-        strRequest =
-            '$cHTTPUNIQUEKEY=${globalPlayer.strUniqueName}&nDays=$nSyncPeriod';
-        String strResult = '';
-        String strLink = AppGlobal.cmsUrl;
-        strLink = fADDSLASH(strLink);
-        strLink += cmsGETPLAYLISTURL;
-        strLink += ('?${Utils.urlEscape(strRequest)}');
-        strLink = Utils.addCMSParam(strLink);
-        var httpResult = await PlayerLogFile.httpPostAction(strLink, '');
-        if (httpResult.status) {
-          strResult = httpResult.result ?? '';
-          if (strResult.length > 11 &&
-              strResult.equalsIgnoreCase('No Playlist')) {
-            if (dailySchedule.loadXml(strResult)) {
-              dailySchedule.saveDailySchedule();
-              PlayerTaskFile.writeTaskFile(
-                  _pTaskItem, FileTransferStatus.eTRANSFEREDSCHEDULE);
-              bOK = true;
+          String strRequest =
+              '$cHTTPUNIQUEKEY=${globalPlayer.strUniqueName}&nDays=$nSyncPeriod';
+          String strResult = '';
+          String strLink = AppGlobal.cmsUrl;
+          strLink = fADDSLASH(strLink);
+          strLink += '$cmsGETPLAYLISTURL?${Utils.urlEscape(strRequest)}';
+          strLink = Utils.addCMSParam(strLink);
+          var httpResult = await PlayerLogFile.httpPostAction(strLink, '');
+          if (httpResult.status) {
+            strResult = httpResult.result ?? '';
+            if (strResult.length > 11 &&
+                !strResult.equalsIgnoreCase('No Playlist')) {
+              if (dailySchedule.loadXml(strResult)) {
+                dailySchedule.saveDailySchedule();
+                await PlayerTaskFile.writeTaskFile(
+                    _pTaskItem, FileTransferStatus.eTRANSFEREDSCHEDULE);
+                bOK = true;
+              } else {
+                logE('DownloadDailySchedule - Load XML failure!', syncTag);
+              }
             } else {
-              logE('DownloadDailySchedule - Load XML failure!', syncTag);
+              logE(
+                  '''DownloadDailySchedule; Result: '$strResult'; please make sure channel mapping for the player!''',
+                  syncTag);
             }
           } else {
-            logE(
-                '''DownloadDailySchedule; Result: '$strResult'; please make sure channel mapping for the player!''',
-                syncTag);
+            logE('DownloadDailySchedule; HTTP Get failure!', syncTag);
           }
         } else {
-          logE('DownloadDailySchedule; HTTP Get failure!', syncTag);
+          bOK = dailySchedule.loadDailySchedule();
         }
-      } else {
-        bOK = dailySchedule.loadDailySchedule();
-      }
-      if (!bOK) {
-        PlayerLogFile.writeLogFile(
-            cTRANSFEROTHERERR, 'Get calendar and playlist via HTTP failure!');
-        return false;
-      }
+        if (!bOK) {
+          await PlayerLogFile.writeLogFile(
+              cTRANSFEROTHERERR, 'Get calendar and playlist via HTTP failure!');
+          return false;
+        }
 
-      if (_pTaskItem.dwJobStatus == FileTransferStatus.eTRANSFEREDSCHEDULE) {
-        logI('Start Generate calendar xml file\n', syncTag);
-        //clearScheduleLog();
-        for (var it in _lstDailySchedule) {
-          DailyScheduleData pData = it;
-          pData.copyMonthFile();
-          if (!await pData.getEventList(dailySchedule)) {
-            logE('''Generate calendar file '${pData.strMonth}' failure''');
-            PlayerLogFile.writeLogFile(cTRANSFEROTHERERR,
-                '''Generate calendar file '${pData.strMonth}' failure''');
-            return false;
-            //AfxMessageBox('DownloadMonthSchedule - successfully!!!');
-          } else {
-            logI('''Generate calendar file '${pData.strMonth}' successfully''',
-                syncTag);
+        if (_pTaskItem.dwJobStatus == FileTransferStatus.eTRANSFEREDSCHEDULE) {
+          logI('Start Generate calendar xml file\n', syncTag);
+          //clearScheduleLog();
+          for (var it in _lstDailySchedule) {
+            DailyScheduleData pData = it;
+            await pData.copyMonthFile();
+            if (!await pData.getEventList(dailySchedule)) {
+              logE('''Generate calendar file '${pData.strMonth}' failure''');
+              await PlayerLogFile.writeLogFile(cTRANSFEROTHERERR,
+                  '''Generate calendar file '${pData.strMonth}' failure''');
+              return false;
+              //AfxMessageBox('DownloadMonthSchedule - successfully!!!');
+            } else {
+              logI(
+                  '''Generate calendar file '${pData.strMonth}' successfully''',
+                  syncTag);
 
-            PlayerLogFile.writeLogFile(cTRANSFEROTHERMSG,
-                '''Generate calendar file '${pData.strMonth}' successfully''');
+              await PlayerLogFile.writeLogFile(cTRANSFEROTHERMSG,
+                  '''Generate calendar file '${pData.strMonth}' successfully''');
+            }
           }
+          await PlayerTaskFile.writeTaskFile(
+              _pTaskItem, FileTransferStatus.eTRANSFEREDEVENT);
+        } else {
+          DailyScheduleData.arrEvent = dailySchedule.getEventList();
         }
-        PlayerTaskFile.writeTaskFile(
-            _pTaskItem, FileTransferStatus.eTRANSFEREDEVENT);
-      } else {
-        DailyScheduleData.arrEvent = dailySchedule.getEventList();
       }
-    }
 
-    if ((dwSyncContent & cSyncDDEDATA) > 0 &&
-        (dwSyncContent & cSyncDCMDATA) == 0) {
-      //return DownloadDDEFile();
+      if ((dwSyncContent & cSyncDDEDATA) > 0 &&
+          (dwSyncContent & cSyncDCMDATA) == 0) {
+        //return DownloadDDEFile();
+      }
+    } catch (e, stack) {
+      logE('DownloadDailySchedule: $e, stack: $stack', syncTag);
+
+      return false;
     }
 
     return true;
@@ -883,7 +891,7 @@ class TransferActionService {
             XmlFilePro eventList = XmlFilePro('EventList');
             if (eventList.loadXml(strResult)) {
               String str = eventList.export();
-              PlayerLogFile.writeLogFile(99999, str);
+              await PlayerLogFile.writeLogFile(99999, str);
 
               bLoad = true;
               int nEventDisplay =
@@ -1077,8 +1085,8 @@ class TransferActionService {
   }
 
   Future<bool> genDailySchedule() async {
-    PlayerPathService.getLocalPath(cDCMMONTHTYPE, true);
-    PlayerPathService.getLocalPath(cDCMCALENDARTYPE, true);
+    await PlayerPathService.getLocalPath(cDCMMONTHTYPE, true);
+    await PlayerPathService.getLocalPath(cDCMCALENDARTYPE, true);
 
     // playlist update
     if (dwSyncContent == cSyncPLAYLISTUPDATE) {
@@ -1091,7 +1099,7 @@ class TransferActionService {
           (_pTaskItem.dwJobType == JobItemType.eAUTO))) {
         if (_pTaskItem.dwJobStatus.value <
             FileTransferStatus.eTRANSFEREDEVENT.value) {
-          PlayerTaskFile.writeTaskFile(
+          await PlayerTaskFile.writeTaskFile(
               _pTaskItem, FileTransferStatus.eTRANSFEREDEVENT);
         }
 
@@ -1099,7 +1107,7 @@ class TransferActionService {
       }
 
       logE('Get room event file list failure', syncTag);
-      PlayerLogFile.writeLogFile(
+      await PlayerLogFile.writeLogFile(
           cTRANSFEROTHERERR, 'Get room event file list failure');
 
       return false;
@@ -1111,7 +1119,7 @@ class TransferActionService {
         //FindNeedRemoveFiles();
         if (_pTaskItem.dwJobStatus.value <
             FileTransferStatus.eTRANSFEREDEVENT.value) {
-          PlayerTaskFile.writeTaskFile(
+          await PlayerTaskFile.writeTaskFile(
               _pTaskItem, FileTransferStatus.eTRANSFEREDEVENT);
         }
 
@@ -1132,11 +1140,11 @@ class TransferActionService {
         String strLog =
             '''Package files: '${_pTaskItem.strSyncContent}', OS version:'${_pTaskItem.nSyncPeriod}' not match current player OS version: '${await Utils.getOSVersion()}'.''';
         logI(strLog, syncTag);
-        PlayLogPostService.updateAPUpdateLog(globalPlayer.strUniqueName,
+        await PlayLogPostService.updateAPUpdateLog(globalPlayer.strUniqueName,
             globalPlayer.strName, _strSyncContent, _strBatch, strLog, 0);
 
         _pTaskItem.nRetryCount = _pTaskItem.nRetries;
-        PlayerTaskFile.writeTaskFile(
+        await PlayerTaskFile.writeTaskFile(
             _pTaskItem, FileTransferStatus.eTRANSFERFAILED);
 
         return false;
@@ -1145,7 +1153,7 @@ class TransferActionService {
       if (await genDailyScheduleAppUpdate()) {
         if (_pTaskItem.dwJobStatus.value <
             FileTransferStatus.eTRANSFEREDEVENT.value) {
-          PlayerTaskFile.writeTaskFile(
+          await PlayerTaskFile.writeTaskFile(
               _pTaskItem, FileTransferStatus.eTRANSFEREDEVENT);
         }
 
@@ -1153,7 +1161,7 @@ class TransferActionService {
       }
       logE('Get DCM update file list failure', syncTag);
 
-      PlayerLogFile.writeLogFile(
+      await PlayerLogFile.writeLogFile(
           cTRANSFEROTHERERR, 'Get DCM Update file list failure');
 
       return false;
@@ -1162,7 +1170,7 @@ class TransferActionService {
       if (await genDailyScheduleDCMPlayerLog()) {
         if (_pTaskItem.dwJobStatus.value <
             FileTransferStatus.eTRANSFEREDEVENT.value) {
-          PlayerTaskFile.writeTaskFile(
+          await PlayerTaskFile.writeTaskFile(
               _pTaskItem, FileTransferStatus.eTRANSFEREDEVENT);
         }
 
@@ -1171,7 +1179,7 @@ class TransferActionService {
 
       logE('Generate DCMPlayer Log file list failure', syncTag);
 
-      PlayerLogFile.writeLogFile(
+      await PlayerLogFile.writeLogFile(
           cTRANSFEROTHERERR, 'Generate DCMPlayer Log file list failure');
 
       return false;
@@ -1180,14 +1188,14 @@ class TransferActionService {
       if (await genDailyScheduleDCMTransferLog()) {
         if (_pTaskItem.dwJobStatus.value <
             FileTransferStatus.eTRANSFEREDEVENT.value) {
-          PlayerTaskFile.writeTaskFile(
+          await PlayerTaskFile.writeTaskFile(
               _pTaskItem, FileTransferStatus.eTRANSFEREDEVENT);
         }
 
         return true;
       }
       logE('Generate DCMTransfer Log file list failure', syncTag);
-      PlayerLogFile.writeLogFile(
+      await PlayerLogFile.writeLogFile(
           cTRANSFEROTHERERR, 'Generate DCMTransfer Log file list failure');
 
       return false;
@@ -1204,10 +1212,10 @@ class TransferActionService {
       pData.arrDay.add(strDay);
       logI('Start Download calendar file\n', syncTag);
 
-      pData.copyMonthFile();
+      await pData.copyMonthFile();
       if (_pTaskItem.dwJobStatus.value <
           FileTransferStatus.eTRANSFEREDSCHEDULE.value) {
-        PlayerTaskFile.writeTaskFile(
+        await PlayerTaskFile.writeTaskFile(
             _pTaskItem, FileTransferStatus.eTRANSFEREDSCHEDULE);
       }
 
@@ -1216,7 +1224,7 @@ class TransferActionService {
       //todo : download event
       if (_pTaskItem.dwJobStatus.value <
           FileTransferStatus.eTRANSFEREDEVENT.value) {
-        PlayerTaskFile.writeTaskFile(
+        await PlayerTaskFile.writeTaskFile(
             _pTaskItem, FileTransferStatus.eTRANSFEREDEVENT);
       }
 
@@ -1287,7 +1295,7 @@ class TransferActionService {
       _fileListImpl.loadUnFilterFileList(_pTaskItem.strJobItem);
       _fileListImpl.filterReplaceFile(_pTaskItem.bReplaceFile);
       _fileListImpl.saveDownloadFileList(_pTaskItem.strJobItem);
-      PlayerTaskFile.writeTaskFile(
+      await PlayerTaskFile.writeTaskFile(
           _pTaskItem, FileTransferStatus.eFILTEREDFILELIST);
       _fileListImpl.calcTotalBytesToDownload();
       return true;
@@ -1397,19 +1405,19 @@ class TransferActionService {
     _fileListImpl.saveUnFilterFileList(_pTaskItem.strJobItem);
     if (await PlayerTaskFile.writeTaskFile(
         _pTaskItem, FileTransferStatus.eGENERATEDFILELIST)) {
-      deleteTempFile();
+      await deleteTempFile();
     }
     if (!(dwSyncContent == cSyncDCMPLAYERLOG ||
         dwSyncContent == cSyncDCMTRANSFERLOG)) {
-      _fileListImpl.filterReplaceFile(_pTaskItem.bReplaceFile);
+      await _fileListImpl.filterReplaceFile(_pTaskItem.bReplaceFile);
     }
-    _fileListImpl.saveDownloadFileList(_pTaskItem.strJobItem);
-    PlayerTaskFile.writeTaskFile(
+    await _fileListImpl.saveDownloadFileList(_pTaskItem.strJobItem);
+    await PlayerTaskFile.writeTaskFile(
         _pTaskItem, FileTransferStatus.eFILTEREDFILELIST);
     _fileListImpl.calcTotalBytesToDownload();
   }
 
-  bool isOverMaximumLimitSize() {
+  Future<bool> isOverMaximumLimitSize() async {
     if (_pTaskItem.nMaximumLimit == 0) {
       logI('maximum limit size: 0 MB; Ignore maximum limit size check!',
           syncTag);
@@ -1418,7 +1426,7 @@ class TransferActionService {
 
     if (PlayerLogFile.nTotalBytesToDownload >
         BigInt.from(_pTaskItem.nMaximumLimit * 1024 * 1024)) {
-      PlayerLogFile.writeLogFile(cTRANSFEROTHERERR,
+      await PlayerLogFile.writeLogFile(cTRANSFEROTHERERR,
           'Total Size: ${FileUtils.formatBytesToMb(PlayerLogFile.nTotalBytesToDownload)}MB over maximum limit size: ${_pTaskItem.nMaximumLimit}MB');
       logE(
           'Total Size: ${FileUtils.formatBytesToMb(PlayerLogFile.nTotalBytesToDownload)}MB over maximum limit size: ${_pTaskItem.nMaximumLimit}MB');
@@ -1447,7 +1455,7 @@ class TransferActionService {
           '''GenFileListByDailySchedule: '$strRequest'; Get file list failure!''',
           syncTag);
 
-      PlayerLogFile.writeLogFile(
+      await PlayerLogFile.writeLogFile(
           cTRANSFEROTHERERR, 'Get file list via HTTP failure!');
 
       return false;
@@ -1463,7 +1471,7 @@ class TransferActionService {
     if (!await getFileListViaHTTP(strRequest)) {
       logE('''GenFileListViaHTTP: '$strRequest'; Get file list failure!''',
           syncTag);
-      PlayerLogFile.writeLogFile(
+      await PlayerLogFile.writeLogFile(
           cTRANSFEROTHERERR, 'Get file list via HTTP failure!');
 
       return false;
@@ -1494,7 +1502,7 @@ class TransferActionService {
     if (!await getFileListViaHTTP(strRequest)) {
       logE('''GenRoomEventFileList: '$strRequest'; Get file list failure!''',
           syncTag);
-      PlayerLogFile.writeLogFile(
+      await PlayerLogFile.writeLogFile(
           cTRANSFEROTHERERR, 'Get file list via HTTP failure!');
 
       return false;
@@ -1503,7 +1511,7 @@ class TransferActionService {
     return true;
   }
 
-  void deleteTempFile() async {
+  Future<void> deleteTempFile() async {
     int i = 0;
     if (dwSyncContent == cSyncDDEDATA) {
       // && (!(dwSyncContent & cSyncDCMDATA)) && (dwSyncContent != cSyncEVENT_CONTENTLIST) && (dwSyncContent != cSyncEVENTDATA)
@@ -1586,7 +1594,7 @@ class TransferActionService {
       if (!await File(strFtpSettingFile).exists()) {
         String str = '''PlayList '$strFtpSettingFile' not exist in player!''';
         logE(str, syncTag);
-        PlayerLogFile.writeLogFile(cTRANSFEROTHERERR, str);
+        await PlayerLogFile.writeLogFile(cTRANSFEROTHERERR, str);
         return false;
       }
     }
@@ -1652,38 +1660,43 @@ class TransferActionService {
     return arrChannel;
   }
 
-  bool getChannelList(
-      {List<DailyScheduleData>? lstDailySchedule,
-      DailyScheduleFile? dailySchedule,
-      bool bCreateDailySchedule = true}) {
-    PlayerPathService.getExistedTempPath(cDCMCALENDARTYPE) ?? '';
+  Future<
+          ({
+            DailyScheduleFile? dailySchedule,
+            List<DailyScheduleData>? lstDailySchedule
+          })>
+      getChannelList(bool isDailyScheduleFile,
+          [bool bCreateDailySchedule = true]) async {
+    await PlayerPathService.getExistedTempPath(cDCMCALENDARTYPE);
     DateTime dtCurr = _dtStartFtpTime;
-    if (lstDailySchedule != null) {
+    if (!isDailyScheduleFile) {
+      List<DailyScheduleData> lstDailySchedule = [];
       for (int i = 0; i < nSyncPeriod; i++) {
         DateTime dtDate = dtCurr.add(Duration(days: i + 1));
         if (!addChannelDay(dtDate, lstDailySchedule)) {
           DailyScheduleData pData = DailyScheduleData();
 
           pData.strMonth = DateFormat('yyyyMM').format(dtDate);
-          String strDay = '${dtDate.day}';
-          pData.arrDay.add(strDay);
+          pData.arrDay.add('${dtDate.day}');
 
           lstDailySchedule.add(pData);
         }
       }
+      return (lstDailySchedule: lstDailySchedule, dailySchedule: null);
     } else {
+      DailyScheduleFile dailySchedule = DailyScheduleFile();
       for (int i = 0; i < nSyncPeriod; i++) {
         DateTime dtDate = dtCurr.add(Duration(days: i + 1));
         List<String> arrChannel;
         if (bCreateDailySchedule) {
-          arrChannel = getChannelListByDate(dtDate, dailySchedule!);
+          arrChannel = getChannelListByDate(dtDate, dailySchedule);
           if (arrChannel.isEmpty) {
-            return false;
+            return (lstDailySchedule: null, dailySchedule: null);
           }
         } else {
           arrChannel = dailySchedule!.getChannels(dtDate);
           if (arrChannel.isEmpty) {
-            return false;
+            return (lstDailySchedule: null, dailySchedule: null);
           }
         }
 
@@ -1695,14 +1708,12 @@ class TransferActionService {
 
             pData.arrChannelName.add(strChannel);
             pData.strMonth = DateFormat('yyyyMM').format(dtDate);
-            String strDay = '${dtDate.day}';
-            pData.arrDay.add(strDay);
+            pData.arrDay.add('${dtDate.day}');
           }
         }
       }
+      return (lstDailySchedule: null, dailySchedule: dailySchedule);
     }
-
-    return true;
   }
 
 /********************************************************************/
@@ -1724,14 +1735,14 @@ class TransferActionService {
         }
 
         bool bExisted = false;
+        String strDay = '${dtDate.day}';
         for (int i = 0; i < pData.arrDay.length; i++) {
-          if (int.parse(pData.arrDay[i]) == dtDate.day) {
+          if (pData.arrDay[i] == strDay) {
             bExisted = true;
             break;
           }
         }
         if (!bExisted) {
-          String strDay = '${dtDate.day}';
           pData.arrDay.add(strDay);
         }
 

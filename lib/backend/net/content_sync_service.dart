@@ -93,6 +93,7 @@ class ContentSyncService {
 
   Future<void> _pollTick() async {
     if (_pollInProgress) {
+      logW('Content sync status check InProgress', syncTag);
       return;
     }
     _pollInProgress = true;
@@ -105,7 +106,7 @@ class ContentSyncService {
 
   Future<void> _pollOnce() async {
     try {
-      await contentSyncStatusCheck();
+      await _contentSyncStatusCheck();
     } catch (e, stack) {
       logE('Content sync status check failed: $e', syncTag);
       stderr.writeln(stack);
@@ -145,11 +146,11 @@ class ContentSyncService {
       _bTransfering = false;
       if (PlayerLogFile.bSyncFail) {
         PlayerLogFile.bSyncFail = false;
-        flagRetryJob(AppGlobal.retryInterval);
+        await flagRetryJob(AppGlobal.retryInterval);
       } else {
         if (PlayerTaskFile.pCurrJob != null) {
           //m_dwJobStatus = TRANSFERED_TEMPFILE;
-          PlayerTaskFile.writeTaskFile(
+          await PlayerTaskFile.writeTaskFile(
               PlayerTaskFile.pCurrJob, FileTransferStatus.eTRANSFEREDTEMPFILE);
           await startTempFileCopy();
         }
@@ -158,7 +159,7 @@ class ContentSyncService {
     }
 
     if (!isTimeOuts()) {
-      PlayerTaskFile.resetSyncStatus();
+      await PlayerTaskFile.resetSyncStatus();
       return;
     }
   }
@@ -204,7 +205,7 @@ class ContentSyncService {
       var versionInfo = await Utils.uploadVersionInfo();
       _strVerInfo = versionInfo.strVerInfo;
       _strPlaylistVersion = versionInfo.strPlaylistVersion;
-      PlayerLogImpl.loadFTPLog();
+      await PlayerLogImpl.loadFTPLog();
 
       /*String strRequest = HTTP_PLAYERLOG) % HTTP_UNIQUE_KEY %
 					globalPlayer.strUniqueName % dtStartup.Format('%Y-%m-%d %H:%M:%S') % strPublicIP % strVerInfo % strImportVersion % strPlaylistVersion;*/
@@ -213,7 +214,7 @@ class ContentSyncService {
       bStartupTime =
           await PlayLogPostService.updatePlayerLog(request: strRequest);
 
-      PlayLogPostService.updateShutdown();
+      await PlayLogPostService.updateShutdown();
 
       //if (LoadFtpSetting())//globalPlayer.LoadFTPSetting() Modify by John 20/06/2007
       //{
@@ -236,12 +237,12 @@ class ContentSyncService {
 					{
 						flagRetryJob(0, false);
 					} else {
-						PlayerTaskFile.removeTask(PlayerTaskFile.pCurrJob!);
+						await PlayerTaskFile.removeTask(PlayerTaskFile.pCurrJob!);
 					}*/
         if (PlayerTaskFile.pCurrJob != null &&
             (!PlayerTaskFile.pCurrJob!.isTiming() ||
                 PlayerPathService.availableForACU())) {
-          flagRetryJob(0, false);
+          await flagRetryJob(0, false);
         }
       }
 
@@ -249,7 +250,7 @@ class ContentSyncService {
       //StartMessageThread();
       //StartRLTContentThread();
 
-      PlayLogPostService.updateDCMUpdateLog(
+      await PlayLogPostService.updateDCMUpdateLog(
           globalPlayer.strUniqueName, globalPlayer.strName);
 
       if (PlayLogPostService.hasLogPost()) {
@@ -263,7 +264,7 @@ class ContentSyncService {
     //StartTimer(ID_TIMER_STATUS_CHECK, PlayerPathService.dwStatusCheckInterval);
   }
 
-  Future<void> contentSyncStatusCheck() async {
+  Future<void> _contentSyncStatusCheck() async {
     //todo wifi check
     //FTPMisc::NetworkCheck();
 
@@ -290,38 +291,39 @@ class ContentSyncService {
       logW('Try to reset all tasks', syncTag);
       _bTransfering = false;
       await _workQueue.resetQueue();
-      PlayerTaskFile.resetTasks();
+      await PlayerTaskFile.resetTasks();
     }
 
     logI(
-        '''DCM Task check: '${globalPlayer.strUniqueName}'; CMS url: '${AppGlobal.cmsUrl}'.''',
+        '''DCM Task check: '${globalPlayer.strUniqueName}'; CMS url: '${AppGlobal.cmsUrl}', _bTransfering: '$_bTransfering'.''',
         syncTag);
 
-    bool bSyncing = false;
     if (globalPlayer.strUniqueName.isNotEmpty) {
       await PlayerTaskFile.getTaskFromServer();
+      logW('Try to reset all tasks1', syncTag);
       await processCMDTask();
+      logW('Try to reset all tasks2', syncTag);
 
-      bSyncing = _bTransfering;
-      PlayLogPostService.updatePlayerLog2();
-
-      PlayLogPostService.updateShutdown();
-      PlayLogPostService.updateContentLog(
+      await PlayLogPostService.updatePlayerLog2();
+      logW('Try to reset all tasks3', syncTag);
+      await PlayLogPostService.updateShutdown();
+      logW('Try to reset all tasks4', syncTag);
+      await PlayLogPostService.updateContentLog(
           globalPlayer.strUniqueName, globalPlayer.strName);
-
+      logW('Try to reset all tasks5', syncTag);
       if (PlayerTaskFile.pCurrJob != null) {
         if (PlayerTaskFile.pCurrJob!.nAction == 2) {
           await _workQueue.resetQueue();
           _bTransfering = false;
-          PlayerTaskFile.removeTask(PlayerTaskFile.pCurrJob!);
+          await PlayerTaskFile.removeTask(PlayerTaskFile.pCurrJob!);
         } else {
-          PlayerLogFile.timeForSyncStatusUpdate();
+          await PlayerLogFile.timeForSyncStatusUpdate();
         }
       }
-
-      PlayLogPostService.updatePlayerLogRetry();
-
-      if (!bSyncing) {
+      logW('Try to reset all tasks6', syncTag);
+      await PlayLogPostService.updatePlayerLogRetry();
+      logW('Try to reset all tasks7', syncTag);
+      if (!_bTransfering) {
         await startSyncAction();
       }
     }
@@ -332,39 +334,40 @@ class ContentSyncService {
     //startUploadThread();
   }
 
-  bool flagRetryJob(int nRetryInterval, [bool bWriteTaskFile = true]) {
+  Future<bool> flagRetryJob(int nRetryInterval,
+      [bool bWriteTaskFile = true]) async {
     if (PlayerTaskFile.pCurrJob == null) {
       return false;
     }
 
     if (PlayerTaskFile.pCurrJob!.taskFailed()) {
       //dwJobStatus = FileTransferStatus.eTRANSFERFAILED;
-      PlayerTaskFile.writeTaskFile(
+      await PlayerTaskFile.writeTaskFile(
           PlayerTaskFile.pCurrJob, FileTransferStatus.eTRANSFERFAILED);
 
       String strBatch = PlayerTaskFile.pCurrJob!.strJobItem;
       //int dwStatus = PlayerTaskFile.pCurrJob!.dwJobStatus;
       //SAFE_DELETE(PlayerTaskFile.pCurrJob);
-      PlayerTaskFile.removeTask(PlayerTaskFile.pCurrJob!);
+      await PlayerTaskFile.removeTask(PlayerTaskFile.pCurrJob!);
 
-      PlayerPathService().removeAllTempFile(strBatch);
-      PlayerPathService().copyFileFinish(false);
+      await PlayerPathService().removeAllTempFile(strBatch);
+      await PlayerPathService().copyFileFinish(false);
 
-      PlayerLogFile.closeLogFile('Transfer Failure!');
+      await PlayerLogFile.closeLogFile('Transfer Failure!');
 
       _bTransfering = false;
 
       return false;
     }
     if (bWriteTaskFile) {
-      PlayerTaskFile.writeTaskFile();
+      await PlayerTaskFile.writeTaskFile();
     }
 
     PlayerTaskFile.pCurrJob!.retry();
     String strLog;
     strLog =
         'Transfer Failure: Wait for retry (Attempt ${PlayerTaskFile.pCurrJob!.nRetryCount} of ${PlayerTaskFile.pCurrJob!.nRetries})';
-    PlayerLogFile.closeLogFile(strLog, bFinished: false);
+    await PlayerLogFile.closeLogFile(strLog, bFinished: false);
 
     //DateTime dtCurr = DateTime.now() + Duration(0, 0, 0, nRetryInterval);
     DateTime dtCurr = DateTime.now().add(Duration(seconds: nRetryInterval));
@@ -401,7 +404,7 @@ class ContentSyncService {
 
           return true;
         } else {
-          PlayerTaskFile.removeTask(pCurrent);
+          await PlayerTaskFile.removeTask(pCurrent);
         }
       }
     }
@@ -454,7 +457,7 @@ class ContentSyncService {
         PlayerTaskFile.pCurrJob!.dwJobStatus =
             FileTransferStatus.eTRANSFERINGTEMPFILE;
         //_dwJobStatus = FileTransferStatus.eTRANSFERINGTEMPFILE;
-        flagRetryJob(AppGlobal.retryInterval);
+        await flagRetryJob(AppGlobal.retryInterval);
       }
     }
   }
@@ -472,7 +475,7 @@ class ContentSyncService {
         PlayerTaskFile.writeTaskFile(
             PlayerTaskFile.pCurrJob, FileTransferStatus.eTRANSFERSUCCESS);
 
-        PlayerPathService().copyFileFinish();
+        await PlayerPathService().copyFileFinish();
       } else {
         //PlayerPathService().SaveDownloadFileList();
         if (PlayerPathService().nCopyCount > AppGlobal.tempFileCopyRetries) {
@@ -489,8 +492,8 @@ class ContentSyncService {
   #endif*/
           //PlayerPathService().CopyFileFinish(false);
           //PlayerPathService().bCopyTempFile = false;
-          PlayerPathService().saveDownloadFileList();
-          flagRetryJob(AppGlobal.retryInterval);
+          await PlayerPathService().saveDownloadFileList();
+          await flagRetryJob(AppGlobal.retryInterval);
         }
       }
     } else {
@@ -503,14 +506,14 @@ class ContentSyncService {
       JobItemType dwJobType = PlayerTaskFile.pCurrJob!.dwJobType;
 
       //m_dwJobStatus = TRANSFER_SUCCESS;
-      PlayerTaskFile.writeTaskFile(
+      await PlayerTaskFile.writeTaskFile(
           PlayerTaskFile.pCurrJob, FileTransferStatus.eTRANSFERSUCCESS);
-      PlayerTaskFile.removeTask(PlayerTaskFile.pCurrJob!);
+      await PlayerTaskFile.removeTask(PlayerTaskFile.pCurrJob!);
 
-      stopTempFileCopyTimer();
+      await stopTempFileCopyTimer();
 
       _bPlayListUpdated = true;
-      PlayerLogFile.closeLogFile('Download Finished');
+      await PlayerLogFile.closeLogFile('Download Finished');
 
       _bTransfering = false;
       if (dwSyncContent == cSyncROOMEVENT) {
@@ -534,18 +537,18 @@ class ContentSyncService {
             path.join(AppGlobal.ftpSettingPath, 'DCMUpdate.xml');
 
         String strLocalFile1 = path.join(AppGlobal.ftpSettingPath, 'DCMUpdate');
-        FileUtils.makeSureDirectoryPathExists(strLocalFile1);
+        await FileUtils.makeSureDirectoryPathExists(strLocalFile1);
         strLocalFile1 = path.join(strLocalFile1, '$strSyncContent.xml');
         String strLocalFile2 = path.join(
             await PlayerPathService.getLocalPath(cDCMUPDATETYPE),
             '$strSyncContent.DCMUP');
-        File(strLocalFile).copy(strLocalFile1);
-        File(strLocalFile).copy(strLocalFile2);
+        await File(strLocalFile).copy(strLocalFile1);
+        await File(strLocalFile).copy(strLocalFile2);
         if (!kDebugMode) {
           if (PlayerJobItem.isImm(dwJobType)) {
             logI('Try to restart player for DCM Update\n', syncTag);
 
-            PlayerLogImpl.restartAction();
+            await PlayerLogImpl.restartAction();
           }
         }
       } else if (dwSyncContent != cSyncDCMPLAYERLOG &&
@@ -569,7 +572,7 @@ class ContentSyncService {
   Future<void> startSyncAction() async {
     if (!await startSyncActionLock()) {
       await PlayerLogFile.openLogFile(PlayerTaskFile.pCurrJob!);
-      flagRetryJob(AppGlobal.retryInterval);
+      await flagRetryJob(AppGlobal.retryInterval);
     }
   }
 
@@ -654,7 +657,7 @@ class ContentSyncService {
       bDownload = await syncActionSchedule(transferAction, pJob, bClearLog);
     }
 
-    return (bDownload == true);
+    return bDownload;
   }
 
   Future<bool> syncActionSchedule(TransferActionService transferAction,
@@ -681,7 +684,7 @@ class ContentSyncService {
             logI(
                 '''Total Size '${FileUtils.formatBytesToMb(PlayerLogFile.nTotalBytesToDownload)}MB' will been download''',
                 syncTag);
-            if (transferAction.isOverMaximumLimitSize()) {
+            if (await transferAction.isOverMaximumLimitSize()) {
               await transferFailureAction();
               return true;
             }
@@ -713,7 +716,7 @@ class ContentSyncService {
         }
       } else {
         if (await transferAction.genFileList()) {
-          if (transferAction.isOverMaximumLimitSize()) {
+          if (await transferAction.isOverMaximumLimitSize()) {
             await transferFailureAction();
             return true;
           }
@@ -747,7 +750,7 @@ class ContentSyncService {
       PlayerTaskFile.pCurrJob!.nRetryCount = PlayerTaskFile.pCurrJob!.nRetries;
       await PlayerTaskFile.writeTaskFile(
           PlayerTaskFile.pCurrJob, FileTransferStatus.eTRANSFERFAILED);
-      PlayerTaskFile.removeTask(PlayerTaskFile.pCurrJob!);
+      await PlayerTaskFile.removeTask(PlayerTaskFile.pCurrJob!);
 
       await PlayerLogFile.closeLogFile('Transfer Failure!');
     }
@@ -758,7 +761,7 @@ class ContentSyncService {
     bool bDownload = false;
     if (pJob.dwJobStatus.value < FileTransferStatus.eGENERATEDFILELIST.value ||
         pJob.dwJobStatus.value >= FileTransferStatus.eTRANSFEREDCHANNEL.value) {
-      PlayerLogFile.openLogFile(pJob, bClearLog);
+      await PlayerLogFile.openLogFile(pJob, bClearLog);
       if (pJob.dwJobStatus.value <
           FileTransferStatus.eTRANSFEREDCHANNEL.value) {
         await PlayerTaskFile.writeTaskFile(
@@ -776,7 +779,7 @@ class ContentSyncService {
           if (transferAction.getFileCount() == 0) {
             await PlayerTaskFile.writeTaskFile(PlayerTaskFile.pCurrJob,
                 FileTransferStatus.eTRANSFEREDTEMPFILE);
-            startTempFileCopy();
+            await startTempFileCopy();
 
             return true;
           } else {
@@ -788,7 +791,7 @@ class ContentSyncService {
               pJob, FileTransferStatus.eTRANSFERINGTEMPFILE);
         }
       } else {
-        //FlagRetryJob(AppGlobal.retryInterval);
+        //flagRetryJob(AppGlobal.retryInterval);
 
         logE('Retrieve file list failure\n', syncTag);
       }
@@ -797,7 +800,7 @@ class ContentSyncService {
       bDownload = await syncActionTransfer(transferAction, pJob);
     } else if (pJob.dwJobStatus.value <
         FileTransferStatus.eUPDATINGPLAYLIST.value) {
-      startTempFileCopy();
+      await startTempFileCopy();
       bDownload = true;
     }
 
@@ -809,7 +812,7 @@ class ContentSyncService {
     bool bDownload = false;
     if (pJob.dwJobStatus.value < FileTransferStatus.eGENERATEDFILELIST.value ||
         pJob.dwJobStatus.value >= FileTransferStatus.eTRANSFEREDCHANNEL.value) {
-      PlayerLogFile.openLogFile(pJob, bClearLog);
+      await PlayerLogFile.openLogFile(pJob, bClearLog);
       if (pJob.dwJobStatus.value <
           FileTransferStatus.eTRANSFEREDCHANNEL.value) {
         await PlayerTaskFile.writeTaskFile(
@@ -824,8 +827,8 @@ class ContentSyncService {
         //StopTimer(ID_TIMER_TEMPFILE_CHECK, true);
 
         if (await transferAction.genFileList()) {
-          if (transferAction.isOverMaximumLimitSize()) {
-            transferFailureAction();
+          if (await transferAction.isOverMaximumLimitSize()) {
+            await transferFailureAction();
             return true;
           }
 
@@ -834,11 +837,11 @@ class ContentSyncService {
           if (transferAction.getFileCount() == 0) {
             await PlayerTaskFile.writeTaskFile(PlayerTaskFile.pCurrJob,
                 FileTransferStatus.eTRANSFEREDTEMPFILE);
-            startTempFileCopy();
+            await startTempFileCopy();
 
             return true;
           } else {
-            transferAction.download();
+            await transferAction.download();
           }
           bDownload = true;
           await PlayerTaskFile.writeTaskFile(
@@ -854,7 +857,7 @@ class ContentSyncService {
       bDownload = await syncActionTransfer(transferAction, pJob);
     } else if (pJob.dwJobStatus.value <
         FileTransferStatus.eUPDATINGPLAYLIST.value) {
-      startTempFileCopy();
+      await startTempFileCopy();
       bDownload = true;
     }
 
@@ -964,7 +967,7 @@ class ContentSyncService {
           case NetCommand.requestSyncTime:
             {
               //todo: sync time from time server
-              PlayerTaskFile.synLocalTime();
+              await PlayerTaskFile.synLocalTime();
             }
             break;
           case NetCommand.resetSettings:
@@ -974,7 +977,7 @@ class ContentSyncService {
             break;
 
           case NetCommand.resetTransfer:
-            PlayerTaskFile.resetSyncStatus();
+            await PlayerTaskFile.resetSyncStatus();
             break;
 
           case NetCommand.resetTasks:
@@ -1008,13 +1011,13 @@ class ContentSyncService {
     }
   }
 
-  void processSMSControl(MessageInfo pData) {
+  Future<void> processSMSControl(MessageInfo pData) async {
     int dwLogPost = PlayLogPostService.logPostFlags;
     int dwSMSCommand = pData.status;
     if (dwSMSCommand & kSMSCOMMANDRESET > 0) {
       _bTransfering = false;
       //m_dwJobStatus = TRANSFER_FAILED;
-      PlayerTaskFile.resetSyncStatus();
+      await PlayerTaskFile.resetSyncStatus();
 
       return;
     }

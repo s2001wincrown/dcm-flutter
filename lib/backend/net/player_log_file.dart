@@ -110,7 +110,7 @@ class PlayerLogFile {
 
         String strRequest =
             '$cHTTPUNIQUEKEY=${globalPlayer.strUniqueName}&strTask=$strJob&dtStartTime=${DateFormat('yyyy-MM-dd HH:mm:ss').format(dtDownloadStartTime)}';
-        updateSyncStatus(strRequest);
+        await updateSyncStatus(strRequest);
       }
 
       return xmlProfile.saveProfile('FtpError.xsl');
@@ -208,7 +208,7 @@ class PlayerLogFile {
       if (bUpdateStatus) {
         String strRequest =
             '$cHTTPUNIQUEKEY=${globalPlayer.strUniqueName}&strTask=$strJob&strStatus=$strStatus&nTotalSize=$nTotalBytesToDownload&nDownloaded=$nTotalBytesDownloaded&dtStartTime=${DateFormat('yyyy-MM-dd HH:mm:ss').format(dtDownloadStartTime)}';
-        updateSyncStatus(strRequest);
+        await updateSyncStatus(strRequest);
       }
     }
   }
@@ -253,14 +253,15 @@ class PlayerLogFile {
         strRequest =
             '$cHTTPUNIQUEKEY=${globalPlayer.strUniqueName}&strTask=$strJob&strStatus=$strStatusEscape';
       }
-      updateSyncStatus(strRequest);
+      await updateSyncStatus(strRequest);
 
       if (bFinished || strStatus.contains('Transfer Failure')) {
         var strCMSLink = AppGlobal.cmsUrl;
         strCMSLink = fADDSLASH(strCMSLink);
         strCMSLink += cmsSyncSTATUSURL;
         strCMSLink = Utils.addCMSParam(strCMSLink);
-        await PlayerLogFile.httpPostAction(strCMSLink, strXmlLog);
+        await PlayerLogFile.httpPostAction(
+            strCMSLink, strXmlLog, 'application/xml; charset=utf-8');
       }
 
       return true;
@@ -273,20 +274,20 @@ class PlayerLogFile {
   static Future<void> timeForSyncStatusUpdate() async {
     int now = DateTime.now().millisecondsSinceEpoch;
     if (now - nUpdateCookie > nUpdateInterval) {
-      String strStatusEscape = Utils.urlEscape(strStatus);
+      //String strStatusEscape = Utils.urlEscape(strStatus);
       String szRequest =
-          '$cHTTPUNIQUEKEY=${globalPlayer.strUniqueName}&strTask=$strJob&strStatus=$strStatusEscape&nTotalSize=$nTotalBytesToDownload&nDownloaded=$nTotalBytesDownloaded';
+          '$cHTTPUNIQUEKEY=${globalPlayer.strUniqueName}&strTask=$strJob&strStatus=$strStatus&nTotalSize=$nTotalBytesToDownload&nDownloaded=$nTotalBytesDownloaded';
       await updateSyncStatus(szRequest);
     }
   }
 
-  static void resetSyncStatus() {
+  static Future<void> resetSyncStatus() async {
     //TCHAR szRequest[1024];
     String szRequest =
         '$cHTTPUNIQUEKEY=${globalPlayer.strUniqueName}&strTask=$strJob&strStatus=Reset&nTotalSize=0&nDownloaded=0&dtEndTime=${DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now())}';
     //wxString strRequest;
     //strRequest.Format(_T("%s=%s&strTask=%s&strStatus=%s&nTotalSize=%llu&nDownloaded=%llu"), HTTP_UNIQUE_KEY, globalPlayer.m_strUniqueName, m_strJob, _T("Reset"), 0, 0, COleDateTime::GetCurrentTime().Format(_T("%Y-%m-%d %H:%M:%S")));
-    updateSyncStatus(szRequest);
+    await updateSyncStatus(szRequest);
   }
 
   // 更新 Sync 状态 (HTTP POST)
@@ -297,14 +298,15 @@ class PlayerLogFile {
 
     //update status to CMS
     String strCMSRequest = szRequest;
-    strCMSRequest = strCMSRequest.replaceAll(' ', '+');
     String strCMSLink = contentSyncStatusUpdateUrl;
     if (!strCMSRequest.startsWithIgnoreCase('<?xml')) {
-      strCMSLink = '$contentSyncStatusUpdateUrl?$strCMSRequest';
+      strCMSLink =
+          '$contentSyncStatusUpdateUrl?${Utils.urlEscape(strCMSRequest)}';
       strCMSRequest = '';
     }
     strCMSLink = Utils.addCMSParam(strCMSLink);
-    var result = await httpPostAction(strCMSLink, strCMSRequest);
+    var result = await httpPostAction(strCMSLink, strCMSRequest,
+        strCMSRequest.isNotEmpty ? 'application/xml; charset=utf-8' : null);
     if (result.status) {
       if (result.result!.equalsIgnoreCase('Successful')) {
         nUpdateCookie = DateTime.now().millisecondsSinceEpoch;
@@ -334,7 +336,7 @@ class PlayerLogFile {
     try {
       if (request.isNotEmpty) {
         final response = await client.postString(
-          _path(url),
+          url,
           body: request,
           headers: {
             'Content-Type': contentType ??
@@ -342,7 +344,7 @@ class PlayerLogFile {
           },
         );
         logI(
-            '''httpPostAction '$url', response: ${response.statusCode} - ${response.body}''',
+            '''httpPostAction '$url', request: $request, response: ${response.statusCode} - ${response.body}''',
             syncTag);
         return (
           status: response.statusCode >= 200 && response.statusCode < 300,

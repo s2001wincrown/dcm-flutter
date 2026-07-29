@@ -129,7 +129,7 @@ class ContentSyncBackgroundService {
               'starting workerManager: ${globalPlayer.strUniqueName} - ${AppGlobal.statusCheckInterval}',
               syncTag);
 
-          PlayerPathService().init();
+          await PlayerPathService().init();
           PlayerTaskFile.strPlayerTaskFile =
               path.join(AppGlobal.ftpSettingPath, 'synctask.xml');
           PlayerTaskFile.dtSyncTime = lastSyncTime;
