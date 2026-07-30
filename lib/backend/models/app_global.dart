@@ -116,6 +116,7 @@ class AppGlobal {
   static bool fileIntegrityCheck = true;
   static bool deleteContentIfFTPFail = true;
   static bool autoSyncTime = false;
+  static bool getEventDisplay = false;
 
   static String?
       availableACUStart; //available start time for auto content update
@@ -244,6 +245,7 @@ class AppGlobal {
     //retryInterval
     'ContentSync.TaskRetryInterval': (v) => retryInterval = int.parse(v),
     'ContentSync.AutoSyncTime': (v) => autoSyncTime = bool.parse(v),
+    'ContentSync.GetEventDisplay': (v) => getEventDisplay = bool.parse(v),
   };
 
   static final Map<String, String Function()> _getters = {
@@ -353,6 +355,7 @@ class AppGlobal {
     //retryInterval
     'ContentSync.TaskRetryInterval': () => retryInterval.toString(),
     'ContentSync.AutoSyncTime': () => autoSyncTime.toString(),
+    'ContentSync.GetEventDisplay': () => getEventDisplay.toString(),
   };
 
   static Map<String, dynamic> snapshot() {
@@ -418,6 +421,7 @@ class AppGlobal {
       'deleteContentIfFTPFail': deleteContentIfFTPFail,
       'retryInterval': retryInterval,
       'autoSyncTime': autoSyncTime,
+      'getEventDisplay': getEventDisplay,
     };
   }
 
@@ -487,6 +491,7 @@ class AppGlobal {
     bool? deleteContentIfFTPFail,
     int? retryInterval,
     bool? autoSyncTime,
+    bool? getEventDisplay,
   }) {
     if (cscPath != null) {
       AppGlobal.cscPath = cscPath;
@@ -646,6 +651,9 @@ class AppGlobal {
     }
     if (httpRetryTimes != null) {
       AppGlobal.httpRetryTimes = httpRetryTimes;
+    }
+    if (getEventDisplay != null) {
+      AppGlobal.getEventDisplay = getEventDisplay;
     }
   }
 

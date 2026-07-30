@@ -108,8 +108,7 @@ class ContentSyncService {
     try {
       await _contentSyncStatusCheck();
     } catch (e, stack) {
-      logE('Content sync status check failed: $e', syncTag);
-      stderr.writeln(stack);
+      logE('Content sync status check failed: $e, stack: $stack', syncTag);
     }
   }
 
@@ -143,6 +142,8 @@ class ContentSyncService {
 
   Future<void> _syncStatusCheck() async {
     if (isFtpFinished()) {
+      await stopSyncStatusTimer();
+
       _bTransfering = false;
       if (PlayerLogFile.bSyncFail) {
         PlayerLogFile.bSyncFail = false;
@@ -289,6 +290,7 @@ class ContentSyncService {
 
     if (PlayerTaskFile.bReset) {
       logW('Try to reset all tasks', syncTag);
+      await stopSyncStatusTimer();
       _bTransfering = false;
       await _workQueue.resetQueue();
       await PlayerTaskFile.resetTasks();
@@ -300,29 +302,23 @@ class ContentSyncService {
 
     if (globalPlayer.strUniqueName.isNotEmpty) {
       await PlayerTaskFile.getTaskFromServer();
-      logW('Try to reset all tasks1', syncTag);
       await processCMDTask();
-      logW('Try to reset all tasks2', syncTag);
 
       await PlayLogPostService.updatePlayerLog2();
-      logW('Try to reset all tasks3', syncTag);
       await PlayLogPostService.updateShutdown();
-      logW('Try to reset all tasks4', syncTag);
       await PlayLogPostService.updateContentLog(
           globalPlayer.strUniqueName, globalPlayer.strName);
-      logW('Try to reset all tasks5', syncTag);
       if (PlayerTaskFile.pCurrJob != null) {
         if (PlayerTaskFile.pCurrJob!.nAction == 2) {
           await _workQueue.resetQueue();
+          await stopSyncStatusTimer();
           _bTransfering = false;
           await PlayerTaskFile.removeTask(PlayerTaskFile.pCurrJob!);
         } else {
           await PlayerLogFile.timeForSyncStatusUpdate();
         }
       }
-      logW('Try to reset all tasks6', syncTag);
       await PlayLogPostService.updatePlayerLogRetry();
-      logW('Try to reset all tasks7', syncTag);
       if (!_bTransfering) {
         await startSyncAction();
       }
@@ -771,12 +767,13 @@ class ContentSyncService {
 
       logI('Retrieving file list......\n', syncTag);
       if (await transferAction.genDailySchedule()) {
-        //todo stop temp file copy
-        //StopTimer(ID_TIMER_TEMPFILE_CHECK, true);
+        await stopTempFileCopyTimer();
         if (await transferAction.genFileList()) {
           PlayerLogFile.writeLogFile(
               cTRANSFERFILECOUNT, '${transferAction.getFileCount()}');
+          startSyncStatusTimer();
           if (transferAction.getFileCount() == 0) {
+            await stopSyncStatusTimer();
             await PlayerTaskFile.writeTaskFile(PlayerTaskFile.pCurrJob,
                 FileTransferStatus.eTRANSFEREDTEMPFILE);
             await startTempFileCopy();
@@ -823,8 +820,7 @@ class ContentSyncService {
       logI('Retrieving file list......\n', syncTag);
 
       if (await transferAction.genDailySchedule()) {
-        //todo stop temp file copy
-        //StopTimer(ID_TIMER_TEMPFILE_CHECK, true);
+        await stopTempFileCopyTimer();
 
         if (await transferAction.genFileList()) {
           if (await transferAction.isOverMaximumLimitSize()) {
@@ -834,7 +830,9 @@ class ContentSyncService {
 
           PlayerLogFile.writeLogFile(
               cTRANSFERFILECOUNT, '${transferAction.getFileCount()}');
+          startSyncStatusTimer();
           if (transferAction.getFileCount() == 0) {
+            await stopSyncStatusTimer();
             await PlayerTaskFile.writeTaskFile(PlayerTaskFile.pCurrJob,
                 FileTransferStatus.eTRANSFEREDTEMPFILE);
             await startTempFileCopy();
@@ -871,10 +869,12 @@ class ContentSyncService {
     if (await transferAction.genFileList()) {
       await PlayerLogFile.writeLogFile(
           cTRANSFERFILECOUNT, '${transferAction.getFileCount()}');
+      startSyncStatusTimer();
       if (pJob.dwSyncContent == cSyncAPCONTENTLIST ||
           pJob.dwSyncContent == cSyncEVENTCONTENTLIST ||
           pJob.dwSyncContent == cSyncEVENTDATA) {
         if (transferAction.getFileCount() == 0) {
+          await stopSyncStatusTimer();
           //StartTempFileCopy();
           //PlayerTaskFile.writeTaskFile();
           await PlayerTaskFile.writeTaskFile(
@@ -888,6 +888,7 @@ class ContentSyncService {
       } else if (pJob.dwSyncContent == cSyncDCMPLAYERLOG ||
           pJob.dwSyncContent == cSyncDCMTRANSFERLOG) {
         if (transferAction.getFileCount() == 0) {
+          await stopSyncStatusTimer();
           await PlayerTaskFile.writeTaskFile(
               pJob, FileTransferStatus.eTRANSFEREDTEMPFILE);
           await startTempFileCopy();
@@ -899,6 +900,7 @@ class ContentSyncService {
         }
       } else {
         if (transferAction.isNoDownloadButScheduleChange()) {
+          await stopSyncStatusTimer();
           //StartTempFileCopy();
           //PlayerTaskFile.writeTaskFile();
           await PlayerTaskFile.writeTaskFile(
@@ -1178,20 +1180,18 @@ class ContentSyncService {
   }
 
   Future<void> resetSettings(int dwSettings) async {
-    //todo: stop all pollings
-    //StopTimer();
+    await stopSyncStatusTimer();
+    await stopTempFileCopyTimer();
+    await stopPolling();
     _bTransfering = false;
-    //todo: reset all tasks and queues
-    /*if (m_WorkQueue.reset())
-    {
-      PlayerTaskFile.resetTasks();
-    }*/
+    await workQueue.resetQueue();
+    await PlayerTaskFile.resetTasks();
 
     if ((dwSettings & cSETTINGSNET) > 0) {
-      PlayerPathService().reset();
+      await PlayerPathService().reset();
     }
     if (dwSettings & cSETTINGSREG > 0) {
-      PlayerRegisterImpl.reset();
+      await PlayerRegisterImpl.reset();
     }
     //todo: reset license
     /*if (dwSettings & cSETTINGSLM > 0)
@@ -1207,7 +1207,7 @@ class ContentSyncService {
     }
 
     if (!kDebugMode) {
-      PlayerLogImpl.restartAction();
+      await PlayerLogImpl.restartAction();
     }
   }
 }

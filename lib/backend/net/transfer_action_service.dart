@@ -98,8 +98,8 @@ class TransferActionService {
           String strRemoteFile = pData.strShortPath;
           if (pData.nContentType != cDCMPREDATATYPE) {
             strRemoteFile = FileUtils.appendUrls(strRemotePath, strRemoteFile);
-            syncTasks.add(
-                ContentDownloadTask.fromFileInfoData(pData, AppGlobal.cmsUrl));
+            syncTasks.add(ContentDownloadTask.fromFileInfoData(
+                pData, AppGlobal.cmsUrl, strDest));
             logI(
                 '''Add remote file '$strRemoteFile' to download queue; target file '$strDest'.''',
                 syncTag);
@@ -110,7 +110,7 @@ class TransferActionService {
           }
         }
       }
-      await ContentSyncService().workQueue.addTasksToQueue(syncTasks);
+      ContentSyncService().workQueue.addTasksToQueue(syncTasks);
 
       return true;
     }
@@ -221,17 +221,18 @@ class TransferActionService {
     strGetFileListHttpLink = Utils.addCMSParam(strGetFileListHttpLink);
 
     String strResult = '';
-    var httpResult =
-        await PlayerLogFile.httpPostAction(strGetFileListHttpLink, strRequest);
+    var httpResult = await PlayerLogFile.httpPostAction(
+        strGetFileListHttpLink, strRequest, 'application/xml; charset=utf-8');
     if (httpResult.status) {
       strResult = httpResult.result ?? '';
-      if (strResult.length > 9 && strResult.equalsIgnoreCase('Not Found')) {
+      if (strResult.length > 9 && !strResult.equalsIgnoreCase('Not Found')) {
         //_fileListImpl.m_bGenSitePlaylist = GetSitePlaylistHttpLink.isEmpty ? false : true;
         _fileListImpl.bGenSitePlaylist = false;
         int nEventDisplay = -1;
         var fileListResult = _fileListImpl.loadXml(strResult);
         if (fileListResult.status) {
-          if (fileListResult.arrSitePlaylist != null) {
+          nEventDisplay = fileListResult.nEventDisplay ?? -1;
+          /*if (fileListResult.arrSitePlaylist != null) {
             if (fileListResult.arrSitePlaylist!.isNotEmpty) {
               if (await getSitePlaylistViaWebApi(
                   fileListResult.arrSitePlaylist!)) {
@@ -240,18 +241,22 @@ class TransferActionService {
             } else if (fileListResult.arrSitePlaylist!.isNotEmpty) {
               findNeedRemoveFiles(fileListResult.arrSitePlaylist!);
             }
+          }*/
+          if (fileListResult.arrSitePlaylist != null &&
+              fileListResult.arrSitePlaylist!.isNotEmpty) {
+            findNeedRemoveFiles(fileListResult.arrSitePlaylist!);
           }
 
-          if (fileListResult.arrContentList != null &&
+          /*if (fileListResult.arrContentList != null &&
               fileListResult.arrContentList!.isNotEmpty) {
             if (!await getContentListViaWebApi(
                 fileListResult.arrContentList!)) {
               return false;
             }
-          }
+          }*/
 
           //Get event display by webapi
-          if (nEventDisplay >= 0) {
+          if (AppGlobal.getEventDisplay && nEventDisplay >= 0) {
             if (!await getEventDisplayViaWebApi()) {
               return false;
             }
@@ -1293,8 +1298,8 @@ class TransferActionService {
     PlayerLogFile.nFileDownloaded = BigInt.zero;
     if (_pTaskItem.dwJobStatus == FileTransferStatus.eGENERATEDFILELIST) {
       _fileListImpl.loadUnFilterFileList(_pTaskItem.strJobItem);
-      _fileListImpl.filterReplaceFile(_pTaskItem.bReplaceFile);
-      _fileListImpl.saveDownloadFileList(_pTaskItem.strJobItem);
+      await _fileListImpl.filterReplaceFile(_pTaskItem.bReplaceFile);
+      await _fileListImpl.saveDownloadFileList(_pTaskItem.strJobItem);
       await PlayerTaskFile.writeTaskFile(
           _pTaskItem, FileTransferStatus.eFILTEREDFILELIST);
       _fileListImpl.calcTotalBytesToDownload();
@@ -1313,9 +1318,9 @@ class TransferActionService {
             FileTransferStatus.eFILTEREDFILELIST.value &&
         _pTaskItem.dwJobStatus.value <
             FileTransferStatus.eTRANSFEREDTEMPFILE.value) {
-      _fileListImpl.loadDownloadFileList(_pTaskItem.strJobItem);
+      await _fileListImpl.loadDownloadFileList(_pTaskItem.strJobItem);
       _fileListImpl.calcTotalBytesToDownload();
-      _fileListImpl.filterDownloadedFile();
+      await _fileListImpl.filterDownloadedFile();
 
       return true;
     }
@@ -1338,7 +1343,7 @@ class TransferActionService {
         dwSyncContent == cSyncSITEPLAYLIST ||
         dwSyncContent == cSyncDCMPLAYERLOG ||
         dwSyncContent == cSyncDCMTRANSFERLOG) {
-      processFileList();
+      await processFileList();
 
       return true;
     }
@@ -1429,7 +1434,8 @@ class TransferActionService {
       await PlayerLogFile.writeLogFile(cTRANSFEROTHERERR,
           'Total Size: ${FileUtils.formatBytesToMb(PlayerLogFile.nTotalBytesToDownload)}MB over maximum limit size: ${_pTaskItem.nMaximumLimit}MB');
       logE(
-          'Total Size: ${FileUtils.formatBytesToMb(PlayerLogFile.nTotalBytesToDownload)}MB over maximum limit size: ${_pTaskItem.nMaximumLimit}MB');
+          'Total Size: ${FileUtils.formatBytesToMb(PlayerLogFile.nTotalBytesToDownload)}MB over maximum limit size: ${_pTaskItem.nMaximumLimit}MB',
+          syncTag);
 
       return true;
     }

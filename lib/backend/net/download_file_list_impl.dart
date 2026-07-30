@@ -146,7 +146,7 @@ class DownloadFileListImpl {
   void copyFromFileList(List<FileInfoData> sourceList) async {
     for (var iter in sourceList) {
       DownloadFileInfoData pDownloadFile =
-          DownloadFileInfoData.copyFrom(iter as DownloadFileInfoData);
+          DownloadFileInfoData.fromFileInfo(iter);
       //pDownloadFile->m_strShortPath = iter.strFilePath;
       //pDownloadFile->m_strFilePath = FTPPathImpl.GetLocalPath(iter.nContentType, iter.dwModuleFlag, true) + wxFILE_SEP_PATH + iter.strDestFile;
       //pDownloadFile->m_strDestFile = FTPPathImpl.GetLocalPath(iter.nContentType, iter.dwModuleFlag) + wxFILE_SEP_PATH + iter.strDestFile;

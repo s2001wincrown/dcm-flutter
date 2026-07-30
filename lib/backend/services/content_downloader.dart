@@ -5,6 +5,7 @@ import 'dart:io';
 import 'package:dcm/backend/models/app_global.dart';
 import 'package:dcm/backend/models/file_info_data.dart';
 import 'package:dcm/backend/net/sync_http_client.dart';
+import 'package:dcm/backend/utils/log_utils.dart';
 import 'package:dcm/backend/utils/utils.dart';
 import 'package:dcm/backend/xmlfile/xmlfile.dart';
 import 'package:dcm/backend/xmlfile/xmlitem.dart';
@@ -115,7 +116,8 @@ class ContentDownloadTask {
   }
 
   factory ContentDownloadTask.fromFileInfoData(
-      FileInfoData fileInfo, String cmsUrl) {
+      FileInfoData fileInfo, String cmsUrl,
+      [String? destPath]) {
     final String shortPath = fileInfo.strShortPath.trim();
     final String destFile = fileInfo.strDestFile.trim();
     final int contentType = fileInfo.nContentType;
@@ -127,7 +129,8 @@ class ContentDownloadTask {
             ? fileInfo.uuid!
             : UniqueKeyGenerator.generate();
     final String url = buildCmsUrl(cmsUrl, shortPath);
-    final String targetPath = Utils.getFilePath(destFile, contentType);
+    final String targetPath =
+        destPath ?? Utils.getFilePath(destFile, contentType);
 
     return ContentDownloadTask(
       id: id,
@@ -139,42 +142,6 @@ class ContentDownloadTask {
       statusValue: fileInfo.fileStatus.status,
       title: fileInfo.strFileTitle,
       uuid: fileInfo.uuid ?? '',
-    );
-  }
-}
-
-class TempFileInfo {
-  TempFileInfo({
-    required this.nContentType,
-    required this.strSourcePath,
-    required this.strDestPath,
-    required this.nPriorityFlag,
-  });
-
-  int nContentType;
-  String strSourcePath;
-  String strDestPath;
-  int nPriorityFlag;
-
-  Map<String, dynamic> toJson() {
-    return {
-      'nContentType': nContentType,
-      'strSourcePath': strSourcePath,
-      'strDestPath': strDestPath,
-      'nPriorityFlag': nPriorityFlag,
-    };
-  }
-
-  factory TempFileInfo.fromJson(Map<String, dynamic> json) {
-    return TempFileInfo(
-      nContentType: json['nContentType'] is int
-          ? json['nContentType'] as int
-          : int.tryParse(json['nContentType']?.toString() ?? '-1') ?? -1,
-      strSourcePath: json['strSourcePath']?.toString() ?? '',
-      strDestPath: json['strDestPath']?.toString() ?? '',
-      nPriorityFlag: json['nPriorityFlag'] is int
-          ? json['nPriorityFlag'] as int
-          : int.tryParse(json['nPriorityFlag']?.toString() ?? '-1') ?? -1,
     );
   }
 }
@@ -581,6 +548,8 @@ class ContentDownloader {
   }
 
   Future<void> addTasksToQueue(List<ContentDownloadTask> tasksList) async {
+    logI('''Try to addTasksToQueue, files count: ${tasksList.length}.''',
+        syncTag);
     queue.addTasks(tasksList);
     await queue.save();
     if (!_isRunning && queue.nextPendingTask() != null) {
@@ -637,12 +606,17 @@ class ContentDownloader {
       await queue.save();
 
       try {
-        final processedTask = await _processTaskWithWorker(task);
+        /*final processedTask = await _processTaskWithWorker(task);
         task.downloaded = processedTask.downloaded;
         task.retryCount = processedTask.retryCount;
         task.status = processedTask.status;
         task.errorMessage = processedTask.errorMessage;
-        task.lastUpdated = processedTask.lastUpdated;
+        task.lastUpdated = processedTask.lastUpdated;*/
+        final success = await _attemptDownload(task);
+        task.status = success
+            ? ContentDownloadStatus.success
+            : ContentDownloadStatus.failed;
+        task.lastUpdated = DateTime.now();
 
         if (task.status == ContentDownloadStatus.success) {
           queue.finalSuccessTaskCount += 1;
@@ -660,7 +634,8 @@ class ContentDownloader {
             continue;
           }
         }
-      } catch (e) {
+      } catch (e, stack) {
+        logE('Failed to process task ${task.url}: $e, stack: $stack', syncTag);
         task.status = ContentDownloadStatus.failed;
         task.errorMessage = e.toString();
         task.lastUpdated = DateTime.now();
@@ -715,6 +690,7 @@ class ContentDownloader {
       await _downloadTask(task);
       return true;
     } catch (e) {
+      logE('Failed to download ${task.url}: $e', syncTag);
       task.errorMessage = e.toString();
       task.status = ContentDownloadStatus.failed;
       task.lastUpdated = DateTime.now();
@@ -740,7 +716,7 @@ class ContentDownloader {
       headers[HttpHeaders.rangeHeader] = 'bytes=$currentBytes-';
     }
     final response = await _client.get(
-      _urlPath(task.url),
+      task.url,
       headers: headers,
     );
     if (currentBytes > 0 && response.statusCode == HttpStatus.ok) {

@@ -117,7 +117,7 @@ class FileReplaceService {
         info.strSHA1 = sha1.convert(bytes).toString();
       }
     } catch (e) {
-      logE('Error calculating hash for ${info.strFilePath}: $e');
+      logE('Error calculating hash for ${info.strFilePath}: $e', syncTag);
     }
   }
 
@@ -273,7 +273,8 @@ class FileReplaceService {
         if (!isModified(pFileInfo, pFileInfo1)) {
           if (bReplace) {
             logI(
-                '''File: '${pFileInfo.strDestFile}'; content Type:'${pFileInfo.nContentType}' need to download''');
+                '''File: '${pFileInfo.strDestFile}'; content Type:'${pFileInfo.nContentType}' need to download''',
+                syncTag);
           }
 
           pFileInfo.fileStatus = pFileInfo1.fileStatus;
@@ -307,7 +308,8 @@ class FileReplaceService {
       }
     }
     logI(
-        '''File: '${pFileInfo.strDestFile}'; content Type:'${pFileInfo.nContentType}' need to download''');
+        '''File: '${pFileInfo.strDestFile}'; content Type:'${pFileInfo.nContentType}' need to download''',
+        syncTag);
 
     return true;
   }
