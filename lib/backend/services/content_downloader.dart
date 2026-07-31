@@ -4,6 +4,7 @@ import 'dart:io';
 
 import 'package:dcm/backend/models/app_global.dart';
 import 'package:dcm/backend/models/file_info_data.dart';
+import 'package:dcm/backend/net/player_log_file.dart';
 import 'package:dcm/backend/net/sync_http_client.dart';
 import 'package:dcm/backend/utils/log_utils.dart';
 import 'package:dcm/backend/utils/utils.dart';
@@ -235,19 +236,27 @@ class ContentDownloadQueue {
 
   ContentDownloadTask? nextPendingTask() {
     final pending = tasks.where((task) {
-      return task.status == ContentDownloadStatus.pending ||
-          task.status == ContentDownloadStatus.failed;
+      return task.status == ContentDownloadStatus.pending;
     }).toList();
-    if (pending.isEmpty) return null;
-
-    if (queueMode == 'lifo') {
-      return pending.last;
-    }
-    if (queueMode == 'priority') {
-      pending.sort((a, b) => b.priority.compareTo(a.priority));
+    if (pending.isNotEmpty) {
+      if (queueMode == 'lifo') {
+        return pending.last;
+      }
+      if (queueMode == 'priority') {
+        pending.sort((a, b) => b.priority.compareTo(a.priority));
+        return pending.first;
+      }
       return pending.first;
     }
-    return pending.first;
+    final failed = tasks.where((task) {
+      return task.status == ContentDownloadStatus.failed;
+    }).toList();
+    if (failed.isNotEmpty) {
+      failed.sort((a, b) => a.retryCount.compareTo(b.retryCount));
+      return failed.first;
+    }
+
+    return null;
   }
 
   bool handleTaskFailure(ContentDownloadTask task, {required int maxRetries}) {
@@ -618,22 +627,45 @@ class ContentDownloader {
             : ContentDownloadStatus.failed;
         task.lastUpdated = DateTime.now();
 
+        String taskResult;
+        int nError = cTRANSFERSUCCESS;
         if (task.status == ContentDownloadStatus.success) {
           queue.finalSuccessTaskCount += 1;
           queue.lastTaskOutcome = 'success';
           await queue.save();
           onProgress?.call(task);
           onTaskComplete?.call(task);
+          PlayerLogFile.nFileDownloaded++;
+          PlayerLogFile.nTotalBytesDownloaded +=
+              BigInt.from(task.remoteSize < 0 ? 0 : task.remoteSize);
+          taskResult = '"${task.title}" transfer completed.';
         } else {
           final shouldRetry =
               queue.handleTaskFailure(task, maxRetries: maxRetries);
           await queue.save();
           onProgress?.call(task);
           onTaskComplete?.call(task);
+          taskResult =
+              '"${task.title}" transfer error. Error Message: "${task.errorMessage}".';
+          if (task.retryCount < maxRetries) {
+            nError = cTRANSFERRETRYERR;
+          } else if (task.retryCount == maxRetries) {
+            nError = cTRANSFERERR;
+          }
           if (!shouldRetry) {
             continue;
           }
         }
+        String strResult = taskResult;
+        if (task.retryCount > 0) {
+          strResult = 'Retry: ${task.retryCount} Result: $taskResult';
+        }
+        //strResult.replaceAll(_T("%"), _T("%%"));
+        PlayerLogFile.writeLogFile(nError, strResult,
+            fileTitle: task.title,
+            bUpdateStatus: false,
+            contentType: task.contentType);
+        logI(strResult);
       } catch (e, stack) {
         logE('Failed to process task ${task.url}: $e, stack: $stack', syncTag);
         task.status = ContentDownloadStatus.failed;
@@ -715,44 +747,70 @@ class ContentDownloader {
     if (currentBytes > 0) {
       headers[HttpHeaders.rangeHeader] = 'bytes=$currentBytes-';
     }
-    final response = await _client.get(
+
+    final tempPartialPath = '${partialFile.path}.dio.tmp';
+    final tempPartialFile = File(tempPartialPath);
+    if (await tempPartialFile.exists()) {
+      await tempPartialFile.delete();
+    }
+
+    final response = await _client.download(
       task.url,
+      tempPartialPath,
       headers: headers,
+      onReceiveProgress: (received, total) {
+        if (received > 0) {
+          task.downloaded = currentBytes + received;
+          task.lastUpdated = DateTime.now();
+          if (received % (512 * 1024) == 0) {
+            queue.save();
+            onProgress?.call(task);
+          }
+        }
+      },
     );
+
     if (currentBytes > 0 && response.statusCode == HttpStatus.ok) {
       // server ignored the range request, restart from scratch.
       await partialFile.delete();
+      try {
+        await tempPartialFile.delete();
+      } catch (_) {}
       task.downloaded = 0;
       return _downloadTask(task);
     }
-    if (response.statusCode != HttpStatus.partialContent &&
-        response.statusCode != HttpStatus.ok) {
+
+    if (response.statusCode != HttpStatus.ok &&
+        response.statusCode != HttpStatus.partialContent) {
+      try {
+        await tempPartialFile.delete();
+      } catch (_) {}
       throw HttpException('Unexpected download status ${response.statusCode}',
           uri: Uri.parse(task.url));
     }
 
-    final raf = await partialFile.open(mode: FileMode.append);
-    try {
-      int saveCounter = 0;
-      int bytesSincePersist = 0;
-      final bodyBytes = response.bodyBytes;
-      if (bodyBytes.isNotEmpty) {
-        await raf.writeFrom(bodyBytes);
-        task.downloaded += bodyBytes.length;
-        bytesSincePersist += bodyBytes.length;
-        saveCounter += 1;
-        if (bytesSincePersist >= 512 * 1024 || saveCounter % 10 == 0) {
-          task.lastUpdated = DateTime.now();
-          await queue.save();
-          onProgress?.call(task);
-          bytesSincePersist = 0;
+    if (currentBytes > 0) {
+      final raf = await partialFile.open(mode: FileMode.append);
+      try {
+        await for (final chunk in tempPartialFile.openRead()) {
+          await raf.writeFrom(chunk);
         }
+      } finally {
+        await raf.close();
       }
-    } finally {
-      await raf.close();
+      try {
+        await tempPartialFile.delete();
+      } catch (_) {}
+    } else {
+      if (await partialFile.exists()) {
+        await partialFile.delete();
+      }
+      await tempPartialFile.rename(partialFile.path);
     }
 
+    final downloadedBytes = await partialFile.length();
     await partialFile.rename(task.targetPath);
+    task.downloaded = downloadedBytes;
     task.errorMessage = null;
     task.lastUpdated = DateTime.now();
     await queue.save();

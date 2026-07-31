@@ -65,7 +65,7 @@ dependencies:
   marqueer: ^2.5.0
   flutter_udid: ^4.1.4
   unique_device_identifier: ^2.0.4
-  http: ^1.6.0
+  dio: ^5.11.0
   disk_space_2: ^1.0.13
 
 dev_dependencies:

@@ -1,37 +1,94 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
+import 'dart:typed_data';
 
-import 'package:http/http.dart' as http;
+import 'package:dio/dio.dart';
+import 'package:dio/io.dart';
+
+class SyncHttpResponse {
+  SyncHttpResponse({
+    required this.statusCode,
+    required this.body,
+    required this.bodyBytes,
+    required this.headers,
+  });
+
+  final int statusCode;
+  final String body;
+  final Uint8List bodyBytes;
+  final Map<String, List<String>> headers;
+}
 
 class SyncHttpClient {
   SyncHttpClient({
-    http.Client? client,
+    Dio? client,
     required this.baseUrl,
     this.timeout = const Duration(seconds: 15),
     Map<String, String>? defaultHeaders,
     this.maxRetries = 2,
     this.backoffSeconds = 2,
-  })  : _client = client ?? http.Client(),
+    this.maxConnectionsPerHost = 6,
+    this.connectionTimeout = const Duration(seconds: 15),
+    this.idleTimeout = const Duration(seconds: 20),
+  })  : _client = client ??
+            _createDefaultDio(
+              timeout: timeout,
+              maxConnectionsPerHost: maxConnectionsPerHost,
+              connectionTimeout: connectionTimeout,
+              idleTimeout: idleTimeout,
+            ),
         _defaultHeaders = defaultHeaders ?? {};
 
-  final http.Client _client;
+  static Dio _createDefaultDio({
+    required Duration timeout,
+    required int maxConnectionsPerHost,
+    required Duration connectionTimeout,
+    required Duration idleTimeout,
+  }) {
+    final dio = Dio(BaseOptions(
+      connectTimeout: timeout,
+      receiveTimeout: timeout,
+      sendTimeout: timeout,
+    ));
+
+    final adapter = IOHttpClientAdapter()
+      ..createHttpClient = () {
+        final httpClient = HttpClient()
+          ..maxConnectionsPerHost = maxConnectionsPerHost
+          ..connectionTimeout = connectionTimeout
+          ..idleTimeout = idleTimeout;
+        return httpClient;
+      };
+
+    dio.httpClientAdapter = adapter;
+    return dio;
+  }
+
+  final Dio _client;
   final String baseUrl;
   final Duration timeout;
   final Map<String, String> _defaultHeaders;
   final int maxRetries;
   final int backoffSeconds;
+  final int maxConnectionsPerHost;
+  final Duration connectionTimeout;
+  final Duration idleTimeout;
 
-  Future<http.Response> get(
+  Future<SyncHttpResponse> get(
     String path, {
     Map<String, String>? headers,
     Map<String, dynamic>? queryParameters,
   }) async {
-    final uri = _resolveUri(path)
-        .replace(queryParameters: _toQueryParameters(queryParameters));
-    return _sendRequest('GET', uri, headers: headers);
+    return _sendRequest(
+      'GET',
+      _resolveUri(path),
+      headers: headers,
+      queryParameters: _toQueryParameters(queryParameters),
+    );
   }
 
-  Future<http.Response> post(
+  Future<SyncHttpResponse> post(
     String path, {
     Object? body,
     Map<String, String>? headers,
@@ -44,7 +101,7 @@ class SyncHttpClient {
     );
   }
 
-  Future<http.Response> postString(
+  Future<SyncHttpResponse> postString(
     String path, {
     required String body,
     Map<String, String>? headers,
@@ -57,7 +114,7 @@ class SyncHttpClient {
     );
   }
 
-  Future<http.Response> postJson(
+  Future<SyncHttpResponse> postJson(
     String path, {
     required Object body,
     Map<String, String>? headers,
@@ -75,18 +132,25 @@ class SyncHttpClient {
     );
   }
 
-  Future<http.Response> _sendRequest(
-    String method,
-    Uri uri, {
+  Future<SyncHttpResponse> download(
+    String path,
+    dynamic savePath, {
     Map<String, String>? headers,
-    Object? body,
+    ProgressCallback? onReceiveProgress,
+    bool deleteOnError = true,
   }) async {
     final requestHeaders = {..._defaultHeaders, ...?headers};
 
     int attempt = 0;
     while (true) {
       try {
-        final response = await _sendOnce(method, uri, requestHeaders, body);
+        final response = await _sendDownloadOnce(
+          _resolveUri(path),
+          requestHeaders,
+          savePath,
+          onReceiveProgress: onReceiveProgress,
+          deleteOnError: deleteOnError,
+        );
         if (response.statusCode >= 200 && response.statusCode < 300) {
           return response;
         }
@@ -105,31 +169,128 @@ class SyncHttpClient {
     }
   }
 
-  Future<http.Response> _sendOnce(
+  Future<SyncHttpResponse> _sendRequest(
+    String method,
+    Uri uri, {
+    Map<String, String>? headers,
+    Object? body,
+    Map<String, dynamic>? queryParameters,
+  }) async {
+    final requestHeaders = {..._defaultHeaders, ...?headers};
+
+    int attempt = 0;
+    while (true) {
+      try {
+        final response = await _sendOnce(
+          method,
+          uri,
+          requestHeaders,
+          body,
+          queryParameters: queryParameters,
+        );
+        if (response.statusCode >= 200 && response.statusCode < 300) {
+          return response;
+        }
+        if (attempt >= maxRetries) {
+          return response;
+        }
+        attempt++;
+        await Future.delayed(Duration(seconds: backoffSeconds * attempt));
+      } catch (e) {
+        if (attempt >= maxRetries) {
+          rethrow;
+        }
+        attempt++;
+        await Future.delayed(Duration(seconds: backoffSeconds * attempt));
+      }
+    }
+  }
+
+  Future<SyncHttpResponse> _sendOnce(
     String method,
     Uri uri,
     Map<String, String> headers,
-    Object? body,
-  ) async {
-    late http.Response response;
+    Object? body, {
+    Map<String, dynamic>? queryParameters,
+  }) async {
+    if (queryParameters != null && queryParameters.isNotEmpty) {
+      uri = uri.replace(queryParameters: queryParameters);
+    }
+
+    final options = Options(
+      headers: headers,
+      responseType: ResponseType.bytes,
+      contentType: headers['Content-Type'],
+      validateStatus: (_) => true,
+    );
+
+    late final Response response;
     if (method == 'GET') {
-      response = await _client.get(uri, headers: headers).timeout(timeout);
+      response = await _client
+          .getUri(
+            uri,
+            options: options,
+          )
+          .timeout(timeout);
     } else if (method == 'POST') {
-      if (body is String) {
-        response = await _client
-            .post(uri, headers: headers, body: body)
-            .timeout(timeout);
-      } else if (body != null) {
-        response = await _client
-            .post(uri, headers: headers, body: body.toString())
-            .timeout(timeout);
-      } else {
-        response = await _client.post(uri, headers: headers).timeout(timeout);
+      dynamic data = body;
+      if (body != null &&
+          body is! List<int> &&
+          body is! Uint8List &&
+          body is! Stream<Uint8List>) {
+        data = body.toString();
       }
+      response = await _client
+          .postUri(
+            uri,
+            data: data,
+            options: options,
+          )
+          .timeout(timeout);
     } else {
       throw UnsupportedError('Unsupported HTTP method: $method');
     }
-    return response;
+
+    final bytes = response.data != null
+        ? Uint8List.fromList(List<int>.from(response.data as List<int>))
+        : Uint8List.fromList(<int>[]);
+    final bodyText = utf8.decode(bytes, allowMalformed: true);
+
+    return SyncHttpResponse(
+      statusCode: response.statusCode ?? 0,
+      body: bodyText,
+      bodyBytes: bytes,
+      headers: response.headers.map,
+    );
+  }
+
+  Future<SyncHttpResponse> _sendDownloadOnce(
+    Uri uri,
+    Map<String, String> headers,
+    dynamic savePath, {
+    ProgressCallback? onReceiveProgress,
+    bool deleteOnError = true,
+  }) async {
+    final options = Options(
+      headers: headers,
+      validateStatus: (_) => true,
+    );
+
+    final response = await _client.downloadUri(
+      uri,
+      savePath,
+      options: options,
+      onReceiveProgress: onReceiveProgress,
+      deleteOnError: deleteOnError,
+    );
+    //.timeout(timeout);
+
+    return SyncHttpResponse(
+      statusCode: response.statusCode ?? 0,
+      body: '',
+      bodyBytes: Uint8List(0),
+      headers: response.headers.map,
+    );
   }
 
   Uri _resolveUri(String path) {
@@ -140,7 +301,7 @@ class SyncHttpClient {
     return Uri.parse(baseUrl).resolve(path);
   }
 
-  Map<String, String>? _toQueryParameters(
+  Map<String, dynamic>? _toQueryParameters(
       Map<String, dynamic>? queryParameters) {
     if (queryParameters == null || queryParameters.isEmpty) {
       return null;
@@ -150,15 +311,28 @@ class SyncHttpClient {
   }
 
   void close() {
-    _client.close();
+    _client.close(force: true);
   }
 }
 
 class SyncHttpClientFactory {
-  SyncHttpClientFactory({http.Client? sharedClient})
-      : _sharedClient = sharedClient;
+  SyncHttpClientFactory({
+    Dio? sharedClient,
+    this.maxConnectionsPerHost = 6,
+    this.connectionTimeout = const Duration(seconds: 15),
+    this.idleTimeout = const Duration(seconds: 20),
+  }) : _sharedClient = sharedClient ??
+            SyncHttpClient._createDefaultDio(
+              timeout: const Duration(seconds: 15),
+              maxConnectionsPerHost: maxConnectionsPerHost,
+              connectionTimeout: connectionTimeout,
+              idleTimeout: idleTimeout,
+            );
 
-  final http.Client? _sharedClient;
+  final Dio _sharedClient;
+  final int maxConnectionsPerHost;
+  final Duration connectionTimeout;
+  final Duration idleTimeout;
   final Map<String, SyncHttpClient> _clients = <String, SyncHttpClient>{};
 
   SyncHttpClient clientFor({

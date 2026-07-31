@@ -12,7 +12,7 @@ description: |
 
   因此，这个技能不应该引入一套完全新的抽象，而是优先扩展和规范现有的 `SyncHttpClient` / `ContentDownloader` 结构，并在需要时把 HTTP内容同步状态上报逻辑也纳入统一客户端。
 
-  关键原则：在同一个模块或服务里复用一个 `http.Client` 实例，让底层连接池得到共享；避免在每个请求里都创建新的客户端。对于不同 baseUrl 或不同业务域名，可以通过一个轻量工厂/池来管理多个共享客户端。
+  关键原则：在同一个模块或服务里复用一个 `Dio` 实例，让底层连接池得到共享；避免在每个请求里都创建新的客户端。对于不同 baseUrl 或不同业务域名，可以通过一个轻量工厂/池来管理多个共享客户端。
 
   适配的现有代码场景：
   - lib/backend/services/content_downloader.dart 中的 `ContentDownloadTask`、`ContentDownloadQueue`、`ContentDownloadWorkerPayload`、`ContentDownloader`
@@ -56,10 +56,10 @@ arguments:
 2. 复用当前仓库已有类型，而不是引入完全不同的模型：
    - 下载流程优先围绕 `ContentDownloadTask` / `ContentDownloadQueue` / `ContentDownloadWorkerPayload` 设计。
    - HTTP / 日志场景优先考虑与 `PlayerJobItem`、`player_log_file.dart` 的调用方式兼容。
-3. 让网络层在整个服务生命周期内共享一个客户端实例，复用底层连接池，避免频繁创建和关闭 `http.Client`；只在应用退出或服务销毁时调用 `close()`。
+3. 让网络层在整个服务生命周期内共享一个客户端实例，复用底层连接池，避免频繁创建和关闭 `Dio`；只在应用退出或服务销毁时调用 `close()`。
 4. 如果存在多个业务域名或多个 baseUrl，建议通过 `SyncHttpClientFactory` / `SyncHttpClientPool` 统一创建和维护共享客户端，而不是在业务代码中到处 `new SyncHttpClient(...)`。
 5. 生成或扩展一个轻量封装类，职责包括：
-   - 持有一个可注入的 `http.Client` 实例
+   - 持有一个可注入的 `Dio` 实例
    - 统一拼接 `baseUrl`
    - 统一设置默认 headers
    - 统一处理 timeout、异常和重试
@@ -70,7 +70,7 @@ arguments:
    - `updateTaskStatus()`
    - `submitTask()`
 7. 如果要和当前下载器集成，确保生成的代码可以直接被 `ContentDownloader` 或现有后台轮询流程调用。
-8. 默认优先复用一个共享客户端实例，测试环境则通过注入 `MockClient` 或 `http.Client` 替换，保持对业务代码的影响最小。
+8. 默认优先复用一个共享客户端实例，测试环境则通过注入 `MockAdapter` 或 `Dio` 替换，保持对业务代码的影响最小。
 
 ## 目标输出
 
@@ -96,7 +96,7 @@ arguments:
 
 ## 建议的类结构
 
-- `SyncHttpClient`：优先扩展当前仓库已经存在的实现，负责共享 `http.Client`、baseUrl、headers、timeout。
+- `SyncHttpClient`：优先扩展当前仓库已经存在的实现，负责共享 `Dio`、baseUrl、headers、timeout。
 - `SyncHttpException`：统一异常类型，包含 statusCode、message、url。
 - `SyncHttpRetryPolicy`：重试策略配置，包含 `maxRetries`、`backoffSeconds`、`retryOnStatusCodes`。
 - `SyncHttpLogger`：可选日志接口，用于记录请求、响应和异常。
@@ -113,63 +113,66 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:http/http.dart' as http;
+import 'package:dio/dio.dart';
 
 class SyncHttpClient {
   SyncHttpClient({
-    http.Client? client,
+    Dio? client,
     required this.baseUrl,
     this.timeout = const Duration(seconds: 15),
     Map<String, String>? defaultHeaders,
     this.maxRetries = 2,
     this.backoffSeconds = 2,
-  })  : _client = client ?? http.Client(),
+  })  : _client = client ?? Dio(BaseOptions()),
         _defaultHeaders = defaultHeaders ?? {};
 
-  final http.Client _client;
+  final Dio _client;
   final String baseUrl;
   final Duration timeout;
   final Map<String, String> _defaultHeaders;
   final int maxRetries;
   final int backoffSeconds;
 
-  Future<http.Response> get(
+  Future<SyncHttpResponse> get(
     String path, {
     Map<String, String>? headers,
     Map<String, dynamic>? queryParameters,
   }) async {
-    final uri = Uri.parse(baseUrl + path)
-        .replace(queryParameters: _toQueryParameters(queryParameters));
-    return _sendRequest('GET', uri, headers: headers);
+    return _sendRequest(
+      'GET',
+      _resolveUri(path),
+      headers: headers,
+      queryParameters: _toQueryParameters(queryParameters),
+    );
   }
 
-  Future<http.Response> post(
+  Future<SyncHttpResponse> post(
     String path, {
     Object? body,
     Map<String, String>? headers,
   }) async {
     return _sendRequest(
       'POST',
-      Uri.parse(baseUrl + path),
+      _resolveUri(path),
       headers: headers,
       body: body,
     );
   }
 
-  Future<http.Response> postString(
+  Future<SyncHttpResponse> postString(
     String path, {
     required String body,
     Map<String, String>? headers,
   }) async {
     return _sendRequest(
       'POST',
-      Uri.parse(baseUrl + path),
+      _resolveUri(path),
       headers: headers,
       body: body,
     );
   }
 
-  Future<http.Response> postJson(
+  Future<SyncHttpResponse> postJson(
     String path, {
     required Object body,
     Map<String, String>? headers,
@@ -181,13 +184,13 @@ class SyncHttpClient {
     };
     return _sendRequest(
       'POST',
-      Uri.parse(baseUrl + path),
+      _resolveUri(path),
       headers: requestHeaders,
       body: jsonEncode(body),
     );
   }
 
-  Future<http.Response> _sendRequest(
+  Future<SyncHttpResponse> _sendRequest(
     String method,
     Uri uri, {
     Map<String, String>? headers,
@@ -217,30 +220,57 @@ class SyncHttpClient {
     }
   }
 
-  Future<http.Response> _sendOnce(
+  Future<SyncHttpResponse> _sendOnce(
     String method,
     Uri uri,
     Map<String, String> headers,
     Object? body,
   ) async {
-    late http.Response response;
+    final options = Options(
+      headers: headers,
+      responseType: ResponseType.bytes,
+      contentType: headers['Content-Type'],
+      validateStatus: (_) => true,
+    );
+
+    dynamic data = body;
+    if (body != null &&
+        body is! List<int> &&
+        body is! Uint8List &&
+        body is! Stream<List<int>>) {
+      data = body.toString();
+    }
+
+    late final Response<List<int>> response;
     if (method == 'GET') {
-      response = await _client.get(uri, headers: headers).timeout(timeout);
+      response = await _client.getUri(
+        uri,
+        options: options,
+      ).timeout(timeout);
     } else if (method == 'POST') {
-      if (body is String) {
-        response = await _client.post(uri, headers: headers, body: body).timeout(timeout);
-      } else if (body != null) {
-        response = await _client.post(uri, headers: headers, body: body.toString()).timeout(timeout);
-      } else {
-        response = await _client.post(uri, headers: headers).timeout(timeout);
-      }
+      response = await _client.postUri(
+        uri,
+        data: data,
+        options: options,
+      ).timeout(timeout);
     } else {
       throw UnsupportedError('Unsupported HTTP method: $method');
     }
-    return response;
+
+    final bytes = response.data != null
+        ? Uint8List.fromList(response.data!)
+        : Uint8List.fromList(<int>[]);
+    final bodyText = utf8.decode(bytes, allowMalformed: true);
+
+    return SyncHttpResponse(
+      statusCode: response.statusCode ?? 0,
+      body: bodyText,
+      bodyBytes: bytes,
+      headers: response.headers.map,
+    );
   }
 
-  Map<String, String>? _toQueryParameters(Map<String, dynamic>? queryParameters) {
+  Map<String, dynamic>? _toQueryParameters(Map<String, dynamic>? queryParameters) {
     if (queryParameters == null || queryParameters.isEmpty) {
       return null;
     }
@@ -249,7 +279,7 @@ class SyncHttpClient {
   }
 
   void close() {
-    _client.close();
+    _client.close(force: true);
   }
 }
 
@@ -280,7 +310,7 @@ class SyncHttpException implements Exception {
 
 ## 测试建议
 
-- 用一个可注入的 `http.Client` 或 `MockClient` 来替换真实网络调用。
+- 用一个可注入的 `Dio` 或 `MockAdapter` 来替换真实网络调用。
 - 重点测试：
   - baseUrl 拼接是否正确
   - headers 是否成功注入

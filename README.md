@@ -2,7 +2,42 @@
 
 中文 | [English](./README_en.md)
 
-基于 `libmpv` 的 Material 3 风格跨平台媒体播放器.
+DMC Digital Signage Player
+
+基于 Flutter 和 Dart 构建的跨平台全屏数字标牌与媒体播放解决方案，适用于多区域显示布局场景。系统可将屏幕划分为多个可自定义大小和位置的播放区域，并支持在本地文件与网络资源之间切换播放各类媒体内容。
+
+## 产品概览
+
+本项目是一款面向数字标牌、智能零售展示、信息墙与媒体展示场景的专业多屏播放系统。它支持在单屏或多屏环境下，按区域组合播放多种内容，并实现统一管理与灵活轮播。
+
+### 核心功能
+
+- 支持在全屏模式下播放大屏、墙面显示器或数字标牌内容。
+- 支持灵活的多区域布局，可自定义分区数量、区域尺寸与位置。
+- 支持播放多种内容类型，包括视频、图片、文本、实时信息、PPT、PDF、HTML、滚动文本以及图片幻灯片。
+- 支持多个节目或播放列表在不同区域之间轮播与排程。
+- 支持播放本地媒体文件，也支持在线/网络内容。
+- 支持系统开机自动启动。
+- 可作为单机播放器独立运行，也可与 CMS 服务同步更新，实现远程内容管理与集中控制。
+- 支持 Windows、macOS、Linux、Android、iOS 和 Web 等多平台部署。
+
+### 亮点摘要
+
+- 面向数字标牌与信息展示的多区域、多内容播放能力。
+- 支持节目轮播与 CMS 同步管理，便于集中更新。
+- 基于 Flutter 与 Dart 提供统一的跨平台交付能力。
+
+### 典型应用场景
+
+- 企业前台与接待展示屏
+- 零售门店与智能购物场景
+- 公共信息墙与交通枢纽终端
+- 教育培训与会议演示屏幕
+- 通过排程更新内容的远程数字标牌管理
+
+### 平台与技术
+
+本应用采用 Flutter 与 Dart 实现，提供统一的跨平台代码能力，同时支持独立本地播放与 CMS 演示系统 http://121.40.137.228:8080/demo 的同步更新。
 
 [![build](https://img.shields.io/github/actions/workflow/status/s2001wincrown/dcm-flutter/build.yml?style=for-the-badge)](https://github.com/s2001wincrown/dcm-flutter/actions)
 [![release](https://img.shields.io/badge/beta-2025.4-gold?style=for-the-badge)](https://github.com/s2001wincrown/dcm-flutter/releases) ![downloads](https://img.shields.io/github/downloads/s2001wincrown/dcm-flutter/total?style=for-the-badge&color=blue) [![project](https://img.shields.io/badge/project-grey?style=for-the-badge)](https://github.com/orgs/s2001wincrown/projects/3)
@@ -14,23 +49,25 @@
 ![](https://ziadoua.github.io/m3-Markdown-Badges/badges/macOS/macos3.svg)
 ![](https://ziadoua.github.io/m3-Markdown-Badges/badges/Android/android3.svg)
 
-## 界面截图
+支持平台：Windows、macOS、Linux、Android、iOS 和 Web。
+
+## 产品界面展示
 
 <table>
   <tr>
     <td>
-      <img src='./screenshots/screenshot1.png' alt="equalizer">
+      <img src='./screenshots/screenshot1.png' alt="horizontal-a2-1">
     </td>
     <td>
-      <img src='./screenshots/screenshot2.png' alt="theme">
+      <img src='./screenshots/screenshot2.png' alt="horizontal-a2-2">
     </td>
   </tr>
   <tr>
     <td>
-      <img src='./screenshots/screenshot3.png' alt="shaders">
+      <img src='./screenshots/screenshot3.png' alt="horizontal-a3">
     </td>
     <td>
-      <img src='./screenshots/screenshot4.png' alt="library">
+      <img src='./screenshots/screenshot4.png' alt="vertical-b4">
     </td>
   </tr>
 </table>
@@ -44,38 +81,52 @@
 
 启用 **应用偏好设置 -> 播放器 -> 允许 libmpv 使用配置文件** 选项, 重启应用.
 
-## For Developers
+## 开发说明
 
-首先, 根据 [官方教程](https://docs.flutter.dev/get-started/install/) 配置 flutter 环境. 请使用不低于 **3.29.0** 的 flutter 版本.
+如需在本地构建并运行此项目，首先请根据 [官方教程](https://docs.flutter.dev/get-started/install/) 配置 Flutter 环境，并使用不低于 **3.29.0** 的 Flutter 版本。
 
-终端进入项目根目录, 运行 `flutter pub get` 以获取依赖项.
-运行 `dart run whisper4dart:setup --prebuilt`
+环境准备完成后，可执行以下命令安装所需依赖：
+
+- `flutter pub get`
+- `dart run whisper4dart:setup --prebuilt`
 
 ### Windows
 
-运行 `dart run libmpv_dart:setup --platform windows` 获取 mpv 库依赖
-运行 `flutter build windows` 以生成 Windows 可执行程序
+在构建 Windows 版本前，先准备 `libmpv` 运行时依赖：
+
+- `dart run libmpv_dart:setup --platform windows`
+
+随后生成 Windows 可执行程序：
+
+- `flutter build windows`
 
 ### Linux
 
-配置完 flutter 后, 请通过系统包管理器或其他途径安装 `libmpv-dev`.
+配置完 Flutter 后，请通过系统包管理器或其他方式安装 `libmpv-dev`。
 
-运行 `flutter build linux` 以生成 Linux 可执行程序
+生成 Linux 可执行程序：
+
+- `flutter build linux`
 
 ### macOS
 
-运行 `flutter build macos` 以生成 macOS 可执行程序
+生成 macOS 可执行程序：
 
-### android
+- `flutter build macos`
 
-> 请在平板设备上运行.
+### Android
 
-运行 `flutter build apk` 以生成 apk 安装包文件
+> 请在平板设备上运行。
 
-## 为本项目做出贡献
+生成 APK 安装包：
 
-如果您在使用中发现 bug 或者希望添加某些功能, 请 [新建一个 issue](https://github.com/s2001wincrown/dcm-flutter/issues/new).
-也欢迎直接 Pull Request 提交代码贡献.
+- `flutter build apk`
+
+## 参与贡献
+
+欢迎参与本项目的建设。如果您在使用过程中发现问题、希望反馈缺陷或提出功能建议，请 [新建一个 issue](https://github.com/s2001wincrown/dcm-flutter/issues/new)。
+
+我们也非常欢迎通过 Pull Request 提交代码改进、平台适配与新功能支持。
 
 ## Star History
 

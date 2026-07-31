@@ -1295,7 +1295,7 @@ class TransferActionService {
 
     PlayerLogFile.nTotalBytesDownloaded = BigInt.zero;
     PlayerLogFile.nTotalBytesToDownload = BigInt.zero;
-    PlayerLogFile.nFileDownloaded = BigInt.zero;
+    PlayerLogFile.nFileDownloaded = 0;
     if (_pTaskItem.dwJobStatus == FileTransferStatus.eGENERATEDFILELIST) {
       _fileListImpl.loadUnFilterFileList(_pTaskItem.strJobItem);
       await _fileListImpl.filterReplaceFile(_pTaskItem.bReplaceFile);

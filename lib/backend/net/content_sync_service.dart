@@ -1054,7 +1054,7 @@ class ContentSyncService {
     }
 
     if (dwSMSCommand & kSMSCOMMANDPLAYLIST > 0) {
-      String strMessage = pData.messageName;
+      //String strMessage = pData.messageName;
       //todo: change playlist and send sms
       // write text to memory-mapped file
       /*if ( !strMessage.IsEmpty() && m_pViewOfFile  &&  m_pLock )

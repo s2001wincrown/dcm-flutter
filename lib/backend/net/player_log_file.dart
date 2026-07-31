@@ -39,7 +39,7 @@ class PlayerLogFile {
   static DateTime dtStartSync = DateTime.now();
   static BigInt nTotalBytesDownloaded = BigInt.zero;
   static BigInt nTotalBytesToDownload = BigInt.zero;
-  static BigInt nFileDownloaded = BigInt.zero;
+  static int nFileDownloaded = 0;
   static int nUpdateCookie = 0; // 使用时间戳毫秒
   static int nUpdateInterval = 60000;
 
@@ -139,7 +139,7 @@ class PlayerLogFile {
       xmlProfile.writeProfileInt(
           'DownloadSetting', 'Downloaded', nTotalBytesDownloaded.toInt());
       xmlProfile.writeProfileInt(
-          'DownloadSetting', 'FilesDownloaded', nFileDownloaded.toInt());
+          'DownloadSetting', 'FilesDownloaded', nFileDownloaded);
       if (nTotalBytesToDownload > BigInt.zero) {
         xmlProfile.writeProfileInt(
             'DownloadSetting', 'TotalSize', nTotalBytesToDownload.toInt());

@@ -2,7 +2,42 @@
 
 [中文](./README.md) | English
 
-A `libmpv` based media player with Material 3 design.
+DMC Digital Signage Player
+
+A cross-platform fullscreen digital signage and media playback solution built with Flutter and Dart. It is designed for multi-zone display scenarios where the screen can be divided into multiple independent playback areas, each with customizable size, layout, and content source.
+
+## Product Overview
+
+This project is a professional multi-screen playback system for digital signage, smart retail displays, information walls, and media presentation environments. It enables centralized or standalone playback of diverse content across multiple regions on one screen or across a group of connected displays.
+
+### Core Features
+
+- Fullscreen playback for large displays, wall-mounted screens, and digital signage installations.
+- Flexible multi-region layout with configurable zone count, size, and position.
+- Support for multiple content formats, including video, images, text, real-time information, PPT, PDF, HTML, scrolling text, and image slideshows.
+- Program rotation and playlist scheduling across different zones.
+- Playback from both local files and network-based media sources.
+- Automatic startup on device boot.
+- Standalone operation or synchronization with a CMS server for remote control, content updates, and centralized management.
+- Cross-platform deployment on Windows, macOS, Linux, Android, iOS, and Web.
+
+### Key Highlights
+
+- Multi-zone, multi-content playback for digital signage and information display.
+- Flexible scheduling and central management through CMS synchronization.
+- Unified cross-platform delivery built on Flutter and Dart.
+
+### Typical Use Cases
+
+- Corporate lobby and reception displays
+- Retail storefronts and smart shopping environments
+- Public information walls and transit terminals
+- Educational or conference presentation screens
+- Remote signage management with scheduled content updates
+
+### Platform and Technology
+
+The application is implemented with Flutter and Dart, providing a unified codebase for cross-platform deployment while supporting both independent local playback and synchronization with the CMS demo system at http://121.40.137.228:8080/demo.
 
 [![build](https://img.shields.io/github/actions/workflow/status/s2001wincrown/dcm-flutter/build.yml?style=for-the-badge)](https://github.com/s2001wincrown/dcm-flutter/actions)
 [![release](https://img.shields.io/badge/beta-2025.4-gold?style=for-the-badge)](https://github.com/s2001wincrown/dcm-flutter/releases) ![downloads](https://img.shields.io/github/downloads/s2001wincrown/dcm-flutter/total?style=for-the-badge&color=blue) [![project](https://img.shields.io/badge/project-grey?style=for-the-badge)](https://github.com/orgs/s2001wincrown/projects/3)
@@ -14,23 +49,25 @@ A `libmpv` based media player with Material 3 design.
 ![](https://ziadoua.github.io/m3-Markdown-Badges/badges/macOS/macos3.svg)
 ![](https://ziadoua.github.io/m3-Markdown-Badges/badges/Android/android3.svg)
 
-## Screenshots
+Supported platforms: Windows, macOS, Linux, Android, iOS, and Web.
+
+## Product Screenshots
 
 <table>
   <tr>
     <td>
-      <img src='./screenshots/screenshot1.png' alt="equalizer">
+      <img src='./screenshots/screenshot1.png' alt="horizontal-a2-1">
     </td>
     <td>
-      <img src='./screenshots/screenshot2.png' alt="theme">
+      <img src='./screenshots/screenshot2.png' alt="horizontal-a2-2">
     </td>
   </tr>
   <tr>
     <td>
-      <img src='./screenshots/screenshot3.png' alt="shaders">
+      <img src='./screenshots/screenshot3.png' alt="horizontal-a3">
     </td>
     <td>
-      <img src='./screenshots/screenshot4.png' alt="library">
+      <img src='./screenshots/screenshot4.png' alt="vertical-b4">
     </td>
   </tr>
 </table>
@@ -38,36 +75,50 @@ A `libmpv` based media player with Material 3 design.
 
 ## For Developers
 
-First, set up the Flutter environment according to the [official guide](https://docs.flutter.dev/get-started/install/). Please use Flutter version **3.29.0** or higher.
+To build and run this project locally, first set up the Flutter environment according to the [official guide](https://docs.flutter.dev/get-started/install/). Please use Flutter version **3.29.0** or higher.
 
-Then run `flutter pub get` and `dart run whisper4dart:setup --prebuilt` to get necessary dependencies.
+Once the environment is ready, install the required dependencies with:
+
+- `flutter pub get`
+- `dart run whisper4dart:setup --prebuilt`
 
 ### Windows
 
-Before building the application, run `libmpv_dart:setup --platform windows` to get libmpv dependencies.
+Before building for Windows, prepare the `libmpv` runtime dependency with:
 
-Run `flutter build windows` in the project directory to generate the Windows executable.
+- `dart run libmpv_dart:setup --platform windows`
+
+Then generate the executable with:
+
+- `flutter build windows`
 
 ### Linux
 
-After setting up Flutter, install `libmpv-dev` via your system package manager or other means.
+After setting up Flutter, install `libmpv-dev` through your system package manager or another supported method.
 
-Run `flutter build linux` in the project directory to generate the Linux executable.
+Generate the Linux build with:
+
+- `flutter build linux`
 
 ### macOS
 
-Run `flutter build macos` in the project directory to generate the macOS executable.
+Generate the macOS build with:
+
+- `flutter build macos`
 
 ### Android
 
 > Please run on tablet devices.
 
-Run `flutter build apk` to generate the APK installation file.
+Generate the APK installation file with:
 
-## Contributing to This Project
+- `flutter build apk`
 
-If you find a bug or want to suggest a feature, please [create a new issue](https://github.com/s2001wincrown/dcm-flutter/issues/new).
-Pull requests with code contributions are also welcome.
+## Contributing
+
+Contributions are welcome. If you encounter a bug, want to report an issue, or propose a feature enhancement, please [create a new issue](https://github.com/s2001wincrown/dcm-flutter/issues/new).
+
+Pull requests are also encouraged for code improvements, platform support, and new playback capabilities.
 
 ## Star History
 
