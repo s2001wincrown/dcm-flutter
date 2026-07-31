@@ -1,5 +1,7 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:isolate';
+import 'dart:ui';
 
 import 'package:dcm/backend/constants.dart';
 import 'package:dcm/backend/models/app_global.dart';
@@ -21,6 +23,9 @@ import 'package:dcm/backend/utils/utils.dart';
 import 'package:flutter/foundation.dart';
 import 'package:intl/intl.dart';
 import 'package:path/path.dart' as path;
+
+const String kContentSyncPlayerRefreshPortName =
+    'dcm_content_sync_player_refresh_port';
 
 class ContentSyncService {
   static final ContentSyncService _instance = ContentSyncService._internal();
@@ -61,6 +66,12 @@ class ContentSyncService {
 
   ContentDownloader get workQueue => _workQueue;
   DateTime get dtStartup => _dtStartup;
+
+  void _notifyMainIsolatePlaylistRefresh() {
+    final SendPort? sendPort =
+        IsolateNameServer.lookupPortByName(kContentSyncPlayerRefreshPortName);
+    sendPort?.send('playlist_refresh');
+  }
 
   Future<void> init() async {
     await initPlayerRegisterInformation();
@@ -549,18 +560,18 @@ class ContentSyncService {
         }
       } else if (dwSyncContent != cSyncDCMPLAYERLOG &&
           dwSyncContent != cSyncDCMTRANSFERLOG) {
-        //todo send playlist download finished notify to player
-        /*#if DCM_PLATFORM != DCM_PLATFORM_WIN32
-        String strCmd = String::Format(ddeformat, DOWNLOAD_FINISHED, dwSyncContent,'');
-        DDENotify(strCmd);
-  #else
-        FTPMisc::SavePlaylistVersion(strLatestPlaylistVersion);
-        CFTPLogFile::GenPlaylistContent(nEventDisplay);
-        LPARAM lParam = MAKELPARAM(DOWNLOAD_FINISHED, dwSyncContent);
-        ::PostMessage(HWND_BROADCAST, wm_Message, (WPARAM)m_hWnd, lParam);
-  #endif*/
-        logI('Send playlist download finished notify to player successfully\n',
-            syncTag);
+        try {
+          await Utils.savePlaylistVersion(strLatestPlaylistVersion);
+          await PlayerLogFile.genPlaylistContent(nEventDisplay);
+          _notifyMainIsolatePlaylistRefresh();
+          logI(
+              'Send playlist download finished notify to player successfully\n',
+              syncTag);
+        } catch (e, stack) {
+          logE(
+              'Failed to notify player after playlist download finished: $e, stack: $stack',
+              syncTag);
+        }
       }
     }
   }

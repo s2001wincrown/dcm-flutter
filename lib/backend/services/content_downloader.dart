@@ -627,45 +627,24 @@ class ContentDownloader {
             : ContentDownloadStatus.failed;
         task.lastUpdated = DateTime.now();
 
-        String taskResult;
-        int nError = cTRANSFERSUCCESS;
         if (task.status == ContentDownloadStatus.success) {
           queue.finalSuccessTaskCount += 1;
           queue.lastTaskOutcome = 'success';
           await queue.save();
           onProgress?.call(task);
           onTaskComplete?.call(task);
-          PlayerLogFile.nFileDownloaded++;
-          PlayerLogFile.nTotalBytesDownloaded +=
-              BigInt.from(task.remoteSize < 0 ? 0 : task.remoteSize);
-          taskResult = '"${task.title}" transfer completed.';
         } else {
-          final shouldRetry =
-              queue.handleTaskFailure(task, maxRetries: maxRetries);
+          /*final shouldRetry =
+              queue.handleTaskFailure(task, maxRetries: maxRetries);*/
+          queue.handleTaskFailure(task, maxRetries: maxRetries);
           await queue.save();
           onProgress?.call(task);
           onTaskComplete?.call(task);
-          taskResult =
-              '"${task.title}" transfer error. Error Message: "${task.errorMessage}".';
-          if (task.retryCount < maxRetries) {
-            nError = cTRANSFERRETRYERR;
-          } else if (task.retryCount == maxRetries) {
-            nError = cTRANSFERERR;
-          }
-          if (!shouldRetry) {
+
+          /*if (!shouldRetry) {
             continue;
-          }
+          }*/
         }
-        String strResult = taskResult;
-        if (task.retryCount > 0) {
-          strResult = 'Retry: ${task.retryCount} Result: $taskResult';
-        }
-        //strResult.replaceAll(_T("%"), _T("%%"));
-        PlayerLogFile.writeLogFile(nError, strResult,
-            fileTitle: task.title,
-            bUpdateStatus: false,
-            contentType: task.contentType);
-        logI(strResult);
       } catch (e, stack) {
         logE('Failed to process task ${task.url}: $e, stack: $stack', syncTag);
         task.status = ContentDownloadStatus.failed;
@@ -675,6 +654,36 @@ class ContentDownloader {
         await queue.save();
         onTaskComplete?.call(task);
       }
+
+      String taskResult;
+      int nError = cTRANSFERSUCCESS;
+      if (task.status == ContentDownloadStatus.success) {
+        PlayerLogFile.nFileDownloaded++;
+        PlayerLogFile.nTotalBytesDownloaded +=
+            BigInt.from(task.remoteSize < 0 ? 0 : task.remoteSize);
+        taskResult = '"${task.title}" transfer completed.';
+      } else {
+        taskResult =
+            '"${task.title}" transfer error. Error Message: "${task.errorMessage}".';
+        if (task.retryCount < maxRetries) {
+          nError = cTRANSFERRETRYERR;
+        } else if (task.retryCount == maxRetries) {
+          nError = cTRANSFERERR;
+        }
+      }
+      String strResult = taskResult;
+      if (task.retryCount > 0) {
+        strResult = 'Retry: ${task.retryCount} Result: $taskResult';
+      }
+      //strResult.replaceAll(_T("%"), _T("%%"));
+      await PlayerLogFile.writeLogFile(nError, strResult,
+          fileTitle: task.title,
+          bUpdateStatus: false,
+          contentType: task.contentType);
+      if (task.status == ContentDownloadStatus.success) {
+        await PlayerLogFile.updateSyncStatus();
+      }
+      logI(strResult);
     }
   }
 

@@ -610,6 +610,7 @@ class Utils {
     csURL = csURL.replaceAll('[', '%5B');
     csURL = csURL.replaceAll(']', '%5D');
     csURL = csURL.replaceAll('"', '%22');
+    csURL = csURL.replaceAll('%', '%25');
 
     return csURL;
   }
@@ -784,5 +785,21 @@ class Utils {
     } catch (_) {}
 
     return null;
+  }
+
+  static Future<void> savePlaylistVersion(String strPlaylistVer) async {
+    String strFileName = path.join(AppGlobal.settingPath,
+        'Version.txt'); // m_FtpSettings.m_strSettingPath;
+    String strUSBVersion = '';
+
+    try {
+      var versionFile = File(strFileName);
+      if (await versionFile.exists()) {
+        String fileContent = await versionFile.readAsString();
+        var list = fileContent.split('||');
+        if (list.isNotEmpty) strUSBVersion = list[0];
+      }
+      await versionFile.writeAsString('$strUSBVersion||$strPlaylistVer');
+    } catch (_) {}
   }
 }

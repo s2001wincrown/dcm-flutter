@@ -61,6 +61,7 @@ AppSettings _$AppSettingsFromJson(Map<String, dynamic> json) => AppSettings(
               ?.map((e) => PlayItem.fromJson(e as Map<String, dynamic>))
               .toList() ??
           const [],
+      tempPath: json['tempPath'] as String? ?? '',
       language: json['language'] as String? ?? 'zh_hans',
       enableDevSettings: json['enableDevSettings'] as bool? ?? false,
       tabletUI: json['tabletUI'] as bool? ?? true,
@@ -103,6 +104,7 @@ Map<String, dynamic> _$AppSettingsToJson(AppSettings instance) =>
       'favouritePaths': instance.favouritePaths,
       'screenshotPath': instance.screenshotPath,
       'downloadPath': instance.downloadPath,
+      'tempPath': instance.tempPath,
       'recordRecentSearched': instance.recordRecentSearched,
       'recentSearched': instance.recentSearched,
       'recordRecentPlayed': instance.recordRecentPlayed,

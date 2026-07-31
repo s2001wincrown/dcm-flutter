@@ -1,3 +1,6 @@
+import 'dart:isolate';
+import 'dart:ui';
+
 import 'package:dcm/backend/app.dart';
 import 'package:dcm/backend/keymap_helper.dart';
 import 'package:dcm/backend/models/app_global.dart';
@@ -21,9 +24,33 @@ import 'package:window_manager/window_manager.dart';
 import 'package:worker_manager/worker_manager.dart';
 import 'package:dcm/backend/services/app_watchdog.dart';
 
+const String kContentSyncPlayerRefreshPortName =
+    'dcm_content_sync_player_refresh_port';
+
 final localhostServer = InAppLocalhostServer(documentRoot: 'assets');
 WebViewEnvironment? webViewEnvironment;
 Size primaryDisplaySize = const Size(1920, 1080);
+final ReceivePort _contentSyncPlayerRefreshPort = ReceivePort();
+
+void _registerContentSyncPlayerRefreshPort() {
+  IsolateNameServer.removePortNameMapping(kContentSyncPlayerRefreshPortName);
+  IsolateNameServer.registerPortWithName(
+    _contentSyncPlayerRefreshPort.sendPort,
+    kContentSyncPlayerRefreshPortName,
+  );
+
+  _contentSyncPlayerRefreshPort.listen((message) {
+    if (message == 'playlist_refresh') {
+      final playerScreenProvider = PlayerScreenProvider.instance;
+      if (playerScreenProvider != null) {
+        playerScreenProvider.reloadSchedule();
+      } else {
+        ScheduleList().loadSchedule();
+      }
+    }
+  });
+}
+
 void main(List<String> arguments) async {
   if (await AppWatchdog.runParentIfNeeded(arguments)) {
     return;
@@ -34,6 +61,7 @@ void main(List<String> arguments) async {
   WakelockPlus.enable();
 
   await App().init();
+  _registerContentSyncPlayerRefreshPort();
   workerManager.log = true;
   await workerManager.init(dynamicSpawning: true);
   await ContentSyncBackgroundService.instance.init();

@@ -27,6 +27,13 @@ import 'package:nativeapi/nativeapi.dart';
 import 'package:path/path.dart' as path;
 
 class PlayerScreenProvider extends ChangeNotifier {
+  static PlayerScreenProvider? _instance;
+  static PlayerScreenProvider? get instance => _instance;
+
+  PlayerScreenProvider() {
+    _instance = this;
+  }
+
   int currentShowIndex = 0;
   int nextShowIndex = 0;
   Timer? _timer;

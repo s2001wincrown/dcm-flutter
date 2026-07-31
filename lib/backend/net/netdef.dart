@@ -1,6 +1,9 @@
 import 'dart:typed_data';
 import 'dart:convert';
 
+import 'package:json_annotation/json_annotation.dart';
+part 'netdef.g.dart';
+
 // 定义常量
 const int kMAXCOMMANDSIZE = 512;
 const int kMAXSTATUSSIZE = 300;
@@ -517,6 +520,7 @@ class PlayerStatus {
 }
 
 // 消息信息结构
+@JsonSerializable()
 class MessageInfo {
   int messageID = 0;
   String messageName = '';
@@ -524,6 +528,10 @@ class MessageInfo {
   String task = '';
 
   MessageInfo();
+
+  factory MessageInfo.fromJson(Map<String, dynamic> json) =>
+      _$MessageInfoFromJson(json);
+  Map<String, dynamic> toJson() => _$MessageInfoToJson(this);
 
   MessageInfo.fromBytes(Uint8List bytes) {
     if (bytes.length < 4) {

@@ -30,6 +30,8 @@ const int cTRANSFERRETRYERR = -3;
 // --------------------------------------------------------------------------
 
 class PlayerLogFile {
+  //GenPlaylistContent.aspx
+  static const String cmsGenPlaylistContent = '';
   static bool bSyncFail = false;
   static String strJob = '';
   static String strStatus = '';
@@ -286,12 +288,19 @@ class PlayerLogFile {
     String szRequest =
         '$cHTTPUNIQUEKEY=${globalPlayer.strUniqueName}&strTask=$strJob&strStatus=Reset&nTotalSize=0&nDownloaded=0&dtEndTime=${DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now())}';
     //wxString strRequest;
-    //strRequest.Format(_T("%s=%s&strTask=%s&strStatus=%s&nTotalSize=%llu&nDownloaded=%llu"), HTTP_UNIQUE_KEY, globalPlayer.m_strUniqueName, m_strJob, _T("Reset"), 0, 0, COleDateTime::GetCurrentTime().Format(_T("%Y-%m-%d %H:%M:%S")));
+    //strRequest.Format('%s=%s&strTask=%s&strStatus=%s&nTotalSize=%llu&nDownloaded=%llu', HTTP_UNIQUE_KEY, globalPlayer.m_strUniqueName, m_strJob, 'Reset', 0, 0, COleDateTime::GetCurrentTime().Format('%Y-%m-%d %H:%M:%S'));
     await updateSyncStatus(szRequest);
   }
 
   // 更新 Sync 状态 (HTTP POST)
-  static Future<bool> updateSyncStatus(String szRequest) async {
+  static Future<bool> updateSyncStatus([String? szRequest]) async {
+    if (szRequest == null) {
+      //"%s=%s&strTask=%s&strStatus=%s&nTotalSize=%llu&nDownloaded=%llu"
+      szRequest =
+          '$cHTTPUNIQUEKEY=${globalPlayer.strUniqueName}&strTask=$strJob&strStatus=$strStatus&nTotalSize=$nTotalBytesToDownload&nDownloaded=$nTotalBytesDownloaded';
+
+      return await updateSyncStatus(szRequest);
+    }
     var contentSyncStatusUpdateUrl = AppGlobal.cmsUrl;
     contentSyncStatusUpdateUrl = fADDSLASH(contentSyncStatusUpdateUrl);
     contentSyncStatusUpdateUrl += cmsSyncSTATUSURL;
@@ -369,6 +378,27 @@ class PlayerLogFile {
     } catch (e) {
       logE('''httpPostAction '$url' error: $e''', syncTag);
       return (status: false, result: null);
+    }
+  }
+
+  static Future<void> genPlaylistContent(int nDays) async {
+    if (cmsGenPlaylistContent.isEmpty) {
+      logE('GenPlaylistContentHttpLink is invalid\n');
+      return;
+    }
+
+    String strRequest =
+        '$cHTTPUNIQUEKEY=${globalPlayer.strUniqueName}&strTask=$strJob&nDays=$nDays';
+
+    String strResult = '';
+    String strLink = '$cmsGenPlaylistContent?${Utils.urlEscape(strRequest)}';
+    strRequest = '';
+    var httpResult = await httpPostAction(strLink, '');
+    if (httpResult.status) {
+      strResult = httpResult.result ?? '';
+      if (!strResult.equalsIgnoreCase('Successful')) {
+        logE('Generate playlist content failure\n');
+      }
     }
   }
 
