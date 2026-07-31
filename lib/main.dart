@@ -4,6 +4,7 @@ import 'dart:ui';
 import 'package:dcm/backend/app.dart';
 import 'package:dcm/backend/keymap_helper.dart';
 import 'package:dcm/backend/models/app_global.dart';
+import 'package:dcm/backend/net/netdef.dart';
 import 'package:dcm/backend/providers/player_screen_provider.dart';
 import 'package:dcm/backend/services/content_sync_background_service.dart';
 import 'package:dcm/backend/services/schedulelist_impl.dart';
@@ -25,7 +26,7 @@ import 'package:worker_manager/worker_manager.dart';
 import 'package:dcm/backend/services/app_watchdog.dart';
 
 const String kContentSyncPlayerRefreshPortName =
-    'dcm_content_sync_player_refresh_port';
+    'content_sync_player_refresh_port';
 
 final localhostServer = InAppLocalhostServer(documentRoot: 'assets');
 WebViewEnvironment? webViewEnvironment;
@@ -40,6 +41,7 @@ void _registerContentSyncPlayerRefreshPort() {
   );
 
   _contentSyncPlayerRefreshPort.listen((message) {
+    var messageInfo = MessageInfo.fromJson(message);
     if (message == 'playlist_refresh') {
       final playerScreenProvider = PlayerScreenProvider.instance;
       if (playerScreenProvider != null) {

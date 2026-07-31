@@ -25,7 +25,7 @@ import 'package:intl/intl.dart';
 import 'package:path/path.dart' as path;
 
 const String kContentSyncPlayerRefreshPortName =
-    'dcm_content_sync_player_refresh_port';
+    'content_sync_player_refresh_port';
 
 class ContentSyncService {
   static final ContentSyncService _instance = ContentSyncService._internal();
@@ -67,7 +67,7 @@ class ContentSyncService {
   ContentDownloader get workQueue => _workQueue;
   DateTime get dtStartup => _dtStartup;
 
-  void _notifyMainIsolatePlaylistRefresh() {
+  void _notifyMainIsolatePlaylistRefresh(int nCmd, int ntype, String str) {
     final SendPort? sendPort =
         IsolateNameServer.lookupPortByName(kContentSyncPlayerRefreshPortName);
     sendPort?.send('playlist_refresh');
