@@ -6,7 +6,6 @@ import 'package:dcm/backend/models/app_global.dart';
 import 'package:dcm/backend/models/file_info_data.dart';
 import 'package:dcm/backend/utils/file_info_utils.dart';
 import 'package:dcm/backend/utils/utils.dart';
-import 'package:dcm/backend/xml_settings/contenttype_manager.dart';
 import 'package:dcm/backend/xmlfile/inifile.dart';
 import 'package:dcm/backend/xmlfile/xmlfile.dart';
 import 'package:dcm/backend/xmlfile/xmlfilepro.dart';

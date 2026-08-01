@@ -102,11 +102,11 @@ class AppGlobal {
   // DataCenter
   static String sPassword = '';
 
-  static late String cmsUrl; //CMS url
-  static late String cmsToken; //CMS Token
-  static late String organization;
+  static String cmsUrl = ''; //CMS url
+  static String cmsToken = ''; //CMS Token
+  static String organization = '';
   static bool enableTaskCheck = true;
-  static bool autoContentUpdate = true;
+  static bool autoContentUpdate = false;
   static int fileTransferRetries = 3;
   static int taskTransferRetries = 3;
   static int tempFileCopyRetries = 100; //times
@@ -694,16 +694,22 @@ class AppGlobal {
     return validGlobalSetting(appDataPath);
   }
 
-  static Future<void> genConfigFile() async {
-    var iniFile = IniFile(path.join(appDataPath, configFILENAME));
+  static Future<void> genConfigFile(String configPath) async {
+    var iniFile = IniFile(path.join(configPath, configFILENAME));
     for (var entry in _getters.entries) {
       if ('Global Setting.CombSettings' == entry.key) {
         writeCombSettings(iniFile);
       } else if ('Global Setting.PlaybackSettings' == entry.key) {
         writePlaybackSettings(iniFile);
       } else {
-        iniFile.setValue(entry.key.split('.').first, entry.key.split('.').last,
-            entry.value.call());
+        String entryValue = entry.value.call();
+        if (entryValue.isNotEmpty) {
+          iniFile.setValue(entry.key.split('.').first,
+              entry.key.split('.').last, entryValue);
+        } else {
+          iniFile.setValue(entry.key.split('.').first,
+              '//${entry.key.split('.').last}', entryValue);
+        }
       }
     }
     await iniFile.save();
@@ -719,9 +725,9 @@ class AppGlobal {
   }
 
   static void writePlaybackSettings(IniFile iniFile) {
-    iniFile.setValue('Global Setting', 'PlayLatestPlaylist',
-        (loopMethod & settingLATESTPLAYLIST) > 0);
-    iniFile.setValue(
+    iniFile.writeInt('Global Setting', 'PlayLatestPlaylist',
+        (loopMethod & settingLATESTPLAYLIST) > 0 ? 1 : 0);
+    iniFile.writeInt(
         'Global Setting',
         'Schedule Loop Method',
         (loopMethod & settingLATESTPLAYLIST) > 0
@@ -793,41 +799,41 @@ class AppGlobal {
   }
 
   static void writeCombSettings(IniFile iniFile) {
-    iniFile.setValue('Global Setting', 'Hide Cursor',
+    iniFile.writeInt('Global Setting', 'Hide Cursor',
         (globalSetting & settingHIDECURSOR) > 0 ? 1 : 0);
-    iniFile.setValue('Global Setting', 'Language Button',
+    iniFile.writeInt('Global Setting', 'Language Button',
         (globalSetting & settingLANGBTN) > 0 ? 1 : 0);
-    iniFile.setValue('Global Setting', 'MuteAll',
+    iniFile.writeInt('Global Setting', 'MuteAll',
         (globalSetting & settingMUTEALL) > 0 ? 1 : 0); // Mute all
-    iniFile.setValue('Global Setting', 'EnableQueueControl',
+    iniFile.writeInt('Global Setting', 'EnableQueueControl',
         (globalSetting & settingQC) > 0 ? 1 : 0); //Enable Queue Control
-    iniFile.setValue('Global Setting', 'ContentListTime',
+    iniFile.writeInt('Global Setting', 'ContentListTime',
         (globalSetting & settingVALIDCLONLYTIME) > 0 ? 1 : 0);
-    iniFile.setValue('Global Setting', 'ContentListAsPlaylist',
+    iniFile.writeInt('Global Setting', 'ContentListAsPlaylist',
         (globalSetting & settingASPLAYLIST) > 0 ? 1 : 0);
-    iniFile.setValue('Global Setting', 'EnableContentClean',
+    iniFile.writeInt('Global Setting', 'EnableContentClean',
         (globalSetting & settingCONTENTCLEAN) > 0 ? 1 : 0);
-    iniFile.setValue('Global Setting', 'EnableContentLog',
+    iniFile.writeInt('Global Setting', 'EnableContentLog',
         (globalSetting & settingCONTENTLOG) > 0 ? 1 : 0);
-    iniFile.setValue('TVCard', 'MultiSupport',
+    iniFile.writeInt('TVCard', 'MultiSupport',
         (globalSetting & settingMULTICAPTURE) > 0 ? 1 : 0);
-    iniFile.setValue('Global Setting', 'WebPageRefreshInterval',
+    iniFile.writeInt('Global Setting', 'WebPageRefreshInterval',
         (globalSetting & settingWEBREFRESHINTERVAL) > 0 ? 1 : 0);
-    iniFile.setValue('Global Setting', 'SimpleFileList',
+    iniFile.writeInt('Global Setting', 'SimpleFileList',
         (globalSetting & settingSIMPLEFILELIST) > 0 ? 1 : 0);
-    iniFile.setValue('Global Setting', 'MockDBClickForCapture',
+    iniFile.writeInt('Global Setting', 'MockDBClickForCapture',
         (globalSetting & settingMOCKDBCLICK) > 0 ? 1 : 0);
-    iniFile.setValue('Global Setting', 'WebView2Buffer',
+    iniFile.writeInt('Global Setting', 'WebView2Buffer',
         (globalSetting & settingWEBVIEW2BUFFER) > 0 ? 1 : 0);
-    iniFile.setValue('Global Setting', 'DisablePlayInCatalogueWizard',
+    iniFile.writeInt('Global Setting', 'DisablePlayInCatalogueWizard',
         (globalSetting & settingNOTPLAYCONTENT) > 0 ? 1 : 0);
-    iniFile.setValue('Global Setting', 'DisableLayoutPopup',
+    iniFile.writeInt('Global Setting', 'DisableLayoutPopup',
         (globalSetting & settingLAYOUTTIPWINDOWN) > 0 ? 1 : 0);
-    iniFile.setValue('Global Setting', 'CaptureDeviceIdentifier',
+    iniFile.writeInt('Global Setting', 'CaptureDeviceIdentifier',
         (globalSetting & settingCDI) > 0 ? 1 : 0);
-    iniFile.setValue('Global Setting', 'EnableContentChecksum',
+    iniFile.writeInt('Global Setting', 'EnableContentChecksum',
         (globalSetting & settingCHECKSUM) > 0 ? 1 : 0);
-    iniFile.setValue('Global Setting', 'EnableAPIBackend',
+    iniFile.writeInt('Global Setting', 'EnableAPIBackend',
         (globalSetting & settingAPIBACKEND) > 0 ? 1 : 0);
   }
 

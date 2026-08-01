@@ -434,3 +434,31 @@ I’m comparing the current port-based handoff against the worker-manager inter-
 - “用 workerManager 做 inter-isolate 通信”是可以的，甚至应该这样做。
 - 但它的用途应该是“通知主 isolate”，而不是“worker 直接访问 UI provider”。
 - 这也是你这次改成的方向，和设计目标一致。
+
+
+在 Windows 平台上，path_provider 插件获取 ApplicationSupportDirectory 时，会遵循 Windows 的规范，将文件存放在 C:Users{用户名}AppDataRoaming 目录下。
+
+你看到的 dcm.playerdcmplayer 这两层目录，实际上是 path_provider_windows 插件根据你项目的元数据（Metadata）自动拼接生成的。具体来源如下：
+
+第一层目录：dcm.player (Company Name)
+这一层对应的是 Windows 应用程序的公司名称（CompanyName）。
+默认情况：如果你没有修改过，Flutter 默认会使用 com.example。
+你的项目：它来自于你项目 Windows 目录下的原生配置文件 {你的项目名}windowsrunnerRunner.rc。
+在这个文件中，有一个 StringFileInfo 块，里面的 VALUE "CompanyName", "dcm.player" 决定了这一层目录的名字。
+
+第二层目录：dcmplayer (App Name)
+这一层对应的是你的应用程序名称（Application Name）。
+它通常提取自你的 pubspec.yaml 文件中的 name 字段（例如 name: dcmplayer），或者是 Windows 项目配置中设定的应用名称。
+
+💡 如何修改这个路径？
+如果你希望更改这个存储路径，可以直接去修改 Runner.rc 文件中的相关配置：
+
+打开你的 Flutter 项目中的 windowsrunnerRunner.rc 文件。
+找到 BEGIN BLOCK "StringFileInfo" 这一段。
+修改 CompanyName 的值：
+      VALUE "CompanyName", "YourNewCompany" "0"
+   
+重新编译运行你的 Windows 应用，新的支持目录就会变成 AppDataRoamingYourNewCompanydcmplayer。
+(注：修改 Runner.rc 中的 LegalCopyright 等字段时，建议也一并修改，以保持项目元数据的一致性。)
+
+需要我帮你配一个在 getApplicationSupportDirectory 下读写 JSON 配置文件的完整示例吗？

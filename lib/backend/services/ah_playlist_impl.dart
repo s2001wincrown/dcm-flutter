@@ -825,6 +825,14 @@ class AHPlayList {
         : nNeedRefresh);
   }
 
+  bool stopAHMessage(String strMessage, [int nOutput = -1]) {
+    if (find(nOutput)) {
+      return arrAHList[nOutput]!.stopAHMessage(strMessage);
+    }
+
+    return false;
+  }
+
   List<String> getDefaultMessages(List<int> arrOutputs) {
     final List<String> arrMessages = [];
     final settingsPath = AppGlobal.settingPath;

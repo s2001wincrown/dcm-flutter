@@ -8,7 +8,7 @@
 PRODUCT_NAME = dcmplayer
 
 // The application's bundle identifier
-PRODUCT_BUNDLE_IDENTIFIER = com.s2001.dcm
+PRODUCT_BUNDLE_IDENTIFIER = dcm.player
 
 // The copyright displayed in application information
-PRODUCT_COPYRIGHT = Copyright © 2026 com.s2001.dcm. All rights reserved.
+PRODUCT_COPYRIGHT = Copyright © 2026 dcmplayer. All rights reserved.

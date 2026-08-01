@@ -183,8 +183,8 @@ Future<bool> loadSettings() async {
         return globalPlayer.strUniqueName.isNotEmpty;
       }
     }
-  } catch (_) {
-    // ignore
+  } catch (e) {
+    logE('loadSettings - dcmsites error: $e');
   }
 
   return false;
@@ -292,34 +292,40 @@ Future<({bool status, bool isNeedRestart})> loadPlaybackSettings(
   String strAppPath = App().dataPath;
   if (!await SettingsImpl.settingsIsOk(dcmPath: strAppPath)) {
     int nSettingsGroup = 1;
-    var result = PlayerRegisterImpl.getPlayerInformation(strAppPath);
-    if (result.pHttpLink != null && result.pHttpLink!.isNotEmpty) {
-      if (deviceId == null || deviceId.isEmpty) {
-        logE(
-            'loadPlaybackSettings - Failed to get device ID. Please try again.');
-        return (status: false, isNeedRestart: false);
-      }
-      String strGetSettings = result.pHttpLink!;
-      nSettingsGroup = result.pSettingsGroup ?? 1;
-      String strRequest =
-          'uiType=3&strUniqueName=$deviceId&uiGroupID=$nSettingsGroup';
-      strGetSettings = fADDSLASH(strGetSettings);
-      strGetSettings += cmsGETSETTINGSURL;
-      strGetSettings += '?';
-      strGetSettings += Utils.urlEscape(strRequest);
-      strRequest = '';
-      strGetSettings = Utils.addCMSParam(strGetSettings);
-      var httpResult = await httpGet(strGetSettings);
-      if (httpResult.status) {
-        if (SettingsImpl.loadFromXml(httpResult.result!)) {
-          if (await AppGlobal.loadFromIni()) {
-            return (status: true, isNeedRestart: true);
+    var serverFile = File(path.join(strAppPath, 'Server.txt'));
+    if (await serverFile.exists()) {
+      var result = PlayerRegisterImpl.getPlayerInformation(strAppPath);
+      if (result.pHttpLink != null && result.pHttpLink!.isNotEmpty) {
+        if (deviceId == null || deviceId.isEmpty) {
+          logE(
+              'loadPlaybackSettings - Failed to get device ID. Please try again.');
+          return (status: false, isNeedRestart: false);
+        }
+        String strGetSettings = result.pHttpLink!;
+        nSettingsGroup = result.pSettingsGroup ?? 1;
+        String strRequest =
+            'uiType=3&strUniqueName=$deviceId&uiGroupID=$nSettingsGroup';
+        strGetSettings = fADDSLASH(strGetSettings);
+        strGetSettings += cmsGETSETTINGSURL;
+        strGetSettings += '?';
+        strGetSettings += Utils.urlEscape(strRequest);
+        strRequest = '';
+        strGetSettings = Utils.addCMSParam(strGetSettings);
+        var httpResult = await httpGet(strGetSettings);
+        if (httpResult.status) {
+          if (SettingsImpl.loadFromXml(httpResult.result!)) {
+            if (await AppGlobal.loadFromIni()) {
+              return (status: true, isNeedRestart: true);
+            }
           }
         }
+      } else {
+        logE(
+            '''loadPlaybackSettings - 'server.txt' file not found or invalid'.''');
       }
     } else {
-      logE(
-          '''loadPlaybackSettings - 'server.txt' file not found or invalid'.''');
+      await AppGlobal.genConfigFile(strAppPath);
+      return (status: await AppGlobal.loadFromIni(), isNeedRestart: false);
     }
   } else {
     return (status: await AppGlobal.loadFromIni(), isNeedRestart: false);

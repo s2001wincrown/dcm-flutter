@@ -113,6 +113,7 @@ class IniFile {
         content += '$isec=${sections[i]![isec]!}';
         content += '\n';
       }
+      content += '\n';
     }
     try {
       await textfile.writeAsString(content);

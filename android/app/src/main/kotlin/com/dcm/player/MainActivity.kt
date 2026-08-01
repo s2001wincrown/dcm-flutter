@@ -1,4 +1,4 @@
-package com.s2001.dcm
+package com.dcm.player
 
 import io.flutter.embedding.android.FlutterActivity
 

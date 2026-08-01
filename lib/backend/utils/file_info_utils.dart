@@ -33,7 +33,7 @@ class FileInfoUtils {
     return pFileInfo;
   }
 
-  static Future<FileInfoData?> loadFile(File file, int contentType) async {
+  static Future<FileInfoData> loadFile(File file, int contentType) async {
     FileStat stat = await file.stat();
 
     String strFilePath = file.path;

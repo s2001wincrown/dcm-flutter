@@ -170,7 +170,7 @@ class PlayerRegisterImpl {
   static Future<void> genBusNumberFile(
       String dataPath, String busNumber) async {
     // In Flutter, we might just store this in SharedPreferences or a specific file
-    final file = File(path.join(dataPath, 'busnumber.txt'));
+    final file = File(path.join(dataPath, 'id.txt'));
     await file.writeAsString(busNumber);
   }
 

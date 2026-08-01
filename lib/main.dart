@@ -1,7 +1,9 @@
+import 'dart:convert';
 import 'dart:isolate';
 import 'dart:ui';
 
 import 'package:dcm/backend/app.dart';
+import 'package:dcm/backend/constants.dart';
 import 'package:dcm/backend/keymap_helper.dart';
 import 'package:dcm/backend/models/app_global.dart';
 import 'package:dcm/backend/net/netdef.dart';
@@ -41,13 +43,21 @@ void _registerContentSyncPlayerRefreshPort() {
   );
 
   _contentSyncPlayerRefreshPort.listen((message) {
-    var messageInfo = MessageInfo.fromJson(message);
-    if (message == 'playlist_refresh') {
-      final playerScreenProvider = PlayerScreenProvider.instance;
-      if (playerScreenProvider != null) {
-        playerScreenProvider.reloadSchedule();
-      } else {
-        ScheduleList().loadSchedule();
+    MessageInfo? messageInfo;
+    try {
+      messageInfo = MessageInfo.fromJson(jsonDecode(message));
+      logI(
+          '''ContentSyncPlayerRefreshPort; Command: '${messageInfo.messageID}'; Type: '${messageInfo.status}'; content: '${messageInfo.messageName}'.''');
+    } catch (e) {
+      logE('''ContentSyncPlayerRefreshPort receive: '$message', error: $e''');
+    }
+    if (messageInfo != null) {
+      if (messageInfo.messageID == PlayerNotice.eSyncFINISHEDNOTICE.index) {
+        final playerScreenProvider = PlayerScreenProvider.instance;
+        if (playerScreenProvider != null) {
+          playerScreenProvider.onMessageAH(messageInfo.messageID,
+              messageInfo.status, messageInfo.messageName);
+        }
       }
     }
   });

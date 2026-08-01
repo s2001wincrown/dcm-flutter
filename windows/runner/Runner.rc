@@ -89,11 +89,11 @@ BEGIN
     BEGIN
         BLOCK "040904e4"
         BEGIN
-            VALUE "CompanyName", "com.s2001" "\0"
+            VALUE "CompanyName", "dcm" "\0"
             VALUE "FileDescription", "dcmplayer" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
             VALUE "InternalName", "dcmplayer" "\0"
-            VALUE "LegalCopyright", "Copyright (C) 2024 com.s2001. All rights reserved." "\0"
+            VALUE "LegalCopyright", "Copyright (C) 2026 dcmplayer. All rights reserved." "\0"
             VALUE "OriginalFilename", "dcmplayer.exe" "\0"
             VALUE "ProductName", "dcmplayer" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"

@@ -2,12 +2,20 @@ import 'dart:io';
 
 import 'package:dcm/backend/constants.dart';
 import 'package:dcm/backend/models/app_global.dart';
+import 'package:dcm/backend/models/dcmfile_data.dart';
+import 'package:dcm/backend/models/eventitem_data.dart';
 import 'package:dcm/backend/models/file_info_data.dart';
-import 'package:dcm/backend/services/content_file_impl.dart';
-import 'package:dcm/backend/utils/utils.dart';
 import 'package:dcm/backend/models/message_data.dart';
 import 'package:dcm/backend/models/product_data.dart';
 import 'package:dcm/backend/models/zone_data.dart';
+import 'package:dcm/backend/utils/extensions.dart';
+import 'package:dcm/backend/utils/file_info_utils.dart';
+import 'package:dcm/backend/utils/utils.dart';
+import 'package:dcm/backend/xml_settings/dcmfile_Impl.dart';
+import 'package:dcm/backend/xml_settings/eventfile_impl.dart';
+import 'package:dcm/backend/xmlfile/inifile.dart';
+import 'package:dcm/backend/xmlfile/xmlitem.dart';
+import 'package:dcm/backend/xmlfile/xmlprofile.dart';
 import 'package:intl/intl.dart';
 import 'package:path/path.dart' as path;
 
@@ -15,22 +23,12 @@ class PlayerPublish {
   String errorMessage = '';
   bool includeDDEContent = false;
   bool hashData = false;
+  XmlProfile? _pXMLProfile;
+  final List<String> _arrSkin = [];
 
-  final ContentFileImpl contentFile;
+  final List<FileInfoData> lstFileInfo = [];
 
-  PlayerPublish({
-    required String sourcePath,
-    required String batch,
-    required String usbPath,
-    String company = '',
-  }) : contentFile = ContentFileImpl(
-          sourcePath: sourcePath,
-          batch: batch,
-          usbPath: usbPath,
-          company: company,
-        );
-
-  PlayerPublish.empty() : contentFile = ContentFileImpl.empty();
+  PlayerPublish();
 
   String getErrorMessage() => errorMessage;
 
@@ -46,8 +44,8 @@ class PlayerPublish {
     hashData = value;
   }
 
-  String getExportPath(int type) {
-    return contentFile.getExportPath(contentFile.sourcePath, type);
+  void setLogWriter(XmlProfile xmlProfile) {
+    _pXMLProfile = xmlProfile;
   }
 
   String getShortPath(String fileName,
@@ -291,8 +289,9 @@ class PlayerPublish {
         return false;
       }
     }
+    lstFileInfo.add(fileInfo);
 
-    return contentFile.addFileList(fileInfo);
+    return true;
   }
 
   bool _loadHashData(String filePath, FileInfoData fileInfo) {
@@ -347,7 +346,7 @@ class PlayerPublish {
     if (pZoneData.strZoneFile.isEmpty) return;
 
     final strFilePath = getFilePath(pZoneData.strZoneFile, pZoneData.nZoneType);
-    if (!contentFile.isInFileList(strFilePath, pZoneData.nZoneType)) {
+    if (!fileInFileList(strFilePath)) {
       if (File(strFilePath).existsSync()) {
         final shortPath =
             getShortPath(pZoneData.strZoneFile, pZoneData.nZoneType);
@@ -363,7 +362,7 @@ class PlayerPublish {
     if (pZoneData.strZoneBGFile.isNotEmpty) {
       final bgPath =
           getFilePath(pZoneData.strZoneBGFile, cIMAGETYPE, cDCMSINGLEIMAGETYPE);
-      if (!contentFile.isInFileList(bgPath, cIMAGETYPE)) {
+      if (!fileInFileList(bgPath)) {
         if (File(bgPath).existsSync()) {
           final shortPath = getShortPath(
               pZoneData.strZoneBGFile, cIMAGETYPE, cDCMSINGLEIMAGETYPE);
@@ -400,8 +399,7 @@ class PlayerPublish {
       if (ext.isNotEmpty) {
         final flv = '${strFile.substring(0, strFile.length - ext.length)}.flv';
         final flvPath = getFilePath(flv, contentType);
-        if (!contentFile.isInFileList(flvPath, contentType) &&
-            File(flvPath).existsSync()) {
+        if (!fileInFileList(flvPath) && File(flvPath).existsSync()) {
           final shortFlv = getShortPath(flvPath, contentType);
           _addFileInfo(flvPath, shortFlv, shortFlv, contentType, -1);
         }
@@ -410,7 +408,7 @@ class PlayerPublish {
   }
 
   bool publishOtherFile(FileInfoData pFileInfo) {
-    // Mirror C++ behavior for other-file publication (eg. flash->flv)
+    // Mirror C++ behavior for other-file publication (eg. flash.flv)
     switch (pFileInfo.nContentType) {
       case cFLASHTYPE:
         final strFilePath = pFileInfo.strFilePath ?? '';
@@ -420,8 +418,7 @@ class PlayerPublish {
 
         final candidate =
             '${strFilePath.substring(0, strFilePath.length - ext.length)}.flv';
-        if (!contentFile.isInFileList(candidate, pFileInfo.nContentType) &&
-            File(candidate).existsSync()) {
+        if (!fileInFileList(candidate) && File(candidate).existsSync()) {
           final stat = File(candidate).statSync();
           final fileInfo = FileInfoData.create(
             strFileTitle: path.basename(candidate),
@@ -434,7 +431,9 @@ class PlayerPublish {
           );
           fileInfo.strFilePath = candidate;
           _loadHashData(candidate, fileInfo);
-          return contentFile.addFileList(fileInfo);
+          lstFileInfo.add(fileInfo);
+
+          return true;
         }
         return false;
       default:
@@ -462,5 +461,209 @@ class PlayerPublish {
       }
     }
     return success;
+  }
+
+  bool fileInFileList(String szFilePath) {
+    //String strFilePath = szFilePath;
+    for (var pos in lstFileInfo) {
+      if (pos.strFilePath!.equalsIgnoreCase(szFilePath)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  Future<void> publishEvent(String strFile) async {
+    String strFile1 = path.join(AppGlobal.dayPath, '$strFile.xml');
+    var eventFile = File(strFile1);
+
+    if (await eventFile.exists()) {
+      if (!fileInFileList(eventFile.path)) {
+        var pFileData = await FileInfoUtils.loadFile(eventFile, cDCMDAYTYPE);
+        pFileData.strFileTitle = '$strFile.xml';
+        pFileData.strShortPath = '$strFile.xml';
+        pFileData.strDestFile = '$strFile.xml';
+
+        _loadHashData(eventFile.path, pFileData);
+
+        lstFileInfo.add(pFileData);
+      }
+
+      EventFileImpl fileImpl = EventFileImpl();
+      EventFileData objList = EventFileData();
+      if (!fileImpl.loadFromXML(strFile, objList)) {
+        fileImpl.loadPlayList(objList, strFile);
+      }
+      if (objList.lstPlayList != null) {
+        for (var pos in objList.lstPlayList!) {
+          var pPlayListData = pos;
+          if (pPlayListData.arrDCMFile != null &&
+              pPlayListData.arrDCMFile!.isNotEmpty) {
+            for (int i = 0; i < pPlayListData.arrDCMFile!.length; i++) {
+              if (pPlayListData.isDCMFileExist(i)) {
+                publishDCMFile(pPlayListData.arrDCMFile![i]);
+              }
+            }
+          } else {
+            if (pPlayListData.isDCMFileExist()) {
+              publishDCMFile(pPlayListData.strDCMFile);
+            }
+          }
+        }
+      }
+    } else {
+      writeLog(1, strFile1, cDCMDAYTYPE);
+      setInternalErrorMessage();
+    }
+  }
+
+  Future<void> publishDCMFile(String strFile) async {
+    String strEdit = path.join(AppGlobal.openPath, '$strFile.DCM');
+
+    var dcmFile = File(strEdit);
+    if (await dcmFile.exists()) {
+      if (!fileInFileList(dcmFile.path)) {
+        FileInfoData pFileData =
+            await FileInfoUtils.loadFile(dcmFile, cDCMFILETYPE);
+        pFileData.strFileTitle = '$strFile.DCM';
+        pFileData.strShortPath = '$strFile.DCM';
+        pFileData.strDestFile = '$strFile.DCM';
+
+        _loadHashData(dcmFile.path, pFileData);
+
+        lstFileInfo.add(pFileData);
+      }
+
+      DCMFileData? pDoc = DCMFileImpl.openCatalogue(szEdit: strEdit);
+      if (pDoc != null) {
+        int nProduct = pDoc.nQuantity;
+        for (int i = 0; i < nProduct; i++) {
+          ProductData? pData = pDoc.getProductDataByIndex(i);
+          if (pData != null) {
+            publishProduct(pData);
+          }
+        }
+
+        if (pDoc.strMusicFile.isNotEmpty) {
+          String strFilePath1 =
+              Utils.getFilePath(pDoc.strMusicFile, cVIDEOTYPE);
+          var musicFile = File(strFilePath1);
+          if (await musicFile.exists()) {
+            if (!fileInFileList(musicFile.path)) {
+              FileInfoData pFileData =
+                  await FileInfoUtils.loadFile(musicFile, cVIDEOTYPE);
+              pFileData.strFileTitle = pDoc.strMusicFile;
+              pFileData.strShortPath =
+                  Utils.getShortPath(pDoc.strMusicFile, cVIDEOTYPE);
+              pFileData.strDestFile = pFileData.strShortPath;
+
+              _loadHashData(musicFile.path, pFileData);
+
+              lstFileInfo.add(pFileData);
+            }
+          } else {
+            setInternalErrorMessage();
+            writeLog(1, strFilePath1, cDCMFILETYPE);
+          }
+        }
+        if (pDoc.strImageFile.isNotEmpty) {
+          String strFilePath1 = Utils.getFilePath(
+              pDoc.strImageFile, cIMAGETYPE, cDCMSINGLEIMAGETYPE);
+          var imageFile = File(strFilePath1);
+          if (await imageFile.exists()) {
+            if (!fileInFileList(imageFile.path)) {
+              FileInfoData pFileData =
+                  await FileInfoUtils.loadFile(imageFile, cIMAGETYPE);
+              pFileData.strFileTitle = pDoc.strImageFile;
+              pFileData.strShortPath = Utils.getShortPath(
+                  pDoc.strImageFile, cIMAGETYPE, cDCMSINGLEIMAGETYPE);
+              pFileData.strDestFile = pFileData.strShortPath;
+
+              _loadHashData(imageFile.path, pFileData);
+
+              lstFileInfo.add(pFileData);
+            }
+          } else {
+            setInternalErrorMessage();
+            writeLog(1, strFilePath1, cDCMFILETYPE);
+          }
+        }
+
+        //Publish Skin setting for DCM file
+        if (pDoc.strSkinCode.isNotEmpty) {
+          if (!_arrSkin.contains(pDoc.strSkinCode)) {
+            _arrSkin.add(pDoc.strSkinCode);
+
+            var iniFile = IniFile(AppGlobal.skinFile);
+            String strSecondDCMFile =
+                iniFile.readString(pDoc.strSkinCode, 'Second DCMFile', '');
+            if (strSecondDCMFile.isNotEmpty) {
+              publishDCMFile(strSecondDCMFile);
+            }
+          }
+        }
+      }
+    } else {
+      setInternalErrorMessage();
+      writeLog(1, strEdit, cDCMFILETYPE);
+    }
+  }
+
+  void writeLog(int nResult, String strLog, int type,
+      [int ptype = -1, String? szErr]) {
+    if (_pXMLProfile == null) {
+      if (nResult == 1) {
+        String strErr = szErr ?? '';
+        if (strErr.isEmpty) {
+          strErr = 'not exists';
+        }
+        String strErrMsg = '';
+        if (type < 0) {
+          strErrMsg = '''File '$strLog' $strErr.''';
+        } else {
+          strErrMsg =
+              '''File '$strLog' $strErr; Content Type: '$type'; ptype: '$ptype'.''';
+        }
+        errorMessage += '\n\r';
+        errorMessage += strErrMsg;
+      }
+      return;
+    }
+
+    if (nResult == 0) {
+      XmlItem? nSec = _pXMLProfile!.appendSection('SuccessItem');
+      if (nSec != null) {
+        _pXMLProfile!.createDataNode(nSec, 'Success', strLog);
+      }
+    } else if (nResult == 1) {
+      XmlItem? nSec = _pXMLProfile!.appendSection('ErrorItem');
+      if (nSec != null) {
+        _pXMLProfile!.createDataNode(nSec, 'Error', strLog);
+      }
+      errorMessage = strLog;
+    } else {
+      XmlItem? nSec = _pXMLProfile!.appendSection('OtherErrorItem');
+      if (nSec != null) {
+        _pXMLProfile!.createDataNode(nSec, 'OtherError', strLog);
+      }
+    }
+    _pXMLProfile!.saveProfile();
+  }
+
+  /* ============================================================
+	Function :		CPlayerPublish::SetInternalErrorMessage
+	Description :	Sets the error message to the internal error
+					message
+	Access :		Private
+
+	Return :		void
+	Parameters :	none
+
+	Usage :			Call to set the error message.
+
+   ============================================================*/
+  void setInternalErrorMessage() {
+    errorMessage = 'PlayerPublish internal error';
+    //Trigger ( m_errorMessage );
   }
 }

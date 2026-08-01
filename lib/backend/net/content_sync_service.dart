@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 import 'dart:isolate';
 import 'dart:ui';
@@ -7,7 +8,7 @@ import 'package:dcm/backend/constants.dart';
 import 'package:dcm/backend/models/app_global.dart';
 import 'package:dcm/backend/models/player_global.dart';
 import 'package:dcm/backend/net/sync_http_client.dart';
-import 'package:dcm/backend/net/netdef.dart';
+import 'package:dcm/backend/net/netdef.dart' hide PlayerStatus;
 import 'package:dcm/backend/net/play_log_post.dart';
 import 'package:dcm/backend/net/player_log_file.dart';
 import 'package:dcm/backend/net/player_log_impl.dart';
@@ -67,10 +68,16 @@ class ContentSyncService {
   ContentDownloader get workQueue => _workQueue;
   DateTime get dtStartup => _dtStartup;
 
-  void _notifyMainIsolatePlaylistRefresh(int nCmd, int ntype, String str) {
+  void _notifyMainIsolatePlaylistRefresh(int nCmd, int ntype,
+      [String? content]) {
     final SendPort? sendPort =
         IsolateNameServer.lookupPortByName(kContentSyncPlayerRefreshPortName);
-    sendPort?.send('playlist_refresh');
+    var messageInfo = MessageInfo();
+    messageInfo.messageID = nCmd;
+    messageInfo.status = ntype;
+    messageInfo.messageName = content ?? '';
+    String msgInfo = jsonEncode(messageInfo.toJson());
+    sendPort?.send(msgInfo);
   }
 
   Future<void> init() async {
@@ -488,15 +495,13 @@ class ContentSyncService {
         if (PlayerPathService().nCopyCount > AppGlobal.tempFileCopyRetries) {
           PlayerPathService().nCopyCount = 0;
           stopTempFileCopyTimer();
-          //todo notify to player
-          /*#ifndef OLEVIA_PLAYER
-  #if DCM_PLATFORM != DCM_PLATFORM_WIN32
-          String strCmd = String::Format(ddeformat, FTPFINISHED_NOTICE, 0,'');
-          DDENotify(strCmd);
-  #else
-          ::PostMessage(HWND_BROADCAST, wm_Message, (WPARAM)m_hWnd, FTPFINISHED_NOTICE);
-  #endif
-  #endif*/
+          try {
+            _notifyMainIsolatePlaylistRefresh(
+                PlayerNotice.eSyncFINISHEDNOTICE.index, 0);
+          } catch (e) {
+            logE('Failed to notify player after room event sync finished: $e',
+                syncTag);
+          }
           //PlayerPathService().CopyFileFinish(false);
           //PlayerPathService().bCopyTempFile = false;
           await PlayerPathService().saveDownloadFileList();
@@ -527,17 +532,16 @@ class ContentSyncService {
         //COleDateTime dtCurr = COleDateTime::GetCurrentTime();
         //if (strSyncContent.CmpNoCase(dtCurr.Format(_T("%Y%m%d')) == 0 || strSyncContent.CmpNoCase(_T("DefaultXML') == 0)
         if (nEventDisplay != 1) {
-          //todo send room event download finished notify to player
-          /*#if DCM_PLATFORM != DCM_PLATFORM_WIN32
-          String strCmd = String::Format(ddeformat, FTPFINISHED_NOTICE, 0,'');
-          DDENotify(strCmd);
-  #else
-          ::PostMessage(HWND_BROADCAST, wm_Message, (WPARAM)m_hWnd, FTPFINISHED_NOTICE);
-  #endif*/
+          try {
+            _notifyMainIsolatePlaylistRefresh(
+                PlayerNotice.eSyncFINISHEDNOTICE.index, 0);
+          } catch (e) {
+            logE('Failed to notify player after room event sync finished: $e',
+                syncTag);
+          }
         }
 
-        logI(
-            'Send room event download finished notify to player successfully\n',
+        logI('Send room event sync finished notify to player successfully\n',
             syncTag);
       } else if (dwSyncContent == cSyncDCMUPDATE) {
         String strLocalFile =
@@ -563,13 +567,13 @@ class ContentSyncService {
         try {
           await Utils.savePlaylistVersion(strLatestPlaylistVersion);
           await PlayerLogFile.genPlaylistContent(nEventDisplay);
-          _notifyMainIsolatePlaylistRefresh();
-          logI(
-              'Send playlist download finished notify to player successfully\n',
+          _notifyMainIsolatePlaylistRefresh(
+              PlayerNotice.eSyncFINISHEDNOTICE.index, dwSyncContent);
+          logI('Send playlist sync finished notify to player successfully\n',
               syncTag);
         } catch (e, stack) {
           logE(
-              'Failed to notify player after playlist download finished: $e, stack: $stack',
+              'Failed to notify player after playlist sync finished: $e, stack: $stack',
               syncTag);
         }
       }

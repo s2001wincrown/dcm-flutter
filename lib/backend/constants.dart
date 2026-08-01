@@ -553,7 +553,17 @@ enum PlayerNotice {
   eFORMATDNOTICE,
   eBLACKSCRNNOTICE,
   eONEKEYNOTICE,
-  eREFRESHNOTICE,
+  eREFRESHNOTICE;
+
+  static PlayerNotice? fromInt(int index) {
+    for (var notice in PlayerNotice.values) {
+      if (notice.index == index) {
+        return notice;
+      }
+    }
+
+    return null;
+  }
 }
 
 enum AHMessagePos {
