@@ -23,7 +23,6 @@ import 'package:path_provider/path_provider.dart';
 class App {
   late final String dataPath;
   late final String? uniqueKey;
-  late final DateTime dtStartup;
 
   late AppSettings settings;
   final ContentTypeManager contentTypeManager = ContentTypeManager();
@@ -58,15 +57,15 @@ class App {
   }
 
   Future<void> init() async {
-    dtStartup = DateTime.now();
     dataPath = (await getApplicationSupportDirectory()).path;
     initFileLogger(dataPath);
     // Get Device ID
     uniqueKey = await Utils.getUniqueKey();
     //await AppGlobal.loadFromIni();
     //ContentTypeManager.loadContentTypes();
+    bool checked = await checkAppSetting();
     await loadAppSetting(uniqueKey);
-    if (AppGlobal.autoContentUpdate) {
+    if (!checked && AppGlobal.autoContentUpdate) {
       // Ensure globalPlayer is initialized from CMS or local fallback
       await initGlobalPlayer();
     }

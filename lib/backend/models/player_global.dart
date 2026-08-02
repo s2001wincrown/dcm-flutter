@@ -14,6 +14,7 @@ import 'package:dcm/backend/utils/log_utils.dart';
 import 'package:dcm/backend/utils/utils.dart';
 import 'package:dcm/backend/xml_settings/contenttype_manager.dart';
 import 'package:dcm/backend/xml_settings/settings_impl.dart';
+import 'package:dcm/backend/xmlfile/inifile.dart';
 import 'package:dcm/backend/xmlfile/xmlfile.dart';
 import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as path;
@@ -262,6 +263,34 @@ void applyWorkerPlayer(Map<String, dynamic>? m) {
   }
 }
 
+Future<bool> checkAppSetting() async {
+  bool isSettingsFileOk =
+      await SettingsImpl.settingsIsOk(dcmPath: App().dataPath);
+  bool isServerFileOk = await serverFileIsOk();
+  if (!isSettingsFileOk && !isServerFileOk) {
+    await PlayerRegisterImpl.genPlayerInformation(App().dataPath);
+    await initGlobalPlayer();
+
+    return true;
+  } else if (isServerFileOk) {
+    await initGlobalPlayer();
+    return true;
+  }
+
+  return false;
+}
+
+Future<bool> serverFileIsOk() async {
+  final filePath =
+      path.join(App().dataPath, PlayerRegisterImpl.serverConfigFileName);
+  if (!await File(filePath).exists()) {
+    return false;
+  }
+
+  IniFile settingsFile = IniFile(filePath);
+  return settingsFile.sections.isNotEmpty;
+}
+
 //********************************************************************/
 /*																	*/
 /* Function name : LoadPathSetting									*/
@@ -292,19 +321,20 @@ Future<({bool status, bool isNeedRestart})> loadPlaybackSettings(
   String strAppPath = App().dataPath;
   if (!await SettingsImpl.settingsIsOk(dcmPath: strAppPath)) {
     int nSettingsGroup = 1;
-    var serverFile = File(path.join(strAppPath, 'Server.txt'));
+    var serverFile =
+        File(path.join(strAppPath, PlayerRegisterImpl.serverConfigFileName));
     if (await serverFile.exists()) {
       var result = PlayerRegisterImpl.getPlayerInformation(strAppPath);
-      if (result.pHttpLink != null && result.pHttpLink!.isNotEmpty) {
+      if (result.pHttpLink.isNotEmpty) {
         if (deviceId == null || deviceId.isEmpty) {
           logE(
               'loadPlaybackSettings - Failed to get device ID. Please try again.');
           return (status: false, isNeedRestart: false);
         }
-        String strGetSettings = result.pHttpLink!;
-        nSettingsGroup = result.pSettingsGroup ?? 1;
+        String strGetSettings = result.pHttpLink;
+        nSettingsGroup = result.pSettingsGroup;
         String strRequest =
-            'uiType=3&strUniqueName=$deviceId&uiGroupID=$nSettingsGroup';
+            'uiType=3&strUniqueName=$deviceId&uiGroupID=$nSettingsGroup&o=${result.pOrganization}';
         strGetSettings = fADDSLASH(strGetSettings);
         strGetSettings += cmsGETSETTINGSURL;
         strGetSettings += '?';
@@ -313,7 +343,7 @@ Future<({bool status, bool isNeedRestart})> loadPlaybackSettings(
         strGetSettings = Utils.addCMSParam(strGetSettings);
         var httpResult = await httpGet(strGetSettings);
         if (httpResult.status) {
-          if (SettingsImpl.loadFromXml(httpResult.result!)) {
+          if (await SettingsImpl.loadFromXml(httpResult.result!)) {
             if (await AppGlobal.loadFromIni()) {
               return (status: true, isNeedRestart: true);
             }
@@ -321,9 +351,10 @@ Future<({bool status, bool isNeedRestart})> loadPlaybackSettings(
         }
       } else {
         logE(
-            '''loadPlaybackSettings - 'server.txt' file not found or invalid'.''');
+            '''loadPlaybackSettings - 'Server.txt' file not found or invalid'.''');
       }
     } else {
+      AppGlobal.autoContentUpdate = false;
       await AppGlobal.genConfigFile(strAppPath);
       return (status: await AppGlobal.loadFromIni(), isNeedRestart: false);
     }
@@ -342,9 +373,9 @@ Future<bool> loadContentTypeSettings(String deviceId) async {
   int nSettingsGroup = 1;
   String strAppPath = App().dataPath;
   var result = PlayerRegisterImpl.getPlayerInformation(strAppPath);
-  if (result.pHttpLink != null && result.pHttpLink!.isNotEmpty) {
-    String strGetSettings = result.pHttpLink!;
-    nSettingsGroup = result.pSettingsGroup ?? 1;
+  if (result.pHttpLink.isNotEmpty) {
+    String strGetSettings = result.pHttpLink;
+    nSettingsGroup = result.pSettingsGroup;
     String strRequest =
         'uiType=99&strUniqueName=$deviceId&uiGroupID=$nSettingsGroup';
     strGetSettings = fADDSLASH(strGetSettings);

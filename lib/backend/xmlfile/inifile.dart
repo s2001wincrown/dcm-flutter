@@ -116,7 +116,7 @@ class IniFile {
       content += '\n';
     }
     try {
-      await textfile.writeAsString(content);
+      await textfile.writeAsString(content, flush: true);
       return true;
     } catch (e) {
       logE('Error saving ini file: $e');

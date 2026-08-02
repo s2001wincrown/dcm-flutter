@@ -41,7 +41,7 @@ class PlayerRegisterImpl {
   static const String lpszSignature =
       "DCM FTP Manager Version 1.00- StoreObject";
   static const String _dcmsitesFileName = 'dcmsites.dat';
-  static const String _serverConfigFileName =
+  static const String serverConfigFileName =
       'Server.txt'; // Simulating INI with JSON or simple Map for Flutter
 
   String? _lastErrorCode;
@@ -174,43 +174,14 @@ class PlayerRegisterImpl {
     await file.writeAsString(busNumber);
   }
 
-  /// Load Player Information from Server.txt (Simulated as JSON/Map for Flutter)
-  static Future<bool> loadPlayerInformation(
-      Player player, String dataPath) async {
-    // In C++, it reads an INI file. In Flutter, we might use a JSON config or SharedPrefs.
-    // Assuming a JSON file named Server.json for easier parsing in Dart,
-    // or we can parse a simple key=value text file.
-
-    final filePath = path.join(dataPath, _serverConfigFileName);
-    final file = File(filePath);
-
-    if (!await file.exists()) {
-      // Fallback to defaults if file not found
-      return false;
-    }
-
-    try {
-      var iniFile = IniFile(filePath);
-      player.strName = iniFile.readString('PlayerInformation', 'PlayerName');
-      player.strLocation = iniFile.readString('PlayerInformation', 'Location');
-      player.strOrganization =
-          iniFile.readString('PlayerInformation', 'Organization');
-
-      return true;
-    } catch (e) {
-      logE("Load Player Info Error: $e");
-      return false;
-    }
-  }
-
   static ({
-    String? pPlayerName,
-    String? pLocation,
-    String? pOrganization,
-    int? pSettingsGroup,
-    String? pHttpLink
+    String pPlayerName,
+    String pLocation,
+    String pOrganization,
+    int pSettingsGroup,
+    String pHttpLink
   }) getPlayerInformation(String strPath) {
-    final serverFile = IniFile(path.join(strPath, 'Server.txt'));
+    final serverFile = IniFile(path.join(strPath, serverConfigFileName));
     final pPlayerName =
         serverFile.readString('PlayerInformation', 'PlayerName', '');
     final pLocation =
@@ -230,15 +201,15 @@ class PlayerRegisterImpl {
     );
   }
 
-  Future<void> genPlayerInformation(String strPath) async {
+  static Future<void> genPlayerInformation(String strPath) async {
     final serverFile = IniFile(path.join(strPath, 'Server.txt'));
     serverFile.writeString('PlayerInformation', 'PlayerName',
         'Player-${DateTime.now().microsecondsSinceEpoch}');
     serverFile.writeString('PlayerInformation', 'Location', 'Player Location');
     serverFile.writeString('PlayerInformation', 'Organization', 'SP');
-    serverFile.writeInt('PlayerInformation', 'SettingsGroup', 1);
+    serverFile.writeInt('PlayerInformation', 'SettingsGroup', 3);
     serverFile.writeString(
-        'PlayerInformation', 'HTTPRootLink', 'http://121.40.137.228:8080/demo');
+        'Server', 'HTTPRootLink', 'http://121.40.137.228:8080/demo');
     await serverFile.save();
   }
 
@@ -307,7 +278,11 @@ class PlayerRegisterImpl {
       player.strDiskSerial = player.strUniqueName;
     }
 
-    await loadPlayerInformation(player, App().dataPath);
+    //await loadPlayerInformation(player, App().dataPath);
+    var playerInformation = getPlayerInformation(App().dataPath);
+    player.setPlayerName(playerInformation.pPlayerName);
+    player.setLocation(playerInformation.pPlayerName);
+    player.strOrganization = playerInformation.pOrganization;
     await updateNetworkInfo(player);
 
     if (player.nLocalPort < 1024) {
@@ -316,12 +291,12 @@ class PlayerRegisterImpl {
     player.nRetryCount = 2;
     addMultiMonitor(player);
 
-    return register(player, commit, strDCMSites);
+    return register(player, playerInformation.pHttpLink, strDCMSites);
   }
 
   /// Register Logic
   static Future<bool> register(
-      Player player, bool commit, String? szFile) async {
+      Player player, String httpLink, String? szFile) async {
     String strDCMSites = szFile ?? path.join(App().dataPath, _dcmsitesFileName);
 
     // Save local copy
@@ -329,13 +304,15 @@ class PlayerRegisterImpl {
     if (result.status && result.playerFile != null) {
       await genBusNumberFile(App().dataPath, player.strUniqueName);
 
-      String strLocalFile =
-          path.join(AppGlobal.ftpSettingPath, _dcmsitesFileName);
-      await File(strDCMSites).copy(strLocalFile); // Copy to settings path
+      if (AppGlobal.ftpSettingPath.isNotEmpty) {
+        String strLocalFile =
+            path.join(AppGlobal.ftpSettingPath, _dcmsitesFileName);
+        await File(strDCMSites).copy(strLocalFile); // Copy to settings path
+      }
 
       String strResult = '';
       var strXML = result.playerFile!.export();
-      strResult = await registerCMS(strXML);
+      strResult = await registerCMS(strXML, httpLink);
 
       // Parse Result
       String strGUID = '';
@@ -366,8 +343,7 @@ class PlayerRegisterImpl {
   }
 
   /// Register via CMS (HTTP POST)
-  static Future<String> registerCMS(String strXML) async {
-    String strCMSLink = AppGlobal.cmsUrl;
+  static Future<String> registerCMS(String strXML, String strCMSLink) async {
     strCMSLink = fADDSLASH(strCMSLink);
     strCMSLink += cmsPLAYERREGISTERURL;
     strCMSLink = Utils.addCMSParam(strCMSLink);

@@ -106,7 +106,7 @@ class AppGlobal {
   static String cmsToken = ''; //CMS Token
   static String organization = '';
   static bool enableTaskCheck = true;
-  static bool autoContentUpdate = false;
+  static bool autoContentUpdate = true;
   static int fileTransferRetries = 3;
   static int taskTransferRetries = 3;
   static int tempFileCopyRetries = 100; //times
@@ -1046,7 +1046,7 @@ class AppGlobal {
         : (bMute ? cVOLUMESILENCE : nVolume));
   }
 
-  static bool loadGlobalSetting(XmlFile pXmlFile) {
+  static Future<bool> loadGlobalSetting(XmlFile pXmlFile) async {
     bool bLoaded = false;
     if (configFile.isEmpty) {
       configFile = path.join(App().dataPath, configFILENAME);
@@ -1075,6 +1075,6 @@ class AppGlobal {
       pGroup = pGroup.getSibling();
     }
 
-    return bLoaded;
+    return bLoaded && await settingsFile.save();
   }
 }
