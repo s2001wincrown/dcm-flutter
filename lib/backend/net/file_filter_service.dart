@@ -246,7 +246,7 @@ class FileFilterService {
 
   Future<bool> filterReplaceFile(bool bReplaceFile) async {
     _lstFileInfo1.clear();
-    _fileReplaceImpl.loadFileInfo();
+    await _fileReplaceImpl.loadFileInfo();
 
     if (_lstFileInfo.isNotEmpty) {
       bool bWriteLog = false;
@@ -262,7 +262,7 @@ class FileFilterService {
           continue;
         }
 
-        if (!await _fileReplaceImpl.isReplace(pFileInfo, bReplaceFile)) {
+        if (!_fileReplaceImpl.isReplace(pFileInfo, bReplaceFile)) {
           if (bWriteLog) {
             writeLogFile(xmlProfile, pFileInfo);
           }
@@ -294,7 +294,7 @@ class FileFilterService {
       }
     }
     //SaveDownloadFileList();
-    savePreDataFileList();
+    await savePreDataFileList();
 
     return true;
   }
@@ -391,10 +391,10 @@ class FileFilterService {
     return true;
   }
 
-  Future<bool> saveDownloadFileList(String strBatch) {
+  Future<bool> saveDownloadFileList(String strBatch) async {
     DownloadFileListImpl downloadFileList = DownloadFileListImpl();
-    downloadFileList.copyFromFileList(_lstFileInfo);
-    return downloadFileList.saveDownloadFileList(strBatch);
+    await downloadFileList.copyFromFileList(_lstFileInfo);
+    return await downloadFileList.saveDownloadFileList(strBatch);
   }
 
   void calcTotalBytesToDownload() {
@@ -414,17 +414,17 @@ class FileFilterService {
     return false;
   }
 
-  bool saveUnFilterFileList(String strBatch) {
+  Future<bool> saveUnFilterFileList(String strBatch) async {
     String strFileName = path.join(AppGlobal.ftpSettingPath, 'Filelog');
-    FileUtils.makeSureDirectoryPathExists(strFileName);
+    await FileUtils.makeSureDirectoryPathExists(strFileName);
     strFileName = path.join(strFileName, '$strBatch.xml');
 
     return _serialize(strFileName, true);
   }
 
-  bool loadUnFilterFileList(String strBatch) {
+  Future<bool> loadUnFilterFileList(String strBatch) async {
     String strFileName = path.join(AppGlobal.ftpSettingPath, 'Filelog');
-    FileUtils.makeSureDirectoryPathExists(strFileName);
+    await FileUtils.makeSureDirectoryPathExists(strFileName);
     strFileName = path.join(strFileName, '$strBatch.xml');
 
     return _serialize(strFileName, false);
@@ -493,8 +493,8 @@ class FileFilterService {
     }
   }
 
-  bool saveFileList() {
-    _fileReplaceImpl.saveFileInfo();
+  Future<bool> saveFileList() async {
+    await _fileReplaceImpl.saveFileInfo();
     return true;
   }
 

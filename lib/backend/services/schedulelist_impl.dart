@@ -366,7 +366,7 @@ class ScheduleList {
         String strDefaEvent =
             path.join(AppGlobal.settingPath, 'DefaultEvent.ini');
         if (File(strDefaEvent).existsSync()) {
-          IniFile? inifile = IniFile(strDefaEvent);
+          IniFile inifile = IniFile(strDefaEvent);
           String strEvent = inifile.readString(
               'DefaultEvent', 'Output${AppGlobal.output}', '');
           if (EventFileImpl.isEventExisted(strEvent)) {

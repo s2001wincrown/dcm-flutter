@@ -25,7 +25,7 @@ class ContentTypeManager {
     contentTypeList.clear();
     XmlFile xmlContentTypes = XmlFile('ContentTypes');
     String strContentTypeFile =
-        path.join(AppGlobal.settingPath, 'ContentTypes.xml');
+        path.join(AppGlobal.appDataPath, 'ContentTypes.xml');
     if (xmlContentTypes.load(strContentTypeFile)) {
       XmlItem? xmlItem = xmlContentTypes.getItem('ContentType');
       while (xmlItem != null) {

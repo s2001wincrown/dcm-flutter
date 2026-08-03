@@ -498,7 +498,7 @@ class DailyScheduleData {
         settingsFile.writeString(
             'DefaultEvent', strID, dailySchedule.mapEventDefa[it]!);
       }
-      settingsFile.save(strDefaEvent);
+      await settingsFile.save(strDefaEvent);
     }
   }
 

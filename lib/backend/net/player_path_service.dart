@@ -54,25 +54,11 @@ class PlayerPathService {
 
   static final List<TempFileInfo> _tempFiles = [];
   static final List<FileInfoData> _lstFileInfo = [];
-  bool _isLoaded = false;
-  String _strBatch = "";
-
+  final bool _isLoaded = false;
   bool bCopyTempFile = false;
   int nCopyCount = 0;
 
   static final ContentTypeManager contentTypeManager = ContentTypeManager();
-
-  // Lock simulation (Dart is single-threaded for logic, but async IO needs care)
-  // For complex concurrency, use Compute or Isolates, but for file lists, a simple list is usually fine
-  // if accessed carefully in async methods.
-
-  /// Initialize paths and load settings
-  void _fixServerPaths() {
-    // Replace $(HttpRoot)/ with actual root link
-    if (AppGlobal.cmsUrl.isNotEmpty && !AppGlobal.cmsUrl.endsWith('/')) {
-      AppGlobal.cmsUrl += '/';
-    }
-  }
 
   Future<void> init() async {
     contentTypeManager.loadContentTypes();
@@ -243,7 +229,7 @@ class PlayerPathService {
 
     String? strTempPath = await getExistedTempPath(nContentType);
     if (strTempPath == null) {
-      String strTempPath = const Uuid().toString(); //DCMMisc::GenerateGUID();
+      String strTempPath = const Uuid().v4();
       String strDest = strFilePath;
       strFilePath = p.join(strFilePath, strTempPath);
       if (await FileUtils.makeSureDirectoryPathExists(strFilePath)) {
@@ -292,7 +278,7 @@ class PlayerPathService {
 
   Future<void> reset() async {
     for (int i = _tempFiles.length - 1; i >= 0; i--) {
-      FileUtils.deleteDirectory(_tempFiles[i].strSourcePath);
+      await FileUtils.deleteDirectory(_tempFiles[i].strSourcePath);
     }
     _tempFiles.clear();
 
@@ -319,22 +305,22 @@ class PlayerPathService {
     _lstFileInfo.clear();
   }
 
-  Future<void> copyFileFinish([bool bSuccess = true]) async {
+  Future<void> copyFileFinish(String batchId, [bool bSuccess = true]) async {
 //((int)_lstFileInfo.length > 0);
     if (bSuccess) {
       DownloadFileListImpl downloadFileList = DownloadFileListImpl();
-      if (await downloadFileList.loadDownloadFileList(_strBatch)) {
+      if (await downloadFileList.loadDownloadFileList(batchId)) {
         //_lstFileInfo.length > 0 &&
-        downloadFileList.saveToFileList(_lstFileInfo);
+        await downloadFileList.saveToFileList(_lstFileInfo);
       }
     }
     removeFileList();
 
     String strFileName =
-        p.join(AppGlobal.ftpSettingPath, 'Filelog', '$_strBatch.xml');
+        p.join(AppGlobal.ftpSettingPath, 'Filelog', '$batchId.xml');
     var listFile = File(strFileName);
     if (await listFile.exists()) {
-      listFile.delete();
+      await listFile.delete();
     }
     bCopyTempFile = false;
   }
@@ -426,7 +412,7 @@ class PlayerPathService {
               _tempFiles[i].strSourcePath, _tempFiles[i].strDestPath)) {
             logI(
                 '''Copy '${_tempFiles[i].strSourcePath}' to '${_tempFiles[i].strDestPath}' successfully''');
-            PlayerLogFile.writeLogFile(cTRANSFEROTHERMSG,
+            await PlayerLogFile.writeLogFile(cTRANSFEROTHERMSG,
                 '''Update Schedule to '${_tempFiles[i].strDestPath}' successfully''');
           } else {
             logI(
@@ -434,9 +420,9 @@ class PlayerPathService {
             bAllSuccess = false;
           }
         } else {
-          for (int i = _lstFileInfo.length - 1; i >= 0; i--) {
+          for (int j = _lstFileInfo.length - 1; j >= 0; j--) {
             DownloadFileInfoData pData =
-                _lstFileInfo[i] as DownloadFileInfoData;
+                _lstFileInfo[j] as DownloadFileInfoData;
             if (pData.needDelete()) {
               continue;
             }
@@ -449,7 +435,7 @@ class PlayerPathService {
               } else {
                 logI(
                     '''Copy '${pData.strTempPath}' to '${pData.strDestPath}' successfully''');
-                _lstFileInfo.removeAt(i);
+                _lstFileInfo.removeAt(j);
               }
             }
           }
@@ -463,7 +449,7 @@ class PlayerPathService {
   Future<bool> copyTempFile(String strSource, String strDest) async {
     String strLocalDirectory = p.dirname(strDest);
     if (strLocalDirectory.isNotEmpty) {
-      FileUtils.makeSureDirectoryPathExists(strLocalDirectory);
+      await FileUtils.makeSureDirectoryPathExists(strLocalDirectory);
     }
 
     try {
@@ -484,7 +470,7 @@ class PlayerPathService {
   Future<bool> copyTempFileOnly(String strSource, String strDest) async {
     String strLocalDirectory = p.dirname(strDest);
     if (strLocalDirectory.isNotEmpty) {
-      FileUtils.makeSureDirectoryPathExists(strLocalDirectory);
+      await FileUtils.makeSureDirectoryPathExists(strLocalDirectory);
     }
 
     try {
@@ -761,9 +747,9 @@ class PlayerPathService {
 
   Future<void> removeAllTempFile(String strBatch) async {
     if (AppGlobal.deleteContentIfFTPFail) {
-      DownloadFileListImpl downloadFileList = DownloadFileListImpl(strBatch);
-      downloadFileList.loadDownloadFileList(strBatch);
-      downloadFileList.removeFileList();
+      DownloadFileListImpl downloadFileList = DownloadFileListImpl();
+      await downloadFileList.loadDownloadFileList(strBatch);
+      downloadFileList.removeFileList(strBatch);
     }
     /*else
     {
@@ -778,20 +764,22 @@ class PlayerPathService {
     if (await logFile.exists()) await logFile.delete();
   }
 
-  Future<bool> saveDownloadFileList() async {
+  Future<bool> saveDownloadFileList(String batchId) async {
     DownloadFileListImpl downloadFileList = DownloadFileListImpl();
     downloadFileList.copyFrom(_lstFileInfo);
-    return await downloadFileList.saveDownloadFileList(_strBatch);
+    return await downloadFileList.saveDownloadFileList(batchId);
   }
 
   Future<bool> loadDownloadFileList(String strBatch) async {
-    _strBatch = strBatch;
-
     DownloadFileListImpl downloadFileList = DownloadFileListImpl();
-    downloadFileList.loadDownloadFileList(strBatch);
+    await downloadFileList.loadDownloadFileList(strBatch);
     if (await downloadFileList.validDownloadedFile(_lstFileInfo)) {
+      logI(
+          '''Load batch: '$strBatch' Downloaded filelist '${downloadFileList.fileList.length}' - '${_lstFileInfo.length}' To Copy tempory file to playlist\n''',
+          syncTag);
       return true;
     }
+    logI('''Load batch: '$strBatch' Downloaded filelist failed''', syncTag);
 
     return false;
   }
@@ -814,11 +802,11 @@ class PlayerPathService {
     for (var contentType in contentTypeManager.contentTypeList) {
       String strFilePath = await getLocalPath(contentType.uiContentType);
       if (strFilePath.isNotEmpty) {
-        fileImpl.findLocalFiles(
+        await fileImpl.findLocalFiles(
             contentType.uiContentType, strFilePath, mapFiles);
       }
     }
-    fileImpl.saveFileInfo();
+    await fileImpl.saveFileInfo();
     mapFiles.clear();
   }
 

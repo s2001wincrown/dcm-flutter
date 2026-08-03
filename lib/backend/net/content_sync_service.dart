@@ -365,7 +365,7 @@ class ContentSyncService {
       await PlayerTaskFile.removeTask(PlayerTaskFile.pCurrJob!);
 
       await PlayerPathService().removeAllTempFile(strBatch);
-      await PlayerPathService().copyFileFinish(false);
+      await PlayerPathService().copyFileFinish(strBatch, false);
 
       await PlayerLogFile.closeLogFile('Transfer Failure!');
 
@@ -447,9 +447,6 @@ class ContentSyncService {
       }
       if (await PlayerPathService()
           .loadDownloadFileList(PlayerTaskFile.pCurrJob!.strJobItem)) {
-        logI('Load Downloaded filelist To Copy tempory file to playlist\n',
-            syncTag);
-
         if (PlayerTaskFile.pCurrJob!.dwSyncContent != cSyncDDEDATA &&
             PlayerTaskFile.pCurrJob!.dwSyncContent != cSyncDCMPLAYERLOG &&
             PlayerTaskFile.pCurrJob!.dwSyncContent != cSyncDCMTRANSFERLOG) {
@@ -477,6 +474,7 @@ class ContentSyncService {
   }
 
   Future<void> _copyTempFileCheck() async {
+    String strBatch = PlayerTaskFile.pCurrJob!.strJobItem;
     if (!_bPlayListUpdated) {
       if (PlayerTaskFile.pCurrJob!.dwSyncContent != cSyncDCMPLAYERLOG &&
           PlayerTaskFile.pCurrJob!.dwSyncContent != cSyncDCMTRANSFERLOG) {
@@ -489,7 +487,7 @@ class ContentSyncService {
         PlayerTaskFile.writeTaskFile(
             PlayerTaskFile.pCurrJob, FileTransferStatus.eTRANSFERSUCCESS);
 
-        await PlayerPathService().copyFileFinish();
+        await PlayerPathService().copyFileFinish(strBatch);
       } else {
         //PlayerPathService().SaveDownloadFileList();
         if (PlayerPathService().nCopyCount > AppGlobal.tempFileCopyRetries) {
@@ -504,7 +502,7 @@ class ContentSyncService {
           }
           //PlayerPathService().CopyFileFinish(false);
           //PlayerPathService().bCopyTempFile = false;
-          await PlayerPathService().saveDownloadFileList();
+          await PlayerPathService().saveDownloadFileList(strBatch);
           await flagRetryJob(AppGlobal.retryInterval);
         }
       }

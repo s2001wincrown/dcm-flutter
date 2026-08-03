@@ -1297,7 +1297,7 @@ class TransferActionService {
     PlayerLogFile.nTotalBytesToDownload = BigInt.zero;
     PlayerLogFile.nFileDownloaded = 0;
     if (_pTaskItem.dwJobStatus == FileTransferStatus.eGENERATEDFILELIST) {
-      _fileListImpl.loadUnFilterFileList(_pTaskItem.strJobItem);
+      await _fileListImpl.loadUnFilterFileList(_pTaskItem.strJobItem);
       await _fileListImpl.filterReplaceFile(_pTaskItem.bReplaceFile);
       await _fileListImpl.saveDownloadFileList(_pTaskItem.strJobItem);
       await PlayerTaskFile.writeTaskFile(
@@ -1327,12 +1327,12 @@ class TransferActionService {
 
     // prepare data download
     if (dwSyncContent == cSyncPREDATA) {
-      //todo
+      //todo get pre data file list
       /*if(!getPreDataFileListViaFTP()) {
-		  return false;
-		}
+        return false;
+      }
 
-		await processFileList();*/
+      await processFileList();*/
 
       return true;
     }
@@ -1380,20 +1380,19 @@ class TransferActionService {
 
     if ((dwSyncContent & cSyncDDEDATA) > 0 &&
         (dwSyncContent & cSyncDCMDATA) == 0) {
-      //todo
-      /*if (!genDDEFileList())
-		{
-			String str;
-			str = 'Generate file list for DDE Content '%s' failure!') % _strSyncContent;
+      //todo get dde file list
+      /*if (!genDDEFileList()) {
+        String str;
+        str = 'Generate file list for DDE Content '%s' failure!') % _strSyncContent;
 
-			logE(str);
+        logE(str);
 
-			PlayerLogFile.writeLogFile(cTRANSFEROTHERERR, str);
-			return false;
-		}
-		if (!GetDDEOthersFileListViaFTP()) {
-		  return false;
-		}*/
+        PlayerLogFile.writeLogFile(cTRANSFEROTHERERR, str);
+        return false;
+      }
+      if (!GetDDEOthersFileListViaFTP()) {
+        return false;
+      }*/
       return false;
     } else {
       if (!await genFileListByDailySchedule()) {
@@ -1407,7 +1406,7 @@ class TransferActionService {
   }
 
   Future<void> processFileList() async {
-    _fileListImpl.saveUnFilterFileList(_pTaskItem.strJobItem);
+    await _fileListImpl.saveUnFilterFileList(_pTaskItem.strJobItem);
     if (await PlayerTaskFile.writeTaskFile(
         _pTaskItem, FileTransferStatus.eGENERATEDFILELIST)) {
       await deleteTempFile();

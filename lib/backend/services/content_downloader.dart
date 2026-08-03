@@ -763,8 +763,9 @@ class ContentDownloader {
       await tempPartialFile.delete();
     }
 
+    var downloadUrl = Utils.addCMSParam(task.url);
     final response = await _client.download(
-      task.url,
+      downloadUrl,
       tempPartialPath,
       headers: headers,
       onReceiveProgress: (received, total) {

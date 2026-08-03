@@ -7,6 +7,7 @@ import 'package:dcm/backend/net/file_replace_service.dart';
 import 'package:dcm/backend/net/player_log_file.dart';
 import 'package:dcm/backend/net/player_path_service.dart';
 import 'package:dcm/backend/utils/file_utils.dart';
+import 'package:dcm/backend/utils/log_utils.dart';
 import 'package:dcm/backend/xmlfile/xmlfile.dart';
 import 'package:dcm/backend/xmlfile/xmlfilepro.dart';
 import 'package:dcm/backend/xmlfile/xmlitem.dart';
@@ -18,21 +19,18 @@ import 'package:path/path.dart' as p;
 
 class DownloadFileListImpl {
   final List<DownloadFileInfoData> _lstFileInfo = [];
-  String _strBatch = '';
 
   // Signature for XML validation
   static const String _signature = "DCM Player - FTP Downloaded FileList Log";
 
-  DownloadFileListImpl([String? batchId]) {
-    _strBatch = batchId ?? '';
-  }
+  DownloadFileListImpl();
 
   // --------------------------------------------------------------------------
   // Core Logic Methods
   // --------------------------------------------------------------------------
 
   /// Corresponds to RemoveFileList
-  Future<void> removeFileList() async {
+  Future<void> removeFileList(String batchId) async {
     // Delete temp files
     for (var fileInfo in _lstFileInfo) {
       if (fileInfo.strTempPath != null && fileInfo.strTempPath!.isNotEmpty) {
@@ -45,7 +43,7 @@ class DownloadFileListImpl {
 
     // Delete the log XML file
     var listFile =
-        File(p.join(AppGlobal.ftpSettingPath, 'Filelog', '$_strBatch.xml'));
+        File(p.join(AppGlobal.ftpSettingPath, 'Filelog', '$batchId.xml'));
     if (await listFile.exists()) {
       await listFile.delete();
     }
@@ -57,21 +55,21 @@ class DownloadFileListImpl {
   /// Here we assume a simplified local storage or just marking them.
   Future<bool> saveToTempFile() async {
     FileReplaceService fileReplace = FileReplaceService();
-    fileReplace.loadFileInfo();
+    await fileReplace.loadFileInfo();
     for (var iter in _lstFileInfo) {
       var bValid = await PlayerPathService.validDownloadedFile(iter);
       if (!bValid.status) {
         fileReplace.addDownloadFile(iter, true);
       }
     }
-    return fileReplace.saveFileInfo();
+    return await fileReplace.saveFileInfo();
   }
 
   /// Corresponds to SaveToFileList()
 
   Future<bool> saveToFileList([List<FileInfoData>? lstFileInfo]) async {
     FileReplaceService fileReplace = FileReplaceService();
-    fileReplace.loadFileInfo();
+    await fileReplace.loadFileInfo();
     if (lstFileInfo == null) {
       for (var iter in _lstFileInfo) {
         fileReplace.addDownloadFile(iter);
@@ -86,7 +84,7 @@ class DownloadFileListImpl {
         }
       }
     }
-    return fileReplace.saveFileInfo();
+    return await fileReplace.saveFileInfo();
   }
 
   /// Corresponds to ValidDownloadedFile
@@ -97,7 +95,11 @@ class DownloadFileListImpl {
         if (!iter.needDelete()) {
           var result = await PlayerPathService.validDownloadedFile(iter);
           if (!result.status) {
-            PlayerLogFile.writeLogFile(cTRANSFEROTHERERR, result.strErrMsg!,
+            logE(
+                '''validDownloadedFile: '${iter.nContentType} - ${iter.strFileTitle}' failed: '${result.strErrMsg}'.''',
+                syncTag);
+            await PlayerLogFile.writeLogFile(
+                cTRANSFEROTHERERR, result.strErrMsg!,
                 contentType: iter.nContentType, fileTitle: iter.strFileTitle);
             bValid = false;
           }
@@ -106,7 +108,7 @@ class DownloadFileListImpl {
     }
 
     if (!bValid) {
-      saveToTempFile();
+      await saveToTempFile();
     } else {
       for (var iter in _lstFileInfo) {
         if (!isInDownloadFileList(
@@ -143,7 +145,7 @@ class DownloadFileListImpl {
 
   /// Corresponds to CopyFromFileList
   /// Calculates TempPath and DestPath based on ContentType
-  void copyFromFileList(List<FileInfoData> sourceList) async {
+  Future<void> copyFromFileList(List<FileInfoData> sourceList) async {
     for (var iter in sourceList) {
       DownloadFileInfoData pDownloadFile =
           DownloadFileInfoData.fromFileInfo(iter);
@@ -168,16 +170,18 @@ class DownloadFileListImpl {
   /// Corresponds to Serialize
   Future<bool> _serialize(String batchId, bool isStoring) async {
     String strFileName = p.join(AppGlobal.ftpSettingPath, 'Filelog');
-    FileUtils.makeSureDirectoryPathExists(strFileName);
-    strFileName = p.join(strFileName, '$_strBatch.xml');
+    await FileUtils.makeSureDirectoryPathExists(strFileName);
+    strFileName = p.join(strFileName, '$batchId.xml');
 
     if (isStoring) {
+      logD('FileList save to: $strFileName, length: ${_lstFileInfo.length}',
+          syncTag);
       XmlFilePro fileList = XmlFilePro('FileList');
       for (var iter in _lstFileInfo) {
         //iter.strShortPath = iter.strFilePath;
         //iter.strFilePath = FTPPathImpl.GetLocalPath(iter.nContentType, iter.dwModuleFlag, true) + wxFILE_SEP_PATH + iter.strDestFile;
         //iter.strDestFile = FTPPathImpl.GetLocalPath(iter.nContentType, iter.dwModuleFlag) + wxFILE_SEP_PATH + iter.strDestFile;
-        // Save the Weather information
+        // Save the downloading file information
         XmlItem? xi = fileList.addDataNode('FileItem', null);
         if (xi != null) {
           iter.writeToXML(xi);
@@ -208,6 +212,10 @@ class DownloadFileListImpl {
             pXISibling = pXISibling.getSibling();
           }
 
+          logD(
+              'get FileList from: $strFileName, length: ${_lstFileInfo.length}',
+              syncTag);
+
           return true;
         }
       }
@@ -217,14 +225,12 @@ class DownloadFileListImpl {
 
   /// Corresponds to LoadDownloadFileList
   Future<bool> loadDownloadFileList(String batchId) async {
-    _strBatch = batchId;
-    return _serialize(batchId, false);
+    return await _serialize(batchId, false);
   }
 
   /// Corresponds to SaveDownloadFileList
   Future<bool> saveDownloadFileList(String batchId) async {
-    _strBatch = batchId;
-    return _serialize(batchId, true);
+    return await _serialize(batchId, true);
   }
 
   List<DownloadFileInfoData> get fileList => _lstFileInfo;
