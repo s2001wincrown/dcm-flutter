@@ -87,8 +87,8 @@ endif()
 set(BUILD_BUNDLE_DIR "$<TARGET_FILE_DIR:${BINARY_NAME}>")
 # Make the "install" step default, as it's required to run.
 set(CMAKE_VS_INCLUDE_INSTALL_TO_DEFAULT_BUILD 1)
-if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
-  set(CMAKE_INSTALL_PREFIX "${BUILD_BUNDLE_DIR}" CACHE PATH "..." FORCE)
+if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT OR CMAKE_INSTALL_PREFIX STREQUAL "C:/Program Files/dcmplayer")
+  set(CMAKE_INSTALL_PREFIX "${BUILD_BUNDLE_DIR}" CACHE PATH "Install destination for local Windows bundle" FORCE)
 endif()
 
 set(INSTALL_BUNDLE_DATA_DIR "${CMAKE_INSTALL_PREFIX}/data")
@@ -128,3 +128,28 @@ install(DIRECTORY "${PROJECT_BUILD_DIR}/${FLUTTER_ASSET_DIR_NAME}"
 install(FILES "${AOT_LIBRARY}" DESTINATION "${INSTALL_BUNDLE_DATA_DIR}"
   CONFIGURATIONS Profile;Release
   COMPONENT Runtime)
+
+# --- Packaging (CPack) ---
+# Create a distributable package (ZIP by default). If NSIS is installed
+# on the machine, an NSIS installer will also be produced.
+include(InstallRequiredSystemLibraries)
+set(CPACK_PACKAGE_NAME "${BINARY_NAME}")
+set(CPACK_PACKAGE_VENDOR "dcm-flutter")
+set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "dcmplayer - DCM Digital Signage Player")
+set(CPACK_PACKAGE_VERSION "0.1.0")
+set(CPACK_PACKAGE_FILE_NAME "${CPACK_PACKAGE_NAME}-${CPACK_PACKAGE_VERSION}-win64")
+
+if (WIN32)
+  # Default to ZIP which does not require external tools.
+  set(CPACK_GENERATOR "ZIP")
+  # If NSIS (makensis) is available, also enable NSIS installer generation.
+  find_program(MAKENSIS_EXECUTABLE makensis)
+  if (MAKENSIS_EXECUTABLE)
+    list(APPEND CPACK_GENERATOR "NSIS")
+    set(CPACK_NSIS_DISPLAY_NAME "${CPACK_PACKAGE_NAME}")
+    set(CPACK_NSIS_HELP_LINK "https://github.com/s2001wincrown/dcm-flutter")
+    set(CPACK_NSIS_MUI_ICON "${CMAKE_SOURCE_DIR}/windows/res/installer_icon.ico")
+  endif()
+endif()
+
+include(CPack)

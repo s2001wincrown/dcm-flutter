@@ -358,7 +358,8 @@ class PlayerPathService {
   }
 
   Future<bool> tryToCopyTempFile() async {
-    logI('''Retry:'$nCopyCount'; Start Copy tempory file to playlist\n''');
+    logI('''Retry:'$nCopyCount'; Start Copy tempory file to playlist\n''',
+        syncTag);
     //bCopyTempFile = true;
 
     await resetModifyTime();
@@ -387,7 +388,7 @@ class PlayerPathService {
         bSuccess7 &&
         bSuccess8 &&
         bSuccess9) {
-      logI('Copy tempory file to playlist successfully\n');
+      logI('Copy tempory file to playlist successfully\n', syncTag);
       removeFileList();
       nCopyCount = 0;
       //InterlockedExchange(&nCopyCount, 0);
@@ -411,12 +412,14 @@ class PlayerPathService {
           if (await copyTempFolder(
               _tempFiles[i].strSourcePath, _tempFiles[i].strDestPath)) {
             logI(
-                '''Copy '${_tempFiles[i].strSourcePath}' to '${_tempFiles[i].strDestPath}' successfully''');
+                '''Copy '${_tempFiles[i].strSourcePath}' to '${_tempFiles[i].strDestPath}' successfully''',
+                syncTag);
             await PlayerLogFile.writeLogFile(cTRANSFEROTHERMSG,
                 '''Update Schedule to '${_tempFiles[i].strDestPath}' successfully''');
           } else {
             logI(
-                '''Copy '${_tempFiles[i].strSourcePath}' to '${_tempFiles[i].strDestPath}' failure''');
+                '''Copy '${_tempFiles[i].strSourcePath}' to '${_tempFiles[i].strDestPath}' failure''',
+                syncTag);
             bAllSuccess = false;
           }
         } else {
@@ -430,11 +433,13 @@ class PlayerPathService {
             if (pData.nContentType == _tempFiles[i].nContentType) {
               if (!await copyTempFile(pData.strTempPath!, pData.strDestPath!)) {
                 logI(
-                    '''Copy '${pData.strTempPath}' to '${pData.strDestPath}' failure''');
+                    '''Copy '${pData.strTempPath}' to '${pData.strDestPath}' failure''',
+                    syncTag);
                 bAllSuccess = false;
               } else {
                 logI(
-                    '''Copy '${pData.strTempPath}' to '${pData.strDestPath}' successfully''');
+                    '''Copy '${pData.strTempPath}' to '${pData.strDestPath}' successfully''',
+                    syncTag);
                 _lstFileInfo.removeAt(j);
               }
             }
@@ -455,7 +460,7 @@ class PlayerPathService {
     try {
       await FileUtils.moveFile(File(strSource), strDest);
     } catch (e) {
-      logE('''Error copy file '$strSource' to '$strDest': $e''');
+      logE('''Error copy file '$strSource' to '$strDest': $e''', syncTag);
       return false;
     }
 
@@ -476,7 +481,7 @@ class PlayerPathService {
     try {
       await File(strSource).copy(strDest);
     } catch (e) {
-      logE('''Error copy file '$strSource' to '$strDest': $e''');
+      logE('''Error copy file '$strSource' to '$strDest': $e''', syncTag);
       return false;
     }
 
@@ -496,9 +501,9 @@ class PlayerPathService {
         try {
           await File(it.strFilePath!).delete();
           _lstFileInfo.remove(it);
-          logI('''Delete File '${it.strFilePath}' successfully.''');
+          logI('''Delete File '${it.strFilePath}' successfully.''', syncTag);
         } catch (e) {
-          logI('''Delete File '${it.strFilePath}' failure.''');
+          logI('''Delete File '${it.strFilePath}' failure.''', syncTag);
           bAllSuccess = false;
         }
       }
@@ -528,9 +533,10 @@ class PlayerPathService {
         } else if (entity is File) {
           try {
             await FileUtils.moveFile(entity, newPath);
-            logI('''Copy '${entity.path}' to '$newPath' successfully''');
+            logI('''Copy '${entity.path}' to '$newPath' successfully''',
+                syncTag);
           } catch (e) {
-            logE('''copy '${entity.path}' to '$newPath' failure''');
+            logE('''copy '${entity.path}' to '$newPath' failure''', syncTag);
             bSuccess = false;
           }
         }
@@ -555,7 +561,7 @@ class PlayerPathService {
             return (status: true, strMd5: hashResult[1]);
           }
         } catch (e) {
-          logE('Error reading MD5 file: $e');
+          logE('Error reading MD5 file: $e', syncTag);
         }
       }
 
@@ -590,7 +596,7 @@ class PlayerPathService {
       if (!hashResult.status) {
         String strErrMsg =
             ''''${pFileInfo.strDestFile}' MD5: '${hashResult.strMd5}', Source file MD5: '${pFileInfo.strMD5}'; File integrity checks failure!''';
-        logE(strErrMsg);
+        logE(strErrMsg, syncTag);
         if (await FileUtils.deleteFileEx(strTempPath, true)) {
           await File('$strTempPath.md5').delete();
         }
@@ -602,7 +608,7 @@ class PlayerPathService {
       if (dwFileSize <= BigInt.zero) {
         String strErrMsg =
             ''''$strTempPath' size: $dwFileSize, Source file size: ${pFileInfo.dwFileSize}; File integrity checks failure!''';
-        logE(strErrMsg);
+        logE(strErrMsg, syncTag);
         if (await FileUtils.deleteFileEx(strTempPath, true)) {
           await File('$strTempPath.md5').delete();
         }
@@ -613,7 +619,7 @@ class PlayerPathService {
           if (pFileInfo.dwFileSize != dwFileSize) {
             String strErrMsg =
                 ''''$strTempPath' size: $dwFileSize, Source file size: ${pFileInfo.dwFileSize}; File integrity checks failure!''';
-            logE(strErrMsg);
+            logE(strErrMsg, syncTag);
             if (await FileUtils.deleteFileEx(strTempPath, true)) {
               await File('$strTempPath.md5').delete();
             }
@@ -662,7 +668,8 @@ class PlayerPathService {
           }
         } catch (e) {
           logE(
-              '''Error reset modify time: $e for file: '${pData.strTempPath}'.''');
+              '''Error reset modify time: $e for file: '${pData.strTempPath}'.''',
+              syncTag);
         }
       }
     }
@@ -684,7 +691,7 @@ class PlayerPathService {
           try {
             await FileUtils.moveFile(preFile, strDestFile);
           } catch (e) {
-            logE('''copy '$strFilePath' to '$strDestFile' failure''');
+            logE('''copy '$strFilePath' to '$strDestFile' failure''', syncTag);
             bSuccess = false;
           }
         }
@@ -821,7 +828,8 @@ class PlayerPathService {
       dtStart = stringToTime(dtStart, AppGlobal.availableACUStart!, ':');
       if (DateTime.now().isBefore(dtStart)) {
         logI(
-            'Auto content update is unavailable, Start time for auto content update: ${AppGlobal.availableACUStart}');
+            'Auto content update is unavailable, Start time for auto content update: ${AppGlobal.availableACUStart}',
+            syncTag);
 
         return false;
       }

@@ -214,7 +214,7 @@ class _DigitalSignageScreenState extends State<DigitalSignageScreen> {
         behavior: HitTestBehavior.opaque,
         onTap: _handleExitTap,
         child: Scaffold(
-          backgroundColor: Colors.red, //Color(AppGlobal.clrBGColor),
+          backgroundColor: Utils.fromRGB(AppGlobal.clrBGColor),
           body: Consumer<PlayerScreenProvider>(
             builder:
                 (BuildContext context, playerScreenProvider, Widget? child) {
@@ -263,9 +263,9 @@ class _DigitalSignageScreenState extends State<DigitalSignageScreen> {
                                   child: Container(
                                     width: w,
                                     height: h,
-                                    decoration: const BoxDecoration(
-                                      color: Colors
-                                          .blue, //Utils.fromRGB(AppGlobal.clrBGColor),
+                                    decoration: BoxDecoration(
+                                      color:
+                                          Utils.fromRGB(AppGlobal.clrBGColor),
                                       border: null,
                                       borderRadius: BorderRadius.zero,
                                     ),

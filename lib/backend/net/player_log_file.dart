@@ -244,7 +244,7 @@ class PlayerLogFile {
       String strRequest;
       if (bFinished) {
         String strLogPath = path.join(AppGlobal.logPath, 'FTPlog');
-        FileUtils.makeSureDirectoryPathExists(strLogPath);
+        await FileUtils.makeSureDirectoryPathExists(strLogPath);
         String strLogFile = path.join(strLogPath,
             '${DateFormat('yyyyMMddHHmmss').format(DateTime.now())}.xml');
         await FileUtils.moveFile(File(strFileName), strLogFile);

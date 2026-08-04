@@ -112,7 +112,7 @@ void main(List<String> arguments) async {
       titleBarStyle: TitleBarStyle.hidden,
       fullScreen: false,
       skipTaskbar: true,
-      alwaysOnTop: false,
+      alwaysOnTop: kDebugMode ? false : true,
     );
     windowManager.waitUntilReadyToShow(windowOptions, () async {
       //await windowManager.setFullScreen(true);

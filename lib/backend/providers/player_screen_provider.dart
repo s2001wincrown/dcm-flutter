@@ -131,7 +131,7 @@ class PlayerScreenProvider extends ChangeNotifier {
     return null;
   }
 
-  void playImm() async {
+  Future<void> playImm() async {
     if (isBlank(_strDCMFile)) {
       _readyForPlay();
     } else {
@@ -179,6 +179,7 @@ class PlayerScreenProvider extends ChangeNotifier {
     _timer?.cancel();
 
     _timer = Timer.periodic(const Duration(milliseconds: 10000), (timer) {
+      ScheduleList().loadSchedule();
       playImm();
     });
   }
