@@ -102,23 +102,31 @@ class PlayerZoneImpl {
   bool _bWantStop = false;
 
   void stopPlay() {
-    if (_player != null) {
-      _player!.stop();
-    }
-    if (_contentListPlayer != null) {
-      _contentListPlayer!.stop();
-      _contentListPlayer = null;
+    try {
+      if (_player != null) {
+        _player!.stop();
+      }
+      if (_contentListPlayer != null) {
+        _contentListPlayer!.stop();
+        _contentListPlayer = null;
+      }
+    } catch (e, stackTrace) {
+      logE('PlayerZoneImpl - stopPlay error: $e', stackTrace);
     }
   }
 
   void release() {
-    if (_player != null) {
-      _player!.dispose();
-      _player = null;
-    }
-    if (_contentListPlayer != null) {
-      _contentListPlayer!.release();
-      _contentListPlayer = null;
+    try {
+      if (_player != null) {
+        _player!.dispose();
+        _player = null;
+      }
+      if (_contentListPlayer != null) {
+        _contentListPlayer!.release();
+        _contentListPlayer = null;
+      }
+    } catch (e, stackTrace) {
+      logE('PlayerZoneImpl - release error: $e', stackTrace);
     }
   }
 
@@ -168,59 +176,67 @@ class PlayerZoneImpl {
     int nCurSel = pZoneData.nZoneType;
     _strZoneFile = Utils.getFilePath(
         pZoneData.strZoneFile, pZoneData.nZoneType, _nPType, _strCompany);
-    if (await _validZone(_strZoneFile, nCurSel)) {
-      //Log.i(PlayerMainActivity.LOG_TAG, "RenderZone step 4");
-      _rtDuration = 0;
-      switch (nCurSel) {
-        case cIMAGETYPE:
-          break;
-        case cVIDEOTYPE:
-          PreloadedContent? preloaded;
-          if (mapPreloadedContents != null &&
-              mapPreloadedContents.containsKey(_strZoneFile)) {
-            preloaded = mapPreloadedContents[_strZoneFile];
-          }
-          _initVideoPlayer(pZoneData, preloaded);
-          _rtAct = _player!.state.duration.inMilliseconds / 1000.0;
-          break;
+    try {
+      if (await _validZone(_strZoneFile, nCurSel)) {
+        //Log.i(PlayerMainActivity.LOG_TAG, "RenderZone step 4");
+        _rtDuration = 0;
+        switch (nCurSel) {
+          case cIMAGETYPE:
+            break;
+          case cVIDEOTYPE:
+            PreloadedContent? preloaded;
+            if (mapPreloadedContents != null &&
+                mapPreloadedContents.containsKey(_strZoneFile)) {
+              preloaded = mapPreloadedContents[_strZoneFile];
+            }
+            _initVideoPlayer(pZoneData, preloaded);
+            if (_player != null) {
+              _rtAct = _player!.state.duration.inMilliseconds / 1000.0;
+            }
+            break;
 
-        case cPOWERPOINTTYPE:
-          //PlayPPT(strZone1File, rectWin);
-          break;
+          case cPOWERPOINTTYPE:
+            //PlayPPT(strZone1File, rectWin);
+            break;
 
-        case cQUEUETYPE:
-        //strZone1File = GetQueueLink(strZone1File);
-        case cWEBPAGETYPE:
-          break;
-        case cFLASHTYPE:
-          break;
-        case cTVCAPTURETYPE:
-        case cWEBCAMTYPE:
-          break;
-        case cTEXTTYPE:
-          break;
-        case cSTREAMINGTYPE:
-          break;
-        case cONLINETYPE:
-          break;
-        case cCLOCKTYPE:
-          break;
-        case cWEATHERTYPE:
-          break;
-        case cDDETYPE:
-        case cDIRECTPLAYTYPE:
-        case cSITEPLAYLIST:
-          _initContentList(nCurSel, _strZoneFile, _rect!);
-          break;
-        case cLINKAGETYPE:
-          break;
-        case cEVENTTYPE:
-          break;
-        default:
-          break;
+          case cQUEUETYPE:
+          //strZone1File = GetQueueLink(strZone1File);
+          case cWEBPAGETYPE:
+            break;
+          case cFLASHTYPE:
+            break;
+          case cTVCAPTURETYPE:
+          case cWEBCAMTYPE:
+            break;
+          case cTEXTTYPE:
+            break;
+          case cSTREAMINGTYPE:
+            break;
+          case cONLINETYPE:
+            break;
+          case cCLOCKTYPE:
+            break;
+          case cWEATHERTYPE:
+            break;
+          case cDDETYPE:
+          case cDIRECTPLAYTYPE:
+          case cSITEPLAYLIST:
+            _initContentList(nCurSel, _strZoneFile, _rect!);
+            break;
+          case cLINKAGETYPE:
+            break;
+          case cEVENTTYPE:
+            break;
+          default:
+            break;
+        }
+      } else {
+        _bIsValid = false;
       }
-    } else {
-      _bIsValid = false;
+    } catch (e, stackTrace) {
+      logE(
+          'Init Zone failed - Zone: $_zoneId; _nPType: $_nPType; _strZoneFile: $_strZoneFile error: $e',
+          stackTrace);
     }
 
     if (nCurSel != cDDETYPE &&
@@ -245,8 +261,10 @@ class PlayerZoneImpl {
   void _initVideoPlayer(ZoneData pZoneData, [PreloadedContent? preloaded]) {
     preloaded ??= preloadVideoPlayer(pZoneData,
         filePath: _strZoneFile, size: _rect!.size);
-    _player = preloaded.player;
-    _controller = preloaded.controller;
+    if (preloaded != null) {
+      _player = preloaded.player;
+      _controller = preloaded.controller;
+    }
   }
 
   void setWindowRect(Rect rcWin) {
@@ -521,101 +539,107 @@ class PlayerZoneImpl {
   Widget renderZone([bool cached = false]) {
     Widget? widget;
     if (_bIsValid) {
-      ZoneData? pZoneData = getZoneData();
-      switch (pZoneData!.nZoneType) {
-        case cIMAGETYPE:
-          if (_bNeedReset) {
-            widget = Slideshow(
-                key: Key(_strZoneFile),
-                imageFile: _strZoneFile,
-                rect: _rect!,
-                cached: cached);
-          }
-          /*logD(
-              '''renderZone: $_zoneId, image file: "$_strZoneFile", _bNeedReset: $_bNeedReset, widget: "$widget".''');*/
-          break;
-        case cVIDEOTYPE:
-          if (_player != null) {
-            _player!.play();
-          }
-          if (_controller != null) {
-            widget = ClipRRect(
-              borderRadius: BorderRadius.zero,
-              child: Video(
+      try {
+        ZoneData? pZoneData = getZoneData();
+        switch (pZoneData!.nZoneType) {
+          case cIMAGETYPE:
+            if (_bNeedReset) {
+              widget = Slideshow(
                   key: Key(_strZoneFile),
-                  controller: _controller!,
-                  fit: pZoneData.bZoneRatio ? BoxFit.contain : BoxFit.fill,
-                  controls: null),
+                  imageFile: _strZoneFile,
+                  rect: _rect!,
+                  cached: cached);
+            }
+            /*logD(
+                '''renderZone: $_zoneId, image file: "$_strZoneFile", _bNeedReset: $_bNeedReset, widget: "$widget".''');*/
+            break;
+          case cVIDEOTYPE:
+            if (_player != null) {
+              _player!.play();
+            }
+            if (_controller != null) {
+              widget = ClipRRect(
+                borderRadius: BorderRadius.zero,
+                child: Video(
+                    key: Key(_strZoneFile),
+                    controller: _controller!,
+                    fit: pZoneData.bZoneRatio ? BoxFit.contain : BoxFit.fill,
+                    controls: null),
+              );
+            }
+            break;
+          case cPOWERPOINTTYPE:
+            //PlayPPT(strZone1File, rectWin);
+            break;
+
+          case cQUEUETYPE:
+          case cWEBPAGETYPE:
+            widget = PlatformUtils.isDesktop
+                ? WebviewDesktopPlayer(url: _strZoneFile)
+                : WebviewPlayer(url: _strZoneFile);
+            break;
+          case cFLASHTYPE:
+            break;
+          case cTVCAPTURETYPE:
+          case cWEBCAMTYPE:
+            break;
+          case cTEXTTYPE:
+            if (_bNeedReset) {
+              widget = ScrollText(
+                  key: Key(_strZoneFile), textFile: _strZoneFile, rect: _rect!);
+            }
+            //if (_bNeedReset) PlayTextType(pZoneData, strZone1File, rectWin);
+            break;
+
+          case cSTREAMINGTYPE:
+            break;
+          case cONLINETYPE:
+            break;
+          case cCLOCKTYPE:
+            break;
+          case cWEATHERTYPE:
+            break;
+          case cDDETYPE:
+          case cDIRECTPLAYTYPE:
+          case cSITEPLAYLIST:
+            //playContentList(pZoneData.nZoneType, _strZoneFile, _rect!);
+            widget = ContentListPlayer(
+              key: Key(_strZoneFile),
+              contentList: _strZoneFile,
+              contentType: pZoneData.nZoneType,
+              zone: _zoneId,
+              rect: _rect!,
             );
-          }
-          break;
-        case cPOWERPOINTTYPE:
-          //PlayPPT(strZone1File, rectWin);
-          break;
-
-        case cQUEUETYPE:
-        case cWEBPAGETYPE:
-          widget = PlatformUtils.isDesktop
-              ? WebviewDesktopPlayer(url: _strZoneFile)
-              : WebviewPlayer(url: _strZoneFile);
-          break;
-        case cFLASHTYPE:
-          break;
-        case cTVCAPTURETYPE:
-        case cWEBCAMTYPE:
-          break;
-        case cTEXTTYPE:
-          if (_bNeedReset) {
-            widget = ScrollText(
-                key: Key(_strZoneFile), textFile: _strZoneFile, rect: _rect!);
-          }
-          //if (_bNeedReset) PlayTextType(pZoneData, strZone1File, rectWin);
-          break;
-
-        case cSTREAMINGTYPE:
-          break;
-        case cONLINETYPE:
-          break;
-        case cCLOCKTYPE:
-          break;
-        case cWEATHERTYPE:
-          break;
-        case cDDETYPE:
-        case cDIRECTPLAYTYPE:
-        case cSITEPLAYLIST:
-          //playContentList(pZoneData.nZoneType, _strZoneFile, _rect!);
-          widget = ContentListPlayer(
-            key: Key(_strZoneFile),
-            contentList: _strZoneFile,
-            contentType: pZoneData.nZoneType,
-            zone: _zoneId,
-            rect: _rect!,
-          );
-          break;
-        case cLINKAGETYPE:
-          break;
-        case cEVENTTYPE:
-          break;
-        case cPDFTYPE:
-          bool bShowPDFScrollBar = (hasFlag(AppGlobal.pdfViewMode, 0x0002));
-          var strContent = (bShowPDFScrollBar
-              ? '$_strZoneFile#toolbar=0&navpanes=0&scrollbar=0&view=FitH'
-              : '$_strZoneFile#toolbar=0&navpanes=0&scrollbar=0&view=Fit');
-          widget = PlatformUtils.isDesktop
-              ? WebviewDesktopPlayer(url: strContent)
-              : WebviewPlayer(url: strContent);
-          break;
-        case cPLUGINTYPE:
-          break;
-        case cLIGHTBOXTYPE:
-          break;
-        case 27:
-          widget = PlatformUtils.isDesktop
-              ? WebviewDesktopPlayer(url: _strZoneFile)
-              : WebviewPlayer(url: _strZoneFile);
-          break;
-        default:
-          break;
+            break;
+          case cLINKAGETYPE:
+            break;
+          case cEVENTTYPE:
+            break;
+          case cPDFTYPE:
+            bool bShowPDFScrollBar = (hasFlag(AppGlobal.pdfViewMode, 0x0002));
+            var strContent = (bShowPDFScrollBar
+                ? '$_strZoneFile#toolbar=0&navpanes=0&scrollbar=0&view=FitH'
+                : '$_strZoneFile#toolbar=0&navpanes=0&scrollbar=0&view=Fit');
+            widget = PlatformUtils.isDesktop
+                ? WebviewDesktopPlayer(url: strContent)
+                : WebviewPlayer(url: strContent);
+            break;
+          case cPLUGINTYPE:
+            break;
+          case cLIGHTBOXTYPE:
+            break;
+          case 27:
+            widget = PlatformUtils.isDesktop
+                ? WebviewDesktopPlayer(url: _strZoneFile)
+                : WebviewPlayer(url: _strZoneFile);
+            break;
+          default:
+            break;
+        }
+      } catch (e, stackTrace) {
+        logE(
+            'RenderZone failed - Zone: $_zoneId; _nPType: $_nPType; _strZoneFile: $_strZoneFile error: $e',
+            stackTrace);
       }
     }
 
@@ -764,8 +788,8 @@ class PlayerZoneImpl {
       return (status: true, nFinish: nFinish);
     }
 
-    logD(
-        '''PlayerZoneImpl - Zone: '$_zoneId' isPlayerFinish; _dtStartPlay: ${DateFormat('yyyy-MM-dd HH:mm:ss').format(_dtStartPlay)}; _nPType: $_nPType; _rtDuration:'$_rtDuration'; _rtAct:'$_rtAct'; rtCurrPos:'$rtCurrPos'; _rtLine:'$_rtLine'; _rtPlaying:'$_rtPlaying'.''');
+    /*logD(
+        '''PlayerZoneImpl - Zone: '$_zoneId' isPlayerFinish; _dtStartPlay: ${DateFormat('yyyy-MM-dd HH:mm:ss').format(_dtStartPlay)}; _nPType: $_nPType; _rtDuration:'$_rtDuration'; _rtAct:'$_rtAct'; rtCurrPos:'$rtCurrPos'; _rtLine:'$_rtLine'; _rtPlaying:'$_rtPlaying'.''');*/
     if (pZoneData.isMixedContent() && _contentListPlayer != null) {
       //return _contentListPlayer!.IsPlayFinish();
       var result = _contentListPlayer!.isPlayFinish(nFinish);
@@ -789,10 +813,12 @@ class PlayerZoneImpl {
       //logD('Zone ${_zoneId}; _rtDuration:'%.8f'; _rtAct:'%.8f'; rtCurrPos:'%.8f'; _rtLine:'%.8f'!!!', _nZone, _rtDuration, _rtAct, rtCurrPos, _rtLine);
       if (_player != null) {
         // && _pZonePlayer->State() == MLS_LOADED
-        if (_rtDuration - rtAct < cPLAYINGINTERVAL) {
+        if (_rtDuration - rtAct < cPLAYINGINTERVAL * 10) {
           if (_rtDuration - rtCurrPos < cPLAYINGINTERVAL) {
             logD(
-                'Zone $_zoneId Create filter for video file ${DateFormat('yyyy-MM-dd HH:mm:ss').format(_dtStartPlay)}.');
+                '''PlayerZoneImpl - Zone: '$_zoneId' isPlayerFinish; _dtStartPlay: ${DateFormat('yyyy-MM-dd HH:mm:ss').format(_dtStartPlay)}; _nPType: $_nPType; _rtDuration:'$_rtDuration'; _rtAct:'$_rtAct'; rtCurrPos:'$rtCurrPos'; _rtLine:'$_rtLine'; _rtPlaying:'$_rtPlaying'.''');
+            /*logD(
+                'Zone $_zoneId Create filter for video file ${DateFormat('yyyy-MM-dd HH:mm:ss').format(_dtStartPlay)}.');*/
             if (!_bShowMessageNext) {
               _bShowMessage = _bShowMessageNext;
             }
@@ -803,8 +829,10 @@ class PlayerZoneImpl {
         } else {
           if (_rtDuration - (_rtPlaying + rtCurrPos) > cPLAYINGINTERVAL) {
             if (rtAct - rtCurrPos < cPLAYINGINTERVAL) {
+              /*logD(
+                  'Zone $_zoneId Create filter for video file ${DateFormat('yyyy-MM-dd HH:mm:ss').format(_dtStartPlay)}.');*/
               logD(
-                  'Zone $_zoneId Create filter for video file ${DateFormat('yyyy-MM-dd HH:mm:ss').format(_dtStartPlay)}.');
+                  '''PlayerZoneImpl - Zone: '$_zoneId' isPlayerFinish; _dtStartPlay: ${DateFormat('yyyy-MM-dd HH:mm:ss').format(_dtStartPlay)}; _nPType: $_nPType; _rtDuration:'$_rtDuration'; _rtAct:'$_rtAct'; rtCurrPos:'$rtCurrPos'; _rtLine:'$_rtLine'; _rtPlaying:'$_rtPlaying'.''');
               if (!_bShowMessageNext) {
                 _bShowMessage = _bShowMessageNext;
               }
@@ -823,8 +851,10 @@ class PlayerZoneImpl {
       } else {
         if (_rtDuration > 0) {
           if (_rtDuration - rtCurrPos < cPLAYINGINTERVAL) {
+            /*logD(
+                'Zone $_zoneId Create filter for video file ${DateFormat('yyyy-MM-dd HH:mm:ss').format(_dtStartPlay)}.');*/
             logD(
-                'Zone $_zoneId Create filter for video file ${DateFormat('yyyy-MM-dd HH:mm:ss').format(_dtStartPlay)}.');
+                '''PlayerZoneImpl - Zone: '$_zoneId' isPlayerFinish; _dtStartPlay: ${DateFormat('yyyy-MM-dd HH:mm:ss').format(_dtStartPlay)}; _nPType: $_nPType; _rtDuration:'$_rtDuration'; _rtAct:'$_rtAct'; rtCurrPos:'$rtCurrPos'; _rtLine:'$_rtLine'; _rtPlaying:'$_rtPlaying'.''');
             if (!_bShowMessageNext) {
               _bShowMessage = _bShowMessageNext;
             }
@@ -836,8 +866,10 @@ class PlayerZoneImpl {
     } else {
       if (_rtDuration > 0) {
         if (_rtDuration - rtCurrPos < cPLAYINGINTERVAL) {
+          /*logD(
+              'Zone $_zoneId Play start ${DateFormat('yyyy-MM-dd HH:mm:ss').format(_dtStartPlay)}.');*/
           logD(
-              'Zone $_zoneId Play start ${DateFormat('yyyy-MM-dd HH:mm:ss').format(_dtStartPlay)}.');
+              '''PlayerZoneImpl - Zone: '$_zoneId' isPlayerFinish; _dtStartPlay: ${DateFormat('yyyy-MM-dd HH:mm:ss').format(_dtStartPlay)}; _nPType: $_nPType; _rtDuration:'$_rtDuration'; _rtAct:'$_rtAct'; rtCurrPos:'$rtCurrPos'; _rtLine:'$_rtLine'; _rtPlaying:'$_rtPlaying'.''');
           if (!_bShowMessageNext) {
             _bShowMessage = _bShowMessageNext;
           }
@@ -862,12 +894,12 @@ class PlayerZoneImpl {
     }
 
     double rtAct = _rtAct;
-    logI(
-        '''PlayerZoneImpl - Zone '$_zoneId' isPlayerFinish;  _nPType: '$_nPType'; _rtDuration:'$_rtDuration'; _rtAct:'$_rtAct'; rtCurrPos:'$rtCurrPos'; _rtLine:'$_rtLine'.''');
     if (!_bIsRendering && pZoneData.nZoneType == cVIDEOTYPE) {
       if (_player != null) {
         if (_rtDuration - rtAct < cPLAYINGINTERVAL) {
           if (_rtDuration - rtCurrPos < cPLAYINGINTERVAL) {
+            logI(
+                '''PlayerZoneImpl - Zone '$_zoneId' isPlayerFinished;  _nPType: '$_nPType'; _rtDuration:'$_rtDuration'; _rtAct:'$_rtAct'; rtCurrPos:'$rtCurrPos'; _rtLine:'$_rtLine'.''');
             /*if (_bWriteLog)
               WritePlayLoger(
                   GetPlayLogStart(),
@@ -882,6 +914,8 @@ class PlayerZoneImpl {
         } else {
           if (_rtDuration - (_rtPlaying + rtCurrPos) > cPLAYINGINTERVAL) {
             if (rtAct - rtCurrPos < cPLAYINGINTERVAL) {
+              logI(
+                  '''PlayerZoneImpl - Zone '$_zoneId' isPlayerFinished;  _nPType: '$_nPType'; _rtDuration:'$_rtDuration'; _rtAct:'$_rtAct'; rtCurrPos:'$rtCurrPos'; _rtLine:'$_rtLine'.''');
               /*if (_bWriteLog)
                 WritePlayLoger(
                     GetPlayLogStart(),
@@ -909,6 +943,8 @@ class PlayerZoneImpl {
       } else {
         if (_rtDuration > 0) {
           if (_rtDuration - rtCurrPos < cPLAYINGINTERVAL) {
+            logI(
+                '''PlayerZoneImpl - Zone '$_zoneId' isPlayerFinished;  _nPType: '$_nPType'; _rtDuration:'$_rtDuration'; _rtAct:'$_rtAct'; rtCurrPos:'$rtCurrPos'; _rtLine:'$_rtLine'.''');
             /*if (_bWriteLog)
               WritePlayLoger(
                   GetPlayLogStart(),
@@ -925,6 +961,8 @@ class PlayerZoneImpl {
     } else {
       if (_rtDuration > 0) {
         if (_rtDuration - rtCurrPos < cPLAYINGINTERVAL) {
+          logI(
+              '''PlayerZoneImpl - Zone '$_zoneId' isPlayerFinished;  _nPType: '$_nPType'; _rtDuration:'$_rtDuration'; _rtAct:'$_rtAct'; rtCurrPos:'$rtCurrPos'; _rtLine:'$_rtLine'.''');
           /*if (_bWriteLog)
             WritePlayLoger(GetPlayLogStart(), _nZone, pZoneData.nZoneType,
                 pZoneData.strZoneFile, pZoneData.nZoneDuration, _bIsAHPlaying);*/
@@ -1052,38 +1090,44 @@ class PlayerZoneImpl {
     return preloaded;
   }
 
-  static PreloadedContent preloadVideoPlayer(ZoneData pZoneData,
+  static PreloadedContent? preloadVideoPlayer(ZoneData pZoneData,
       {String? filePath, String? company, Size? size, int ptype = -1}) {
     filePath ??= Utils.getFilePath(
         pZoneData.strZoneFile, pZoneData.nZoneType, ptype, company);
-    var player = Player(
-      configuration: const PlayerConfiguration(
-        title: 'dcm',
-        osc: false,
-        muted: false,
-        async: true,
-        libass: false,
-        logLevel: MPVLogLevel.error,
-      ),
-    );
+    try {
+      var player = Player(
+        configuration: const PlayerConfiguration(
+          title: 'dcm',
+          osc: false,
+          muted: false,
+          async: true,
+          libass: false,
+          logLevel: MPVLogLevel.error,
+        ),
+      );
 
-    final video = Media(LibraryHelper.normalizeMediaSource(filePath));
-    player.open(video, play: false);
+      final video = Media(LibraryHelper.normalizeMediaSource(filePath));
+      player.open(video, play: false);
 
-    var controller = VideoController(
-      player,
-      configuration: VideoControllerConfiguration(
-        width: size?.width.toInt() ?? 800,
-        height: size?.height.toInt() ?? 600,
-      ),
-    );
-    player.setVolume(
-        AppGlobal.videoVolume(pZoneData.bZoneMute, pZoneData.dVolume));
+      var controller = VideoController(
+        player,
+        configuration: VideoControllerConfiguration(
+          width: size?.width.toInt() ?? 800,
+          height: size?.height.toInt() ?? 600,
+        ),
+      );
+      player.setVolume(
+          AppGlobal.videoVolume(pZoneData.bZoneMute, pZoneData.dVolume));
 
-    return PreloadedContent(
-        type: cVIDEOTYPE,
-        filePath: filePath,
-        controller: controller,
-        player: player);
+      return PreloadedContent(
+          type: cVIDEOTYPE,
+          filePath: filePath,
+          controller: controller,
+          player: player);
+    } catch (e, stackTrace) {
+      logE('PlayerZoneImpl - preloadVideoPlayer error: $e', stackTrace);
+    }
+
+    return null;
   }
 }

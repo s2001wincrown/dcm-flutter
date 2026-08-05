@@ -28,8 +28,9 @@ void logW(String msg, [String tag = _tag]) {
   w("$tag :: $msg");
 }
 
-void logE(String msg, [String tag = _tag]) {
-  e("$tag :: $msg");
+void logE(String msg,
+    [Object? error, StackTrace? stackTrace, String tag = _tag]) {
+  e("$tag :: $msg", error, stackTrace);
 }
 
 void logWTF(String msg, [String tag = _tag]) {

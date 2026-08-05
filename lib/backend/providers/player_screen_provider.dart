@@ -483,9 +483,11 @@ class PlayerScreenProvider extends ChangeNotifier {
         //pThread0.SetContentFinished(false);
         var pfResult = pThread0.isPlayerFinish(rtPos, nFinish);
         nFinish = pfResult.nFinish ?? nFinish;
-        logD(
-            'PlayerScreenProvider - zoneThreadCheck, Zone: ${pThread0.getZone()}, rtPos: $rtPos, rtCurrPos1: $rtCurrPos1, pfResult: ${pfResult.status} - ${pfResult.nFinish}.');
+        /*logD(
+            'PlayerScreenProvider - zoneThreadCheck, Zone: ${pThread0.getZone()}, rtPos: $rtPos, rtCurrPos1: $rtCurrPos1, pfResult: ${pfResult.status} - ${pfResult.nFinish}.');*/
         if (pfResult.status) {
+          logD(
+              'PlayerScreenProvider - zoneThreadCheck, Zone: ${pThread0.getZone()}, rtPos: $rtPos, rtCurrPos1: $rtCurrPos1, pfResult: ${pfResult.status} - ${pfResult.nFinish}.');
           pThread0.setPlayingDuration(rtPos);
           pThread0.setStartPlayTime(DateTime.now());
           //pThread0.SetFirstFinished();
@@ -498,10 +500,14 @@ class PlayerScreenProvider extends ChangeNotifier {
           }
         } else {
           if (nFinish == PlayFinish.eCONTENTSTARTING) {
+            logD(
+                'PlayerScreenProvider - zoneThreadCheck, Zone: ${pThread0.getZone()}, rtPos: $rtPos, rtCurrPos1: $rtCurrPos1, pfResult: ${pfResult.status} - ${pfResult.nFinish}.');
             _needNotifyListeners = true;
             pThread0.setContentStarting(false);
           }
           if (nFinish == PlayFinish.eCONTENTFINISH) {
+            logD(
+                'PlayerScreenProvider - zoneThreadCheck, Zone: ${pThread0.getZone()}, rtPos: $rtPos, rtCurrPos1: $rtCurrPos1, pfResult: ${pfResult.status} - ${pfResult.nFinish}.');
             bSaveState = true;
           }
 
@@ -1214,6 +1220,7 @@ class PlayerScreenProvider extends ChangeNotifier {
     while (i < _playerZones.length) {
       PlayerZoneImpl pThread = _playerZones.elementAt(i);
 
+      pThread.release();
       ZoneData? pData = pProductData.getZoneData(pThread.getZone());
       if (pData != null) {
         if (pThread.getEffect() != pData.getZoneEffect()) {
@@ -1974,6 +1981,9 @@ class PlayerScreenProvider extends ChangeNotifier {
   void release() {
     stopTimer();
     stopPlayingTimer();
+    for (var pThread in _playerZones) {
+      pThread.release();
+    }
     resetMusicPlayer();
     deleteZoneThread(0);
     deleteMessageThreadByOutput(cINTMIN);
@@ -1996,35 +2006,39 @@ class PlayerScreenProvider extends ChangeNotifier {
   void _readyForPlay() {
     bool bCanPlay = loadPlayerState();
     if (!bCanPlay) {
-      var playResult = ScheduleList().playFileList();
-      if (playResult.status) {
-        _strDCMFile = playResult.strDCMFile;
-        if (loadCatalogue(_strDCMFile!, true)) {
-          bCanPlay = ScheduleList().isCatalogueCanPlay();
-        }
+      try {
+        var playResult = ScheduleList().playFileList();
+        if (playResult.status) {
+          _strDCMFile = playResult.strDCMFile;
+          if (loadCatalogue(_strDCMFile!, true)) {
+            bCanPlay = ScheduleList().isCatalogueCanPlay();
+          }
 
-        if (!bCanPlay) {
-          if (ScheduleList().count > 1) {
-            while (true) {
-              var playNextResult = ScheduleList().playNextFile();
-              if (playNextResult.status) {
-                //if (ScheduleList().LoadCatalogue(strDCMFile))
-                if (loadCatalogue(playNextResult.strDCMFile!, true)) {
-                  if (ScheduleList().isCatalogueCanPlay()) {
-                    bCanPlay = true;
-                    _strDCMFile = playNextResult.strDCMFile!;
-                    break;
+          if (!bCanPlay) {
+            if (ScheduleList().count > 1) {
+              while (true) {
+                var playNextResult = ScheduleList().playNextFile();
+                if (playNextResult.status) {
+                  //if (ScheduleList().LoadCatalogue(strDCMFile))
+                  if (loadCatalogue(playNextResult.strDCMFile!, true)) {
+                    if (ScheduleList().isCatalogueCanPlay()) {
+                      bCanPlay = true;
+                      _strDCMFile = playNextResult.strDCMFile!;
+                      break;
+                    }
                   }
                 }
-              }
 
-              if (!bCanPlay) {
-                sleep(const Duration(seconds: 1));
+                if (!bCanPlay) {
+                  sleep(const Duration(seconds: 1));
+                }
               }
             }
           }
+          ScheduleList().setPlayTimes();
         }
-        ScheduleList().setPlayTimes();
+      } catch (e, stackTrace) {
+        logE('PlayerScreenProvider - _readyForPlay error: $e', stackTrace);
       }
     }
     _bValidForPlay = bCanPlay;

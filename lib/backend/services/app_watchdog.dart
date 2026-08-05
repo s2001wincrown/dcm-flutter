@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:dcm/backend/utils/log_utils.dart';
 import 'package:flutter/foundation.dart';
 
 /// A lightweight app supervisor that launches the real UI process as a child.
@@ -9,8 +10,8 @@ import 'package:flutter/foundation.dart';
 /// so process-level restart support is implemented using a separate parent
 /// process instead of `worker_manager` alone.
 class AppWatchdog {
-  static const String _childArg = '--dcm-watchdog-child';
-  static const String _noWatchdogArg = '--dcm-watchdog-no';
+  static const String _childArg = '--app-watchdog-child';
+  static const String _noWatchdogArg = '--app-watchdog-no';
   static const int _maxRestartAttempts = 10;
   static const Duration _restartDelay = Duration(seconds: 3);
 
@@ -45,7 +46,7 @@ class AppWatchdog {
     final executable = Platform.resolvedExecutable;
     final executableFile = File(executable);
     if (!executableFile.existsSync()) {
-      stderr.writeln('AppWatchdog: failed to locate executable: $executable');
+      logE('AppWatchdog: failed to locate executable: $executable');
       return;
     }
 
@@ -63,8 +64,7 @@ class AppWatchdog {
     int restartCount = 0;
     while (true) {
       if (restartCount > 0) {
-        stderr.writeln(
-            'AppWatchdog: restarting child process attempt #$restartCount...');
+        logI('AppWatchdog: restarting child process attempt #$restartCount...');
         await Future.delayed(_restartDelay);
       }
 
@@ -77,15 +77,14 @@ class AppWatchdog {
 
       final exitCode = await child.exitCode;
       if (exitCode == 0) {
-        stderr.writeln('AppWatchdog: child exited normally with code 0.');
+        logI('AppWatchdog: child exited normally with code 0.');
         return;
       }
 
-      stderr.writeln(
-          'AppWatchdog: child exited with code $exitCode. Restarting...');
+      logI('AppWatchdog: child exited with code $exitCode. Restarting...');
       restartCount += 1;
       if (restartCount >= _maxRestartAttempts) {
-        stderr.writeln(
+        logW(
             'AppWatchdog: reached $_maxRestartAttempts restart attempts, giving up.');
         return;
       }

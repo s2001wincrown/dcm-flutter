@@ -64,9 +64,9 @@ void _registerContentSyncPlayerRefreshPort() {
 }
 
 void main(List<String> arguments) async {
-  if (await AppWatchdog.runParentIfNeeded(arguments)) {
+  /*if (await AppWatchdog.runParentIfNeeded(arguments)) {
     return;
-  }
+  }*/
 
   WidgetsFlutterBinding.ensureInitialized();
   MediaKit.ensureInitialized();

@@ -102,12 +102,14 @@ class _DigitalSignageScreenState extends State<DigitalSignageScreen> {
   }
 
   void _exitApplication() {
+    logI('multi_partition_screen _exitApplication: _isExiting $_isExiting');
     if (!mounted || _isExiting) {
       return;
     }
 
     _isExiting = true;
     _exitHintTimer?.cancel();
+    Provider.of<PlayerScreenProvider>(context, listen: false).release();
 
     if (Platform.isAndroid || Platform.isIOS) {
       try {
@@ -123,12 +125,6 @@ class _DigitalSignageScreenState extends State<DigitalSignageScreen> {
   void _handleExitTap() {
     if (!mounted || _isExiting) {
       return;
-    }
-
-    final windows = WindowManager.instance.getAll();
-    for (var window in windows) {
-      logD(
-          'WindowManager::getAll, position: ${window.position}, ${window.size}'); //, title: ${window.title}, id: ${window.id}
     }
 
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
@@ -148,7 +144,7 @@ class _DigitalSignageScreenState extends State<DigitalSignageScreen> {
       return;
     }
 
-    if (!_exitHintShown) {
+    if (!_exitHintShown && !_isExiting) {
       _exitHintShown = true;
       _showExitHint = true;
       _exitHintTimer?.cancel();
