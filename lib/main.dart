@@ -76,7 +76,6 @@ void main(List<String> arguments) async {
   _registerContentSyncPlayerRefreshPort();
   workerManager.log = true;
   await workerManager.init(dynamicSpawning: true);
-  await ContentSyncBackgroundService.instance.init();
   await L10n.init();
 
   if (!kIsWeb && defaultTargetPlatform == TargetPlatform.windows) {
@@ -137,6 +136,8 @@ void main(List<String> arguments) async {
     ScheduleList().loadSchedule();
     //runApp(const HomePage(playerView: false));
   }
+  await ContentSyncBackgroundService.instance.init();
+
   runApp(
     MultiProvider(
       providers: [

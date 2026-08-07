@@ -1,9 +1,14 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
+import 'dart:isolate';
+import 'dart:ui';
 
+import 'package:dcm/backend/constants.dart';
 import 'package:dcm/backend/models/app_global.dart';
 import 'package:dcm/backend/models/player_global.dart';
 import 'package:dcm/backend/net/content_sync_service.dart';
+import 'package:dcm/backend/net/netdef.dart';
 import 'package:dcm/backend/net/sync_http_client.dart';
 import 'package:dcm/backend/net/play_log_post.dart';
 import 'package:dcm/backend/net/player_path_service.dart';
@@ -14,6 +19,8 @@ import 'package:dcm/backend/xmlfile/xmlfile.dart';
 import 'package:flutter/services.dart';
 import 'package:path/path.dart' as path;
 import 'package:worker_manager/worker_manager.dart';
+
+const String kContentSyncCommandPortName = 'content_sync_command_port';
 
 class ContentSyncBackgroundService {
   ContentSyncBackgroundService._();
@@ -118,6 +125,33 @@ class ContentSyncBackgroundService {
           autoSyncTime: workerConfig['autoSyncTime'] as bool?,
         );
         syncHttpClientFactory.dispose();
+        final workerReceivePort = ReceivePort();
+
+        IsolateNameServer.removePortNameMapping(kContentSyncCommandPortName);
+        IsolateNameServer.registerPortWithName(
+          workerReceivePort.sendPort,
+          kContentSyncCommandPortName,
+        );
+
+        // 监听来自主 Isolate 的消息
+        workerReceivePort.listen((message) {
+          MessageInfo? messageInfo;
+          try {
+            messageInfo = MessageInfo.fromJson(jsonDecode(message));
+            logI(
+                '''workerReceivePort; Command: '${messageInfo.messageID}'; Type: '${messageInfo.status}'; content: '${messageInfo.messageName}'.''',
+                syncTag);
+          } catch (e) {
+            logE('''workerReceivePort receive: '$message', error: $e''',
+                syncTag);
+          }
+          if (messageInfo != null) {
+            if (messageInfo.messageID == PlayerNotice.ePLAYCLOSENOTICE.index) {
+              workerReceivePort.close();
+              completer.complete(messageInfo.messageName);
+            }
+          }
+        });
 
         // transfer player snapshot into worker and apply
         try {
@@ -146,7 +180,7 @@ class ContentSyncBackgroundService {
         logD('completer.future', syncTag);
         // 5. 等待 Completer 完成，防止后台 Isolate 提前销毁
         await completer.future;
-        logD('completer.future end', syncTag);
+        logI('ContentSyncBackgroundService: completer.future end', syncTag);
       }));
     } catch (e, stack) {
       _started = false;

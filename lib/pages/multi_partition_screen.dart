@@ -1,7 +1,12 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
+import 'dart:isolate';
+import 'dart:ui';
 
+import 'package:dcm/backend/constants.dart';
 import 'package:dcm/backend/models/app_global.dart';
+import 'package:dcm/backend/net/netdef.dart';
 import 'package:dcm/backend/providers/player_screen_provider.dart';
 import 'package:dcm/backend/services/app_skin_impl.dart';
 import 'package:dcm/backend/utils/log_utils.dart';
@@ -9,8 +14,21 @@ import 'package:dcm/backend/utils/utils.dart';
 import 'package:dcm/pages/home.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:nativeapi/nativeapi.dart';
 import 'package:provider/provider.dart';
+
+const String kContentSyncCommandPortName = 'content_sync_command_port';
+void _notifyContentSyncIsolateCommand(int nCmd, int ntype, [String? content]) {
+  final SendPort? sendPort =
+      IsolateNameServer.lookupPortByName(kContentSyncCommandPortName);
+  logI(
+      'multi_partition_screen _notifyContentSyncIsolateCommand: sendPort ${sendPort != null}, nCmd: $nCmd, ntype: $ntype, content: $content');
+  var messageInfo = MessageInfo();
+  messageInfo.messageID = nCmd;
+  messageInfo.status = ntype;
+  messageInfo.messageName = content ?? '';
+  String msgInfo = jsonEncode(messageInfo.toJson());
+  sendPort?.send(msgInfo);
+}
 
 class DigitalSignageApp extends StatelessWidget {
   const DigitalSignageApp({Key? key}) : super(key: key);
@@ -101,7 +119,7 @@ class _DigitalSignageScreenState extends State<DigitalSignageScreen> {
     ]);
   }
 
-  void _exitApplication() {
+  Future<void> _exitApplication() async {
     logI('multi_partition_screen _exitApplication: _isExiting $_isExiting');
     if (!mounted || _isExiting) {
       return;
@@ -109,7 +127,10 @@ class _DigitalSignageScreenState extends State<DigitalSignageScreen> {
 
     _isExiting = true;
     _exitHintTimer?.cancel();
-    Provider.of<PlayerScreenProvider>(context, listen: false).release();
+    PlayerScreenProvider.instance?.release();
+    _notifyContentSyncIsolateCommand(PlayerNotice.ePLAYCLOSENOTICE.index, 0);
+    //sleep(const Duration(seconds: 1));
+    await Future.delayed(const Duration(seconds: 1)); // Non-blocking delay
 
     if (Platform.isAndroid || Platform.isIOS) {
       try {
@@ -122,7 +143,7 @@ class _DigitalSignageScreenState extends State<DigitalSignageScreen> {
     }
   }
 
-  void _handleExitTap() {
+  Future<void> _handleExitTap() async {
     if (!mounted || _isExiting) {
       return;
     }
@@ -140,7 +161,7 @@ class _DigitalSignageScreenState extends State<DigitalSignageScreen> {
       mounted: mounted,
       isExiting: _isExiting,
     )) {
-      _exitApplication();
+      await _exitApplication();
       return;
     }
 
@@ -163,9 +184,9 @@ class _DigitalSignageScreenState extends State<DigitalSignageScreen> {
   }
 
   // 双击退出功能
-  void _onPopInvokedWithResult(bool didPop, Object? result) {
+  Future<void> _onPopInvokedWithResult(bool didPop, Object? result) async {
     if (didPop) return;
-    _exitApplication();
+    await _exitApplication();
   }
 
   @override

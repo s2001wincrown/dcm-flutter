@@ -29,6 +29,7 @@ class PreloadedContent {
   final String filePath;
   final String? text;
   final List<String>? images;
+  bool isReady = true;
 
   PreloadedContent({
     required this.type,
@@ -43,13 +44,25 @@ class PreloadedContent {
     if (player != null) {
       player!.dispose();
     }
+    isReady = false;
   }
 
   void stop() {
     if (player != null) {
       player!.stop();
-      player!.open(Media(LibraryHelper.normalizeMediaSource(filePath)),
-          play: false);
+      /*player!.open(Media(LibraryHelper.normalizeMediaSource(filePath)),
+          play: false);*/
+    }
+    isReady = false;
+  }
+
+  void ready() {
+    if (player != null) {
+      if (!isReady) {
+        player!.open(Media(LibraryHelper.normalizeMediaSource(filePath)),
+            play: false);
+      }
+      isReady = true;
     }
   }
 }
@@ -262,6 +275,7 @@ class PlayerZoneImpl {
     preloaded ??= preloadVideoPlayer(pZoneData,
         filePath: _strZoneFile, size: _rect!.size);
     if (preloaded != null) {
+      preloaded.ready();
       _player = preloaded.player;
       _controller = preloaded.controller;
     }

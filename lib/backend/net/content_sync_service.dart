@@ -257,6 +257,7 @@ class ContentSyncService {
 						flagRetryJob(0, false);
 					} else {
 						await PlayerTaskFile.removeTask(PlayerTaskFile.pCurrJob!);
+            PlayerTaskFile.pCurrJob = null;
 					}*/
         if (PlayerTaskFile.pCurrJob != null &&
             (!PlayerTaskFile.pCurrJob!.isTiming() ||
@@ -332,6 +333,7 @@ class ContentSyncService {
           await stopSyncStatusTimer();
           _bTransfering = false;
           await PlayerTaskFile.removeTask(PlayerTaskFile.pCurrJob!);
+          PlayerTaskFile.pCurrJob = null;
         } else {
           await PlayerLogFile.timeForSyncStatusUpdate();
         }
@@ -363,6 +365,7 @@ class ContentSyncService {
       //int dwStatus = PlayerTaskFile.pCurrJob!.dwJobStatus;
       //SAFE_DELETE(PlayerTaskFile.pCurrJob);
       await PlayerTaskFile.removeTask(PlayerTaskFile.pCurrJob!);
+      PlayerTaskFile.pCurrJob = null;
 
       await PlayerPathService().removeAllTempFile(strBatch);
       await PlayerPathService().copyFileFinish(strBatch, false);
@@ -519,6 +522,7 @@ class ContentSyncService {
       await PlayerTaskFile.writeTaskFile(
           PlayerTaskFile.pCurrJob, FileTransferStatus.eTRANSFERSUCCESS);
       await PlayerTaskFile.removeTask(PlayerTaskFile.pCurrJob!);
+      PlayerTaskFile.pCurrJob = null;
 
       await stopTempFileCopyTimer();
 
@@ -760,6 +764,7 @@ class ContentSyncService {
       await PlayerTaskFile.writeTaskFile(
           PlayerTaskFile.pCurrJob, FileTransferStatus.eTRANSFERFAILED);
       await PlayerTaskFile.removeTask(PlayerTaskFile.pCurrJob!);
+      PlayerTaskFile.pCurrJob = null;
 
       await PlayerLogFile.closeLogFile('Transfer Failure!');
     }

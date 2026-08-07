@@ -178,6 +178,7 @@ class PlayerRegisterImpl {
     String pPlayerName,
     String pLocation,
     String pOrganization,
+    String channel,
     int pSettingsGroup,
     String pHttpLink
   }) getPlayerInformation(String strPath) {
@@ -188,6 +189,7 @@ class PlayerRegisterImpl {
         serverFile.readString('PlayerInformation', 'Location', '');
     final pOrganization =
         serverFile.readString('PlayerInformation', 'Organization', '');
+    final channel = serverFile.readString('PlayerInformation', 'Channel', '');
     final pSettingsGroup =
         serverFile.readInt('PlayerInformation', 'SettingsGroup', 1);
     final pHttpLink = serverFile.readString('Server', 'HTTPRootLink', '');
@@ -196,6 +198,7 @@ class PlayerRegisterImpl {
       pPlayerName: pPlayerName,
       pLocation: pLocation,
       pOrganization: pOrganization,
+      channel: channel,
       pSettingsGroup: pSettingsGroup,
       pHttpLink: pHttpLink
     );
@@ -206,7 +209,8 @@ class PlayerRegisterImpl {
     serverFile.writeString('PlayerInformation', 'PlayerName',
         'Player-${DateTime.now().microsecondsSinceEpoch}');
     serverFile.writeString('PlayerInformation', 'Location', 'Player Location');
-    serverFile.writeString('PlayerInformation', 'Organization', 'SP');
+    serverFile.writeString('PlayerInformation', 'Organization', 'DEMO');
+    serverFile.writeString('PlayerInformation', 'Channel', 'default');
     serverFile.writeInt('PlayerInformation', 'SettingsGroup', 3);
     serverFile.writeString(
         'Server', 'HTTPRootLink', 'http://121.40.137.228:8080/demo');
@@ -283,6 +287,7 @@ class PlayerRegisterImpl {
     player.setPlayerName(playerInformation.pPlayerName);
     player.setLocation(playerInformation.pPlayerName);
     player.strOrganization = playerInformation.pOrganization;
+    player.strChannel = playerInformation.channel;
     await updateNetworkInfo(player);
 
     if (player.nLocalPort < 1024) {

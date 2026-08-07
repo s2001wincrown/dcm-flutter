@@ -107,6 +107,8 @@ class PlayerScreenProvider extends ChangeNotifier {
   int _lVideoStatus = 0;
   int _lTVChannel = -1;
 
+  bool _pollInProgress = false;
+
   List<PlayerZoneImpl> getPlayerZones() => _playerZones;
   List<PlayerZoneImpl> getPlayingZones() =>
       _playerZones.where((element) => element.getZone() > -1).toList();
@@ -195,7 +197,7 @@ class PlayerScreenProvider extends ChangeNotifier {
 
     _playingTimer =
         Timer.periodic(const Duration(milliseconds: cPLAYINGDURATION), (timer) {
-      _onTimer();
+      _zoneStatusCheck();
     });
   }
 
@@ -218,6 +220,20 @@ class PlayerScreenProvider extends ChangeNotifier {
     deleteMessageThreadByOutput(cINTMIN);
 
     //killPPProcess();
+  }
+
+  void _zoneStatusCheck() {
+    if (_pollInProgress) {
+      logW(
+          'PlayerScreenProvider - _zoneStatusCheck - Zone play status check InProgress');
+      return;
+    }
+    _pollInProgress = true;
+    try {
+      _onTimer();
+    } finally {
+      _pollInProgress = false;
+    }
   }
 
   void _onTimer() {
@@ -651,7 +667,6 @@ class PlayerScreenProvider extends ChangeNotifier {
   void changePlaylist() {
     bool bIsPlayingEpisode = ScheduleList().isPlayingEpisode();
     //int nTotalZone = ScheduleList().getTotalZones();
-    int nTotalZone = _nTotalZoneThread;
     if (!isProductFinished()) //Product not finish
     {
       /*if (DateTime.now().difference(_dwSecondTime).inMilliseconds > 1800000) {

@@ -705,7 +705,7 @@ class PlayerTaskFile {
     XmlItem? pItem = syncTask.getItem('TaskItem');
     if (pItem != null) {
       String strPlayerTask =
-          '<?xml version="1.0" encoding="UTF-8"?><PlayerTasks $cHTTPUNIQUEKEY="${globalPlayer.strUniqueName}">';
+          '<?xml version="1.0" encoding="UTF-8"?><PlayerTasks $cHTTPUNIQUEKEY="${globalPlayer.strUniqueName}" organization="${AppGlobal.organization}">';
       while (pItem != null) {
         PlayerJobItem pTaskItem = PlayerJobItem();
         taskQueue.add(pTaskItem);

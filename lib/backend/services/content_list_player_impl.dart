@@ -453,10 +453,10 @@ class ContentListPlayerImpl {
     //StopCurrProduct();
     //WriteMessage(MSG_INFO, _T("ContentListPlayerImpl - PlayNextProduct; m_nPlayAHItem:%d; m_dwPlayADItem: %d, Thread ID %d!!!"), m_nPlayAHItem, m_dwPlayADItem, GetCurrentThreadId());
     if (_nPlayAHItem == -1 || _dwPlayADItem == 0) {
-      if (getCount() <= _nCurrProduct + 1) {
-        _nCurrProduct = 0;
-      } else {
+      if (_nCurrProduct + 1 < getCount()) {
         _nCurrProduct++;
+      } else {
+        _nCurrProduct = 0;
       }
     }
 
@@ -500,7 +500,7 @@ class ContentListPlayerImpl {
   void playProduct(int nIndex, [bool bStart = false]) {
     if (getCount() == 0) {
       logD(
-          '''No item to play, Content Type: '$_nContentType'; Content Path: '$_strContentListPath'; TID: '$pid'.''');
+          '''ContentListPlayerImpl - No item to play, Content Type: '$_nContentType'; Content Path: '$_strContentListPath'; nIndex: '$nIndex'.''');
       return;
     }
 
@@ -509,6 +509,8 @@ class ContentListPlayerImpl {
     _nCurrProduct = nIndex;
     var result = getProductData(nProduct: nIndex);
     if (!result.status) {
+      logD(
+          '''ContentListPlayerImpl - Content list item not available to play, Content Type: '$_nContentType'; Content Path: '$_strContentListPath'; nIndex: '$nIndex'.''');
       playNextProduct();
       return;
     }
@@ -519,11 +521,15 @@ class ContentListPlayerImpl {
     }
 
     if (_pProductData == null) {
+      logD(
+          '''ContentListPlayerImpl - Content list item (_pProductData is null) not available to play, Content Type: '$_nContentType'; Content Path: '$_strContentListPath'; nIndex: '$nIndex'.''');
       playNextProduct();
       return;
     }
 
     if (!_pProductData!.isValidForPlay()) {
+      logD(
+          '''ContentListPlayerImpl - Content list item content is invalid, Content Type: '$_nContentType'; Content Path: '$_strContentListPath'; nIndex: '$nIndex'.''');
       playNextProduct();
       return;
     }
@@ -533,7 +539,8 @@ class ContentListPlayerImpl {
         pCurrProduct == _pProductData &&
         _pProductData!.lstZone.length == 1 &&
         _pProductData!.hasContentType(cWEBPAGETYPE)) {
-      //logD('No need to play, Content Type: '%d'; Content Path: '%s'; TID: '%d'.', _nContentType, _strContentListPath);
+      logD(
+          '''ContentListPlayerImpl - Content list item no need to refresh, Content Type: '$_nContentType'; Content Path: '$_strContentListPath'; nIndex: '$nIndex'.''');
       return;
     }
 
