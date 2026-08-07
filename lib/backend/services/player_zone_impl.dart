@@ -38,7 +38,17 @@ class PreloadedContent {
     required this.filePath,
     this.text,
     this.images,
-  });
+  }) {
+    if (player != null) {
+      player!.stream.completed.listen(
+        (bool completed) {
+          if (completed) {
+            player!.seek(Duration.zero);
+          }
+        },
+      );
+    }
+  }
 
   void release() {
     if (player != null) {
@@ -49,7 +59,8 @@ class PreloadedContent {
 
   void stop() {
     if (player != null) {
-      player!.stop();
+      player!.seek(Duration.zero);
+      //player!.stop();
       /*player!.open(Media(LibraryHelper.normalizeMediaSource(filePath)),
           play: false);*/
     }
@@ -275,7 +286,7 @@ class PlayerZoneImpl {
     preloaded ??= preloadVideoPlayer(pZoneData,
         filePath: _strZoneFile, size: _rect!.size);
     if (preloaded != null) {
-      preloaded.ready();
+      //preloaded.ready();
       _player = preloaded.player;
       _controller = preloaded.controller;
     }

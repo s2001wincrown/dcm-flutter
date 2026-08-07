@@ -72,6 +72,25 @@ DMC Digital Signage Player
   </tr>
 </table>
 
+## 应用启动与 CMS 内容同步
+
+1. 从 GitHub Releases 页面下载适用于当前平台的安装包或应用程序：<https://github.com/s2001wincrown/dcm-flutter/releases>。
+2. 安装并启动应用。首次启动时，应用界面可能先显示黑屏，这属于正常状态，系统会自动与演示 CMS 系统 http://121.40.137.228:8080/demo 同步内容。
+3. 内容同步完成后，应用会自动进入播放状态，开始按照当前节目内容进行展示。
+4. 如果需要切换播放内容，请先登录 CMS 系统。在 Calendar 功能中切换系统预置的 Playlist。
+5. 然后进入 Player 功能，点击 Update Now，将最新内容更新到 Player。
+6. Player 接收到更新后会立即切换到新的播放内容。
+
+<table>
+  <tr>
+    <td>
+      <img src='./screenshots/cms1.png' alt="cms-calendar">
+    </td>
+    <td>
+      <img src='./screenshots/cms2.png' alt="cms-player">
+    </td>
+  </tr>
+</table>
 
 ### 使用 Anime4K 着色器
 
