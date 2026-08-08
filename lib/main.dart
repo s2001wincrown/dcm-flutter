@@ -25,7 +25,6 @@ import 'package:provider/provider.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 import 'package:window_manager/window_manager.dart';
 import 'package:worker_manager/worker_manager.dart';
-import 'package:dcm/backend/services/app_watchdog.dart';
 
 const String kContentSyncPlayerRefreshPortName =
     'content_sync_player_refresh_port';

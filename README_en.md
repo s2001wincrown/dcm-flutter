@@ -77,9 +77,10 @@ Supported platforms: Windows, macOS, Linux, Android, iOS, and Web.
 1. Download the installer or application package for your platform from the GitHub Releases page: <https://github.com/s2001wincrown/dcm-flutter/releases>.
 2. Install and launch the application. On first startup, the screen may appear black for a short time while the app automatically synchronizes content from the demo CMS system at http://121.40.137.228:8080/demo.
 3. Once the synchronization is complete, the app will automatically enter playback mode and start showing the current scheduled content.
-4. To change the playback content, log in to the CMS system first. In the Calendar feature, switch to the preset Playlist provided by the system.
-5. Then open the Player feature and click Update Now to push the latest content to the player.
-6. The player will receive the update and switch to the new content immediately.
+4. To change the playback content, log in to the demo CMS system first. Use username: `DEMOUser` and password: `DEMOUser`.
+5. In the Calendar feature, switch to the preset Playlist provided by the system.
+6. Open the Player feature, go to the Player list (`./screenshots/cms2.png`), select the Player to update, and click `Update Now` to push the latest content to the player.
+7. The player will receive the update and switch to the new content immediately.
 
 <table>
   <tr>

@@ -56,18 +56,15 @@ const int cSETTINGSTASK = 0x0010;
 // --------------------------------------------------------------------------
 // 2. Player Object (Job Item) 实现
 // --------------------------------------------------------------------------
-/*
-enum JobItemType
-	{
-		AUTO = 0,
-		MANUAL = 1,
-		HTTPGET,
-	}
-*/
+
 enum JobItemType {
   eAUTO,
   eMANUAL,
-  eHTTPGET,
+  eHTTPGET;
+
+  static JobItemType fromValue(String value) =>
+      JobItemType.values.firstWhere((element) => element.name == value,
+          orElse: () => JobItemType.eAUTO);
 }
 
 /*
@@ -111,6 +108,10 @@ enum FileTransferStatus {
 
   const FileTransferStatus(this.value);
   final int value;
+
+  static FileTransferStatus fromValue(int status) =>
+      FileTransferStatus.values.firstWhere((element) => element.value == status,
+          orElse: () => FileTransferStatus.eTRANSFERFAILED);
 }
 
 class PlayerJobItem {
@@ -243,7 +244,7 @@ class PlayerJobItem {
     pXmlItem.addItem('m_nMaximumLimit', nMaximumLimit);
     pXmlItem.addItem('m_dwFtpContent', dwSyncContent);
     pXmlItem.addItem('m_nTaskAction', nTaskAction);
-    pXmlItem.addItem('m_dwJobStatus', dwJobStatus);
+    pXmlItem.addItem('m_dwJobStatus', dwJobStatus.value);
     pXmlItem.addItem('m_dtValidity', dtValidity);
     pXmlItem.addItem('m_bIsCurrent', bIsCurrent ? 1 : 0);
   }
@@ -266,7 +267,7 @@ class PlayerJobItem {
     pXmlItem.setItemValue('m_nMaximumLimit', nMaximumLimit);
     pXmlItem.setItemValue('m_dwFtpContent', dwSyncContent);
     pXmlItem.setItemValue('m_nTaskAction', nTaskAction);
-    pXmlItem.setItemValue('m_dwJobStatus', dwJobStatus);
+    pXmlItem.setItemValue('m_dwJobStatus', dwJobStatus.value);
     pXmlItem.setItemValue('m_dtValidity', dtValidity);
     pXmlItem.setItemValue('m_bIsCurrent', bIsCurrent ? 1 : 0);
   }
@@ -285,9 +286,7 @@ class PlayerJobItem {
     strSyncContent = pXmlItem.getItemValue('m_strFtpContent');
     strOtherInfo = pXmlItem.getItemValue('m_strOtherInfo');
     bReplaceFile = pXmlItem.getItemValueB('m_bReplaceFile');
-    dwJobType = JobItemType.values.firstWhere(
-        (element) => element.index == pXmlItem.getItemValueI('m_dwJobType'),
-        orElse: () => JobItemType.eAUTO);
+    dwJobType = JobItemType.fromValue(pXmlItem.getItemValue('m_dwJobType'));
     XmlItem? pXI = pXmlItem.getItem('m_bImm');
     if (pXI != null) {
       dwJobType = (pXmlItem.getItemValueI('m_bImm') > 0
@@ -311,9 +310,8 @@ class PlayerJobItem {
     nTaskAction = pXmlItem.getItemValueI('m_nTaskAction');
     XmlItem? pXIJobStatus = pXmlItem.getItem('m_dwJobStatus');
     if (pXIJobStatus != null) {
-      dwJobStatus = FileTransferStatus.values.firstWhere(
-          (element) => element.value == pXmlItem.getItemValueI('m_dwJobStatus'),
-          orElse: () => FileTransferStatus.eTRANSFERFAILED);
+      dwJobStatus =
+          FileTransferStatus.fromValue(pXmlItem.getItemValueI('m_dwJobStatus'));
     }
     dtValidity = pXmlItem.getItemValueD('m_dtValidity') ?? fromOleDateTime(0);
 
