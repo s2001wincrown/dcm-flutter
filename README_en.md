@@ -51,6 +51,26 @@ The application is implemented with Flutter and Dart, providing a unified codeba
 
 Supported platforms: Windows, macOS, Linux, Android, iOS, and Web.
 
+## Supported Platform Versions
+
+- Flutter SDK: current range `>=3.1.3 <4.0.0` in `pubspec.yaml`; recommended Flutter 3.29.0 or later.
+- Android: current values use `minSdkVersion flutter.minSdkVersion` and `targetSdkVersion flutter.targetSdkVersion` in `android/app/build.gradle`; recommended to use Android SDK settings compatible with the active Flutter SDK.
+- macOS: current minimum macOS 10.14.6 in `macos/Podfile`; recommended macOS 10.14.6 or later.
+- Windows: current support for Flutter Windows desktop; recommended to build and run on Windows 10/11.
+- Linux: current support for Flutter Linux desktop; recommended to install GTK 3 and `libmpv` runtime dependencies.
+- Web: current support for Flutter Web deployment; recommended to use a modern browser.
+
+### Detailed Platform Support
+
+| Platform | Current | Recommended |
+| --- | --- | --- |
+| Android | Uses Flutter-managed values in `android/app/build.gradle`: `minSdkVersion flutter.minSdkVersion` / `targetSdkVersion flutter.targetSdkVersion` | Android 5.0+ (API 21+) |
+| iOS | Managed by the Flutter SDK; exact values depend on the iOS project configuration | iOS 9+ (prefer newer versions) |
+| macOS | Minimum macOS 10.14.6 via `macos/Podfile` | macOS 10.14.6+ |
+| Windows | Supports Flutter Windows desktop builds | Windows 10/11 |
+| Linux | Supports Flutter Linux desktop builds | Modern GNU/Linux distro with GTK 3 and `libmpv` |
+| Web | Supports Flutter Web deployment | Modern web browser |
+
 ## Product Screenshots
 
 <table>

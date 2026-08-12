@@ -51,6 +51,26 @@ DMC Digital Signage Player
 
 支持平台：Windows、macOS、Linux、Android、iOS 和 Web。
 
+## 平台支持版本
+
+- Flutter SDK：当前值 `>=3.1.3 <4.0.0`（`pubspec.yaml`）；建议使用 Flutter 3.29.0 及以上版本。
+- Android：当前值在 `android/app/build.gradle` 中使用 `minSdkVersion flutter.minSdkVersion` 和 `targetSdkVersion flutter.targetSdkVersion`；建议使用与当前 Flutter SDK 兼容的 Android SDK 配置。
+- macOS：当前值 `macOS 10.14.6`（`macos/Podfile`）；建议使用 `macOS 10.14.6` 或更高版本。
+- Windows：当前支持 Flutter Windows 桌面；建议在 Windows 10/11 平台上构建和运行。
+- Linux：当前支持 Flutter Linux 桌面；建议安装 GTK 3 和 `libmpv` 运行时依赖。
+- Web：当前支持 Flutter Web 部署；建议使用现代浏览器。
+
+### 详细平台支持
+
+| 平台 | 当前值 | 建议值 |
+| --- | --- | --- |
+| Android | 当前使用 `android/app/build.gradle` 中的 Flutter 管理值：`minSdkVersion flutter.minSdkVersion` / `targetSdkVersion flutter.targetSdkVersion` | Android 5.0+（API 21+） |
+| iOS | 受 Flutter SDK 管理，具体值取决于运行时的 iOS 项目配置 | iOS 9+（建议使用更高版本） |
+| macOS | 当前最低 `macOS 10.14.6`（`macos/Podfile`） | macOS 10.14.6+ |
+| Windows | 当前支持 Flutter Windows 桌面构建 | Windows 10/11 |
+| Linux | 当前支持 Flutter Linux 桌面构建 | 现代 GNU/Linux 发行版，需 GTK 3 和 `libmpv` |
+| Web | 当前支持 Flutter Web 部署 | 现代浏览器 |
+
 ## 产品界面展示
 
 <table>
