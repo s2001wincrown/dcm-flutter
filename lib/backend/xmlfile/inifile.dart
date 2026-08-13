@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:dcm/backend/utils/log_utils.dart';
 import 'package:dcm/backend/utils/string_utils.dart';
+import 'package:path_provider/path_provider.dart';
 
 /// INI文件类
 class IniFile {
@@ -11,13 +12,26 @@ class IniFile {
   String? _fileName;
   Map<String, String> currentProperties = {};
 
-  IniFile(String filename) {
+  IniFile([String? filename]) {
+    if (isNotBlank(filename)) {
+      _fileName = filename;
+      try {
+        String content = File(filename!).readAsStringSync();
+        _parse(content);
+      } catch (e) {
+        logE('IniFile - Error loading ini file: $e.');
+      }
+    }
+  }
+
+  Future<void> loadFile(String filename) async {
     _fileName = filename;
     try {
-      String content = File(filename).readAsStringSync();
+      String content = await File(filename).readAsString();
       _parse(content);
     } catch (e) {
-      logE('Error loading ini file: $e');
+      logE(
+          'IniFile - Error loading ini file: $e, getApplicationSupportDirectory: ${(await getApplicationSupportDirectory()).path}');
     }
   }
 

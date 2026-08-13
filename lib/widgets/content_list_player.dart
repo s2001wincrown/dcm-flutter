@@ -1,6 +1,7 @@
 import 'package:dcm/backend/models/app_global.dart';
 import 'package:dcm/backend/providers/player_screen_provider.dart';
 import 'package:dcm/backend/services/player_zone_impl.dart';
+import 'package:dcm/backend/utils/log_utils.dart';
 import 'package:dcm/backend/utils/utils.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -33,6 +34,7 @@ class _ContentListPlayerState extends State<ContentListPlayer> {
       if (playerZoneImpl != null) {
         /*playerZoneImpl.initContentList(
             widget.contentType, widget.contentList, widget.rect, context);*/
+        logI('ContentListPlayer - preloadContentList');
         playerZoneImpl.preloadContentList(context);
         playerZoneImpl.playContentList(
             widget.contentType, widget.contentList, widget.rect);

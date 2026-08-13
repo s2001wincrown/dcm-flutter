@@ -76,26 +76,26 @@ const String layoutTemplatePath = 'Layout';
 const String defaultSkinsPath = 'Skins';
 const String defaultGraphicsPath = 'Graphics';
 
-const String defaultSAVEPATH = 'dcmfile';
-const String defaultOPENPATH = 'dcmfile';
-const String defaultDataPath = 'data';
-final String defaultSCHEDULEDAYPATH = 'schedule${Platform.pathSeparator}day';
+const String defaultSAVEPATH = 'DCMFile';
+const String defaultOPENPATH = 'DCMFile';
+const String defaultDataPath = 'Data';
+final String defaultSCHEDULEDAYPATH = 'Schedule${Platform.pathSeparator}day';
 final String defaultAHPLAYLISTPATH =
-    'schedule${Platform.pathSeparator}AHPlaylist';
+    'Schedule${Platform.pathSeparator}AHPlaylist';
 final String defaultSCHEDULEMONTHPATH =
-    'schedule${Platform.pathSeparator}month';
-final String defaultCALENDARPATH = 'schedule${Platform.pathSeparator}calendar';
+    'Schedule${Platform.pathSeparator}month';
+final String defaultCALENDARPATH = 'Schedule${Platform.pathSeparator}Calendar';
 final String defaultSCHEDULESETTINGPATH =
-    'schedule${Platform.pathSeparator}setting';
+    'Schedule${Platform.pathSeparator}setting';
 final String defaultSCHEDULEPUBLISHPATH =
-    'schedule${Platform.pathSeparator}publish';
+    'Schedule${Platform.pathSeparator}publish';
 final String defaultAHMESSAGEPATH =
-    'schedule${Platform.pathSeparator}AHMessage';
+    'Schedule${Platform.pathSeparator}AHMessage';
 final String defaultROOMEVENTPATH =
-    'schedule${Platform.pathSeparator}RoomEvent';
-final String defaultROOMPATH = 'schedule${Platform.pathSeparator}Room';
-final String defaultLOBBYPATH = 'schedule${Platform.pathSeparator}Lobby';
-const String defaultREPORTPATH = 'reports';
+    'Schedule${Platform.pathSeparator}RoomEvent';
+final String defaultROOMPATH = 'Schedule${Platform.pathSeparator}Room';
+final String defaultLOBBYPATH = 'Schedule${Platform.pathSeparator}Lobby';
+const String defaultREPORTPATH = 'Reports';
 
 final String defaultBGFILE =
     '$defaultGraphicsPath${Platform.pathSeparator}view.jpg';

@@ -859,26 +859,26 @@ class ScheduleList {
     }
   }
 
-  bool getContentListIndex(int nZone, int nIndex) {
+  ({bool status, int index}) getContentListIndex(int nZone) {
     if (arrEvent.isEmpty) {
-      return true;
+      return (status: false, index: 0);
     }
 
     var pPlaylist = getCurrPlaylist();
     if (pPlaylist != null) {
-      return pPlaylist.getContentListIndex(nZone, nIndex);
+      return pPlaylist.getContentListIndex(nZone);
     }
 
-    return false;
+    return (status: false, index: 0);
   }
 
-  bool getPlayDuration(int nZone, double dbDuration) {
+  ({bool status, double duration}) getPlayDuration(int nZone) {
     var pPlaylist = getCurrPlaylist();
     if (pPlaylist != null) {
-      return pPlaylist.getPlayDuration(nZone, dbDuration);
+      return pPlaylist.getPlayDuration(nZone);
     }
 
-    return false;
+    return (status: false, duration: 0.0);
   }
 
   void setContentListIndex(int nZone, int nIndex, [int nTotal = 0]) {

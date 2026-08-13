@@ -9,7 +9,7 @@ void initFileLogger(String dataPath) {
     maxFileCount: 10, // max 10 files.
     maxFileLength: 5 * 1024 * 1024, // max to 5 MB for single file.
   );
-  logI('log_utils: after initLogger');
+  logI('log_utils: after initLogger: $dataPath/logs');
 }
 
 void logV(String msg, [String tag = _tag]) {

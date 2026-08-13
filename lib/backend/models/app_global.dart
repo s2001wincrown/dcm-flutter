@@ -6,6 +6,7 @@ import 'package:dcm/backend/app.dart';
 import 'package:dcm/backend/constants.dart';
 import 'package:dcm/backend/utils/encoder_utils.dart';
 import 'package:dcm/backend/utils/file_utils.dart';
+import 'package:dcm/backend/utils/log_utils.dart';
 import 'package:dcm/backend/xmlfile/inifile.dart';
 import 'package:dcm/backend/xmlfile/xmlfile.dart';
 import 'package:dcm/backend/xmlfile/xmlitem.dart';
@@ -669,7 +670,8 @@ class AppGlobal {
         return false;
       }
 
-      var iniFile = IniFile(configFile);
+      var iniFile = IniFile();
+      await iniFile.loadFile(configFile);
       if (iniFile.sections.isEmpty) {
         return false;
       }
@@ -875,9 +877,11 @@ class AppGlobal {
     } else {
       cscPath = cscPath.replaceAll('\$(AppPath)', szAppDataPath);
     }
+    cscPath = FileUtils.fixPathSeparators(cscPath);
     cscPath = FileUtils.removeBackslash(cscPath);
 
     if (!await Directory(cscPath).exists()) {
+      logE('AppGlobal - Invalid CSC Path: $cscPath');
       cscPath = '';
       return false;
     }
@@ -885,22 +889,22 @@ class AppGlobal {
     String strOpenPath = path.join(cscPath, defaultOPENPATH);
     //String strHtml = szAppPath;
     String strImagePath = path.join(cscPath, defaultDataPath);
-    String strImageSettingPath = path.join(cscPath, 'data', 'image');
+    String strImageSettingPath = path.join(cscPath, defaultDataPath, 'image');
     String strVCDPath = path.join(cscPath, defaultDataPath);
     String strPPPath = path.join(cscPath, defaultDataPath);
     String strFlashPath = path.join(cscPath, defaultDataPath);
     String strWebPath = path.join(cscPath, defaultDataPath);
-    String strTextPath = path.join(cscPath, 'data', 'text');
-    String strClockPath = path.join(cscPath, 'data', 'clock');
-    String strWeatherPath = path.join(cscPath, 'data', 'weather');
+    String strTextPath = path.join(cscPath, defaultDataPath, 'Text');
+    String strClockPath = path.join(cscPath, defaultDataPath, 'clock');
+    String strWeatherPath = path.join(cscPath, defaultDataPath, 'Weather');
     String strLayoutImagePath = path.join(cscPath, layoutTemplatePath);
     String strSkinsPath = path.join(cscPath, 'Skins');
     String strGraphicsPath = path.join(cscPath, 'Graphics');
-    String strSiteContentPath = path.join(cscPath, 'data');
+    String strSiteContentPath = path.join(cscPath, defaultDataPath);
 
     openPath = await FileUtils.validFilePath(openPath, strOpenPath, false);
-    if (!Directory(openPath).existsSync()) {
-      FileUtils.makeSureDirectoryPathExists(openPath);
+    if (!await Directory(openPath).exists()) {
+      await FileUtils.makeSureDirectoryPathExists(openPath);
     }
 
     imagePath = await FileUtils.validFilePath(imagePath, strImagePath, false);
@@ -953,16 +957,17 @@ class AppGlobal {
     String strSettingPath = path.join(cscPath, defaultSCHEDULESETTINGPATH);
     String strReportPath = path.join(cscPath, defaultREPORTPATH);
     String strChannelPath = path.join(cscPath, defaultSCHEDULESETTINGPATH);
-    String strLogPath = path.join(cscPath, 'schedule', 'log');
-    String strContentListPath = path.join(cscPath, 'data', 'contentlist');
-    String strDDEOthersPath = path.join(cscPath, 'Data');
+    String strLogPath = path.join(cscPath, 'Schedule', 'log');
+    String strContentListPath =
+        path.join(cscPath, defaultDataPath, 'ContentList');
+    String strDDEOthersPath = path.join(cscPath, defaultDataPath);
     String strDDEDataPath = path.join(cscPath, defaultDataPath);
-    String strDDEXMLPath = path.join(cscPath, 'data', 'ddelist');
-    String strLinkagePath = path.join(cscPath, 'data', 'LTContent');
+    String strDDEXMLPath = path.join(cscPath, defaultDataPath, 'DDEList');
+    String strLinkagePath = path.join(cscPath, defaultDataPath, 'LTContent');
     String strCalendarPath = path.join(cscPath, defaultCALENDARPATH);
     String strTempPath = path.join(cscPath, 'Schedule', 'Temp');
     String strFtpSettingPath = path.join(cscPath, 'ftpsetting');
-    String strAHPlaylistPath = path.join(cscPath, 'schedule', 'ahplaylist');
+    String strAHPlaylistPath = path.join(cscPath, 'Schedule', 'AHPlaylist');
 
     dayPath = await FileUtils.validFilePath(dayPath, strDayPath, false);
     ahPlaylistPath =
@@ -1005,7 +1010,7 @@ class AppGlobal {
     playerPath =
         await FileUtils.validFilePath(playerPath, strPlayerPath, false);
 
-    String strPreDataPath = path.join(cscPath, 'Data', 'PreData');
+    String strPreDataPath = path.join(cscPath, defaultDataPath, 'PreData');
     preDataPath =
         await FileUtils.validFilePath(preDataPath, strPreDataPath, false);
 
@@ -1051,7 +1056,8 @@ class AppGlobal {
     if (configFile.isEmpty) {
       configFile = path.join(App().dataPath, configFILENAME);
     }
-    IniFile settingsFile = IniFile(configFile);
+    IniFile settingsFile = IniFile();
+    await settingsFile.loadFile(configFile);
 
     XmlItem? pGroup = pXmlFile.getItem('SettingsGroup');
     while (pGroup != null) {

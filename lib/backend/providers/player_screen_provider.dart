@@ -19,6 +19,7 @@ import 'package:dcm/backend/services/schedulelist_impl.dart';
 import 'package:dcm/backend/utils/extensions.dart';
 import 'package:dcm/backend/utils/file_utils.dart';
 import 'package:dcm/backend/utils/log_utils.dart';
+import 'package:dcm/backend/utils/platform_utils.dart';
 import 'package:dcm/backend/utils/string_utils.dart';
 import 'package:dcm/backend/utils/time_utils.dart';
 import 'package:dcm/backend/utils/utils.dart';
@@ -630,11 +631,9 @@ class PlayerScreenProvider extends ChangeNotifier {
 
   void resetFirstFinished() {
     for (var pThread0 in _playerZones) {
-      if (pThread0.getZone() > -1) {
-        pThread0.setZoneFinish(false);
-        pThread0.setFirstFinished(false);
-        pThread0.setContentFinished(false);
-      }
+      pThread0.setZoneFinish(false);
+      pThread0.setFirstFinished(false);
+      pThread0.setContentFinished(false);
     }
   }
 
@@ -960,10 +959,9 @@ class PlayerScreenProvider extends ChangeNotifier {
 
   void playProduct(int nIndex, [bool bStart = false]) {
     logD(
-        'PlayerScreenProvider - PlayProduct - Play Product: $nIndex; TID $pid.');
+        'PlayerScreenProvider - PlayProduct - Play Product: $nIndex; ${PlatformUtils().getMemoryLog()}.');
     //ContentMgr.Cleanup();
     int nStatus = 0;
-    //WriteMemoryLog(nStatus);
     if (nStatus == 1) {
       _nResetZoneThread = (_nResetZoneThread > 1 ? _nResetZoneThread : 1);
     } else if (nStatus == 2) {
@@ -999,7 +997,7 @@ class PlayerScreenProvider extends ChangeNotifier {
     }
 
     _bIsLoading = true;
-    stopPlayingTimer();
+    //stopPlayingTimer();
 
     //::SetCursorPos(GetSystemMetrics(SM_CXSCREEN)+10000, GetSystemMetrics(SM_CYSCREEN)+10000);
     dcmShowCursor(false);
@@ -1059,10 +1057,10 @@ class PlayerScreenProvider extends ChangeNotifier {
           pZoneThread.showZoneWnd(false);
         }
 
-        int nStart = 0;
-        if (ScheduleList().getContentListIndex(nZone, nStart)) {
+        var contentListIndex = ScheduleList().getContentListIndex(nZone);
+        if (contentListIndex.status) {
           //
-          pZoneThread.setPlayStart(nStart);
+          pZoneThread.setPlayStart(contentListIndex.index);
         }
 
         if (bStart) {
@@ -1133,7 +1131,7 @@ class PlayerScreenProvider extends ChangeNotifier {
     _needNotifyListeners = false;
     notifyListeners();
 
-    startPlayingTimer();
+    //startPlayingTimer();
     //logD('PlayerScreenProvider - PlayProduct Restart Timer Event $pid.');
 
     _bIsLoading = false;
@@ -2042,10 +2040,6 @@ class PlayerScreenProvider extends ChangeNotifier {
                       break;
                     }
                   }
-                }
-
-                if (!bCanPlay) {
-                  sleep(const Duration(seconds: 1));
                 }
               }
             }

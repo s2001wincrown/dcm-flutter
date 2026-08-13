@@ -17,7 +17,6 @@ import 'package:dcm/backend/utils/encoder_utils.dart';
 import 'package:dcm/backend/utils/string_utils.dart';
 import 'package:dcm/backend/utils/utils.dart';
 import 'package:dcm/backend/xml_settings/contentlist_impl.dart';
-import 'package:dcm/backend/xml_settings/contenttype_manager.dart';
 import 'package:dcm/backend/xmlfile/xmlfile.dart';
 import 'package:dcm/backend/xmlfile/xmlfilepro.dart';
 import 'package:dcm/backend/xmlfile/xmlitem.dart';
@@ -839,8 +838,8 @@ class DCMFileImpl {
     return arrContents;
   }
 
-  static bool addContent(DCMFileData pDCMFile, String strContent,
-      [double? dbDuration]) {
+  static Future<bool> addContent(DCMFileData pDCMFile, String strContent,
+      [double? dbDuration]) async {
     int nContentType =
         App().contentTypeManager.getContentTypeByFileName(strContent);
     if (nContentType != -1) {
@@ -864,7 +863,7 @@ class DCMFileImpl {
           pZoneData.nZoneDuration = cDEFAULTDURATION;
           if (nContentType == cVIDEOTYPE) {
             pZoneData.nZoneDuration =
-                PlayerZoneImpl.getVideoDuration(strFilePath);
+                await PlayerZoneImpl.getVideoDuration(strFilePath);
             pZoneData.bZoneRatio = false;
           }
         } else {

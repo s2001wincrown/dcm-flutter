@@ -55,15 +55,18 @@ class ZoneExtData extends ZoneData {
 
     // Note: SETTING_VALIDCLONLYTIME would need to be checked from constants
     if ((AppGlobal.globalSetting & settingVALIDCLONLYTIME) > 0) {
-      endTime = DateTime(dtCurr.year, dtCurr.month, dtCurr.day,
-          dtEndTime?.hour ?? 0, dtEndTime?.minute ?? 0, dtEndTime?.second ?? 0);
-      startTime = DateTime(
-          dtCurr.year,
-          dtCurr.month,
-          dtCurr.day,
-          dtStartTime?.hour ?? 0,
-          dtStartTime?.minute ?? 0,
-          dtStartTime?.second ?? 0);
+      endTime = dtCurr.copyWith(
+          hour: dtEndTime?.hour ?? 0,
+          minute: dtEndTime?.minute ?? 0,
+          second: dtEndTime?.second ?? 0,
+          millisecond: 0,
+          microsecond: 0);
+      startTime = dtCurr.copyWith(
+          hour: dtStartTime?.hour ?? 0,
+          minute: dtStartTime?.minute ?? 0,
+          second: dtStartTime?.second ?? 0,
+          millisecond: 0,
+          microsecond: 0);
     }
 
     if (endTime != null && startTime != null) {
@@ -86,13 +89,14 @@ class ZoneExtData extends ZoneData {
     // Note: SETTING_VALIDCLONLYTIME would need to be checked from constants
     if ((AppGlobal.globalSetting & settingVALIDCLONLYTIME) > 0) {
       if (dtEndTime != null) {
-        var endTime = DateTime(
-            dtCurr.year,
-            dtCurr.month,
-            dtCurr.day,
-            dtEndTime?.hour ?? 0,
-            dtEndTime?.minute ?? 0,
-            dtEndTime?.second ?? 0);
+        var endTime = dtCurr.copyWith(
+          hour: dtEndTime?.hour ?? 0,
+          minute: dtEndTime?.minute ?? 0,
+          second: dtEndTime?.second ?? 0,
+          millisecond: 0,
+          microsecond: 0,
+        );
+
         return (endTime.compareTo(dtCurr) <= 0);
       }
     } else {

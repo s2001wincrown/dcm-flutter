@@ -67,7 +67,8 @@ class SettingsImpl {
       return false;
     }
 
-    IniFile settingsFile = IniFile(filePath);
+    IniFile settingsFile = IniFile();
+    await settingsFile.loadFile(filePath);
     return settingsFile.sections.isNotEmpty;
   }
 

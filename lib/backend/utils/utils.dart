@@ -97,6 +97,7 @@ class Utils {
       return strFileName;
     }
 
+    strFileName = FileUtils.fixPathSeparators(strFileName);
     int nPtype = ptype;
     String strExt = path.extension(strFileName).toUpperCase();
     if (type == cIMAGETYPE && (ptype == cDIRECTPLAYTYPE || ptype == -1)) {

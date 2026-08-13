@@ -287,7 +287,8 @@ Future<bool> serverFileIsOk() async {
     return false;
   }
 
-  IniFile settingsFile = IniFile(filePath);
+  IniFile settingsFile = IniFile();
+  await settingsFile.loadFile(filePath);
   return settingsFile.sections.isNotEmpty;
 }
 
@@ -324,7 +325,7 @@ Future<({bool status, bool isNeedRestart})> loadPlaybackSettings(
     var serverFile =
         File(path.join(strAppPath, PlayerRegisterImpl.serverConfigFileName));
     if (await serverFile.exists()) {
-      var result = PlayerRegisterImpl.getPlayerInformation(strAppPath);
+      var result = await PlayerRegisterImpl.getPlayerInformation(strAppPath);
       if (result.pHttpLink.isNotEmpty) {
         if (deviceId == null || deviceId.isEmpty) {
           logE(
@@ -372,7 +373,7 @@ Future<bool> loadContentTypeSettings(String deviceId) async {
 
   int nSettingsGroup = 1;
   String strAppPath = App().dataPath;
-  var result = PlayerRegisterImpl.getPlayerInformation(strAppPath);
+  var result = await PlayerRegisterImpl.getPlayerInformation(strAppPath);
   if (result.pHttpLink.isNotEmpty) {
     String strGetSettings = result.pHttpLink;
     nSettingsGroup = result.pSettingsGroup;

@@ -377,6 +377,10 @@ class FileUtils {
   }
 
   static Future<bool> deleteFile(File sourceFile, bool bRename) async {
+    if (!await sourceFile.exists()) {
+      return true;
+    }
+
     try {
       await sourceFile.delete();
       return true;
@@ -396,6 +400,10 @@ class FileUtils {
 
   static Future<void> deleteDirectory(String path) async {
     final directory = Directory(path);
+    if (!await directory.exists()) {
+      return;
+    }
+
     try {
       // 设置 recursive: true 以删除文件夹及其所有内容
       await directory.delete(recursive: true);
@@ -423,7 +431,7 @@ class FileUtils {
     await dir
         .create(recursive: true)
         .then((Directory directory) =>
-            print('Directory created: ${directory.path}'))
+            logI('Directory created: ${directory.path}'))
         .catchError((e) => logE('Error creating directory: $e'));
 
     return true;
@@ -438,7 +446,7 @@ class FileUtils {
     dir
         .create(recursive: true)
         .then((Directory directory) =>
-            print('Directory created: ${directory.path}'))
+            logI('Directory created: ${directory.path}'))
         .catchError((e) => logE('Error creating directory: $e'));
 
     return true;

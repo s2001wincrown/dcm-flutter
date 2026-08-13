@@ -346,7 +346,7 @@ class ContentListPlayerImpl {
 
     _mapPreloadedContents ??= {};
     for (var pData in _lstProduct!) {
-      if (isTimeForPlay(pData)) {
+      if (!isOutdated(pData)) {
         for (var pZoneData in pData.lstZone) {
           var proloadContent = await PlayerZoneImpl.preloadContent(
               pZoneData, context,
@@ -558,7 +558,7 @@ class ContentListPlayerImpl {
         _dwFirstTime.add(Duration(milliseconds: (_rtDuration * 1000).toInt()));
     int nMaxZone = nTotalZone;
     logD(
-        '''ContentListPlayerImpl - playProduct, Zone:'$_nZone', Content list item: '$nIndex'; Max Zone '$nMaxZone'; duration:'${_rtDuration * 1000}', TID: '$pid'.''');
+        '''ContentListPlayerImpl - playProduct, Zone:'$_nZone', Content list item: '$nIndex'; Max Zone '$nMaxZone'; duration:'${_rtDuration * 1000}', _mapPreloadedContents: '${_mapPreloadedContents?.length}'.''');
 
     int nZone = 0;
     for (nZone = 0; nZone < nMaxZone; nZone++) {
@@ -627,7 +627,7 @@ class ContentListPlayerImpl {
       zoneImpl.setStartPlayTime(dwFirstTime0);
     }
     logD(
-        '''ContentListPlayerImpl - playProduct, Zone:'$_nZone'; Content list Item:'$nIndex'; Current time '$dwFirstTime0'; Play Dur.:'$_dwFirstTime', TID:'$pid'.''');
+        '''ContentListPlayerImpl - playProduct, Zone:'$_nZone'; Content list Item:'$nIndex'; Current time '$dwFirstTime0'; Play Dur.:'$_dwFirstTime'.''');
     _bIsPlaying = false;
   }
 

@@ -153,7 +153,7 @@ class DownloadFileListImpl {
       //pDownloadFile->m_strFilePath = FTPPathImpl.GetLocalPath(iter.nContentType, iter.dwModuleFlag, true) + wxFILE_SEP_PATH + iter.strDestFile;
       //pDownloadFile->m_strDestFile = FTPPathImpl.GetLocalPath(iter.nContentType, iter.dwModuleFlag) + wxFILE_SEP_PATH + iter.strDestFile;
       String name = iter.strDestFile;
-      name = name.replaceAll(p.separator == '/' ? '\\' : '/', p.separator);
+      name = FileUtils.fixPathSeparators(name);
       pDownloadFile.strTempPath = p.join(
           await PlayerPathService.getLocalPath(iter.nContentType, true), name);
       pDownloadFile.strDestPath =

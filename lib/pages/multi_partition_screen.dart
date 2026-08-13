@@ -15,6 +15,7 @@ import 'package:dcm/pages/home.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'package:worker_manager/worker_manager.dart';
 
 const String kContentSyncCommandPortName = 'content_sync_command_port';
 void _notifyContentSyncIsolateCommand(int nCmd, int ntype, [String? content]) {
@@ -194,6 +195,7 @@ class _DigitalSignageScreenState extends State<DigitalSignageScreen> {
     logI('multi_partition_screen dispose');
     _isExiting = true;
     _exitHintTimer?.cancel();
+    workerManager.dispose();
     super.dispose();
   }
 

@@ -139,24 +139,22 @@ class PlaylistZone {
     }
   }
 
-  bool getContentListIndex(int zone, int index) {
+  ({bool status, int index}) getContentListIndex(int zone) {
     for (var item in _playlistZone) {
       if (item.zoneId == zone) {
-        index = item.contentListIndex;
-        return true;
+        return (status: true, index: item.contentListIndex);
       }
     }
-    return false;
+    return (status: false, index: 0); //false;
   }
 
-  bool getPlayDuration(int zone, double duration) {
+  ({bool status, double duration}) getPlayDuration(int zone) {
     for (var item in _playlistZone) {
       if (item.zoneId == zone) {
-        duration = item.position;
-        return true;
+        return (status: true, duration: item.position);
       }
     }
-    return false;
+    return (status: false, duration: 0.0);
   }
 
   void setContentListIndex(int zone, int index, [int total = 0]) {
@@ -1257,19 +1255,19 @@ class PlayList {
     }
   }
 
-  bool getContentListIndex(int nZone, int nIndex) {
+  ({bool status, int index}) getContentListIndex(int nZone) {
     if (!isAHPlaying) {
-      return playlistZone.getContentListIndex(nZone, nIndex);
+      return playlistZone.getContentListIndex(nZone);
     } else {
-      return ahPlaylistZone.getContentListIndex(nZone, nIndex);
+      return ahPlaylistZone.getContentListIndex(nZone);
     }
   }
 
-  bool getPlayDuration(int nZone, double dbDuration) {
+  ({bool status, double duration}) getPlayDuration(int nZone) {
     if (!isAHPlaying) {
-      return playlistZone.getPlayDuration(nZone, dbDuration);
+      return playlistZone.getPlayDuration(nZone);
     } else {
-      return ahPlaylistZone.getPlayDuration(nZone, dbDuration);
+      return ahPlaylistZone.getPlayDuration(nZone);
     }
   }
 

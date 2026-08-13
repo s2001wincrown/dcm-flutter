@@ -29,7 +29,7 @@ class PreloadedContent {
   final String filePath;
   final String? text;
   final List<String>? images;
-  bool isReady = true;
+  bool _isReadyToPlay = true;
 
   PreloadedContent({
     required this.type,
@@ -41,39 +41,46 @@ class PreloadedContent {
   }) {
     if (player != null) {
       player!.stream.completed.listen(
-        (bool completed) {
+        (bool completed) async {
           if (completed) {
-            player!.seek(Duration.zero);
+            logI('PreloadedContent - player completed');
+            await player!.seek(Duration.zero);
+            _isReadyToPlay = true;
           }
         },
       );
+
+      player!.stream.error.listen((error) {
+        logI('PreloadedContent - player error');
+        _isReadyToPlay = false; // 发生错误时置为不可播放
+      });
     }
   }
 
-  void release() {
+  Future<void> release() async {
     if (player != null) {
-      player!.dispose();
+      await player!.dispose();
     }
-    isReady = false;
+    _isReadyToPlay = false;
   }
 
-  void stop() {
+  Future<void> stop() async {
     if (player != null) {
-      player!.seek(Duration.zero);
+      await player!.seek(Duration.zero);
       //player!.stop();
       /*player!.open(Media(LibraryHelper.normalizeMediaSource(filePath)),
           play: false);*/
+      _isReadyToPlay = true;
     }
-    isReady = false;
   }
 
-  void ready() {
+  Future<void> ready() async {
     if (player != null) {
-      if (!isReady) {
-        player!.open(Media(LibraryHelper.normalizeMediaSource(filePath)),
+      if (!_isReadyToPlay) {
+        await player!.open(Media(LibraryHelper.normalizeMediaSource(filePath)),
             play: false);
+        _isReadyToPlay = true;
       }
-      isReady = true;
     }
   }
 }
@@ -216,6 +223,8 @@ class PlayerZoneImpl {
             _initVideoPlayer(pZoneData, preloaded);
             if (_player != null) {
               _rtAct = _player!.state.duration.inMilliseconds / 1000.0;
+            } else {
+              logE('PlayerZoneImpl - initVideoPlayer error: _player is null');
             }
             break;
 
@@ -279,7 +288,7 @@ class PlayerZoneImpl {
     _bIsPlaying = false;
     _bNeedReset = true;
     logI(
-        'Init Zone finished - Zone: $_zoneId; _nPType: $_nPType; _rtDuration: $_rtDuration; _rtAct $_rtAct; _strZoneFile: $_strZoneFile; _playCached: $_playCached.');
+        'Init Zone finished - Zone: $_zoneId; _nPType: $_nPType; _rtDuration: $_rtDuration; _rtAct: $_rtAct; _strZoneFile: $_strZoneFile; _playCached: $_playCached.');
   }
 
   void _initVideoPlayer(ZoneData pZoneData, [PreloadedContent? preloaded]) {
@@ -694,8 +703,10 @@ class PlayerZoneImpl {
       _contentListPlayer!.loadContentList(contentList: strZoneFile);
       if (_contentListPlayer!.isValidForPlay()) {
         //logD('''Zone $_zoneId play '$strZoneFile' step 24, TID $pid.''');
-        _rtDuration = _contentListPlayer!.getDuration() -
-            _contentListPlayer!.getDuration(_nStart);
+        _rtDuration = _nStart > 0
+            ? (_contentListPlayer!.getDuration() -
+                _contentListPlayer!.getDuration(_nStart))
+            : _contentListPlayer!.getDuration();
         _contentListPlayer!.setPlayerRect(_rect!);
         //logD('''Zone $_zoneId play '$strZoneFile' step 25, TID $pid.''');
         _contentListPlayer!.setAHPlaying(_bIsAHPlaylist);
@@ -1070,7 +1081,7 @@ class PlayerZoneImpl {
 
   void showZoneWnd(bool bool) {}
 
-  static double getVideoDuration(String videoFile) {
+  static Future<double> getVideoDuration(String videoFile) async {
     var player = Player(
       configuration: const PlayerConfiguration(
         title: 'dcm',
@@ -1083,7 +1094,7 @@ class PlayerZoneImpl {
     );
 
     final video = Media(LibraryHelper.normalizeMediaSource(videoFile));
-    player.open(video, play: false);
+    await player.open(video, play: false);
     player.setVolume(cVOLUMESILENCE);
 
     return player.state.duration.inMilliseconds / 1000.0;

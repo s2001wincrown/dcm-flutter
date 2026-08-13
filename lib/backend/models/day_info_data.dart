@@ -42,29 +42,30 @@ class DayInfoData extends XmlFileData {
 
   @override
   void writeToXML(XmlItem pXmlItem) {
-    XmlItem? xi = pXmlItem.addItem('Day$day');
+    XmlItem? xi = pXmlItem.newItem('Day$day');
     if (xi == null) return;
 
-    xi.addItem('m_nDay', day);
-    xi.addItem('m_nPlayMeth', playMeth);
-    xi.addItem('m_strEvent', event);
-    XmlItem? xiEventArray = xi.addItem('m_arrEvent');
+    xi.setItemValue('m_nDay', day, XiType.element);
+    xi.setItemValue('m_nPlayMeth', playMeth, XiType.element);
+    xi.setItemValue('m_strEvent', event, XiType.element);
+    XmlItem? xiEventArray = xi.newItem('m_arrEvent', XiType.element);
     if (xiEventArray != null) {
+      xiEventArray.deleteAllItems();
       for (var entry in arrEvent) {
         XmlItem? xiEvent = xiEventArray.addItem('String');
         if (xiEvent != null) {
-          xiEvent.addItem('Name', entry.key);
-          xiEvent.addItem('Value', entry.value);
+          xiEvent.setItemValue('Name', entry.key, XiType.element);
+          xiEvent.setItemValue('Value', entry.value, XiType.element);
         }
       }
     }
-    xi.addItem('m_strInfo', info);
-    xi.addItem('m_nApprovalLevel', approvalLevel);
-    xi.addItem('m_nApprovalStatus', approvalStatus);
-    xi.addItem('m_strUserCode', userCode);
-    xi.addItem('m_strGroupCode', groupCode);
-    xi.addItem('m_dtmodified', modified);
-    xi.addItem('m_dtCreated', created);
+    xi.setItemValue('m_strInfo', info, XiType.element);
+    xi.setItemValue('m_nApprovalLevel', approvalLevel, XiType.element);
+    xi.setItemValue('m_nApprovalStatus', approvalStatus, XiType.element);
+    xi.setItemValue('m_strUserCode', userCode, XiType.element);
+    xi.setItemValue('m_strGroupCode', groupCode, XiType.element);
+    xi.setItemValue('m_dtmodified', modified, XiType.element);
+    xi.setItemValue('m_dtCreated', created, XiType.element);
   }
 
   @override

@@ -589,8 +589,7 @@ class PlayerPathService {
     if (strTempPath == null || strTempPath.isEmpty) {
       return (status: false, strErrMsg: 'Invalid temp file path');
     }
-    strTempPath =
-        strTempPath.replaceAll(p.separator == '/' ? '\\' : '/', p.separator);
+    strTempPath = FileUtils.fixPathSeparators(strTempPath);
     if (isNotBlank(pFileInfo.strMD5)) {
       var hashResult = await validHashData(strTempPath, pFileInfo);
       if (!hashResult.status) {
@@ -598,7 +597,7 @@ class PlayerPathService {
             ''''${pFileInfo.strDestFile}' MD5: '${hashResult.strMd5}', Source file MD5: '${pFileInfo.strMD5}'; File integrity checks failure!''';
         logE(strErrMsg, syncTag);
         if (await FileUtils.deleteFileEx(strTempPath, true)) {
-          await File('$strTempPath.md5').delete();
+          await FileUtils.deleteFileEx('$strTempPath.md5', false);
         }
 
         return (status: false, strErrMsg: strErrMsg); //false;
@@ -610,7 +609,7 @@ class PlayerPathService {
             ''''$strTempPath' size: $dwFileSize, Source file size: ${pFileInfo.dwFileSize}; File integrity checks failure!''';
         logE(strErrMsg, syncTag);
         if (await FileUtils.deleteFileEx(strTempPath, true)) {
-          await File('$strTempPath.md5').delete();
+          await FileUtils.deleteFileEx('$strTempPath.md5', false);
         }
 
         return (status: false, strErrMsg: strErrMsg);
@@ -621,7 +620,7 @@ class PlayerPathService {
                 ''''$strTempPath' size: $dwFileSize, Source file size: ${pFileInfo.dwFileSize}; File integrity checks failure!''';
             logE(strErrMsg, syncTag);
             if (await FileUtils.deleteFileEx(strTempPath, true)) {
-              await File('$strTempPath.md5').delete();
+              await FileUtils.deleteFileEx('$strTempPath.md5', false);
             }
 
             return (status: false, strErrMsg: strErrMsg);

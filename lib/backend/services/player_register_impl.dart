@@ -174,15 +174,17 @@ class PlayerRegisterImpl {
     await file.writeAsString(busNumber);
   }
 
-  static ({
-    String pPlayerName,
-    String pLocation,
-    String pOrganization,
-    String channel,
-    int pSettingsGroup,
-    String pHttpLink
-  }) getPlayerInformation(String strPath) {
-    final serverFile = IniFile(path.join(strPath, serverConfigFileName));
+  static Future<
+      ({
+        String channel,
+        String pHttpLink,
+        String pLocation,
+        String pOrganization,
+        String pPlayerName,
+        int pSettingsGroup
+      })> getPlayerInformation(String strPath) async {
+    final serverFile = IniFile();
+    await serverFile.loadFile(path.join(strPath, serverConfigFileName));
     final pPlayerName =
         serverFile.readString('PlayerInformation', 'PlayerName', '');
     final pLocation =
@@ -205,7 +207,7 @@ class PlayerRegisterImpl {
   }
 
   static Future<void> genPlayerInformation(String strPath) async {
-    final serverFile = IniFile(path.join(strPath, 'Server.txt'));
+    final serverFile = IniFile(path.join(strPath, serverConfigFileName));
     serverFile.writeString('PlayerInformation', 'PlayerName',
         'Player-${DateTime.now().microsecondsSinceEpoch}');
     serverFile.writeString('PlayerInformation', 'Location', 'Player Location');
@@ -283,7 +285,7 @@ class PlayerRegisterImpl {
     }
 
     //await loadPlayerInformation(player, App().dataPath);
-    var playerInformation = getPlayerInformation(App().dataPath);
+    var playerInformation = await getPlayerInformation(App().dataPath);
     player.setPlayerName(playerInformation.pPlayerName);
     player.setLocation(playerInformation.pPlayerName);
     player.strOrganization = playerInformation.pOrganization;
@@ -296,7 +298,7 @@ class PlayerRegisterImpl {
     player.nRetryCount = 2;
     addMultiMonitor(player);
 
-    return register(player, playerInformation.pHttpLink, strDCMSites);
+    return await register(player, playerInformation.pHttpLink, strDCMSites);
   }
 
   /// Register Logic
