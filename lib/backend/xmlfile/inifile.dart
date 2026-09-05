@@ -30,8 +30,7 @@ class IniFile {
       String content = await File(filename).readAsString();
       _parse(content);
     } catch (e) {
-      logE(
-          'IniFile - Error loading ini file: $e, getApplicationSupportDirectory: ${(await getApplicationSupportDirectory()).path}');
+      logE('IniFile: loadFile  - Error loading ini file: $e');
     }
   }
 

@@ -1049,15 +1049,17 @@ class PlayerScreenProvider extends ChangeNotifier {
         if (pData.nZoneType == cTHUMBVIEWTYPE) {
           pThumbZoneThread = pZoneThread;
         }
+        /*if (pZoneThread.initResetFlag(
+            pData.nZoneType, pData.strZoneFile, playSkin.getZoneRect(nZone))) {
+          pZoneThread.showZoneWnd(false);
+        }*/
         //pZoneThread.SetParent(this.GetSafeHwnd());
         pZoneThread.setStartTime(_dwFirstTime);
         pZoneThread.setContentType(pData.nZoneType);
-        if (pZoneThread.initResetFlag(
-            pData.nZoneType, pData.strZoneFile, playSkin.getZoneRect(nZone))) {
-          pZoneThread.showZoneWnd(false);
-        }
 
         var contentListIndex = ScheduleList().getContentListIndex(nZone);
+        /*logI(
+            '''PlayerScreenProvider - PlayProduct, contentListIndex: '${contentListIndex.status}'; contentListIndex.index: '${contentListIndex.index}'.''');*/
         if (contentListIndex.status) {
           //
           pZoneThread.setPlayStart(contentListIndex.index);
@@ -1150,6 +1152,8 @@ class PlayerScreenProvider extends ChangeNotifier {
         PlayerZoneImpl? pThread = getZoneThread(pData.nZoneID);
         pThread ??= getZoneThread(-1);
         if (pThread != null) {
+          pThread.initResetFlag(pData.nZoneType, pData.strZoneFile,
+              playSkin.getZoneRect(pData.nZoneID));
           pThread.setZoneData(pData);
           pThread.setZone(pData.nZoneID);
           pThread.setContentType(pData.nZoneType);
@@ -1233,7 +1237,7 @@ class PlayerScreenProvider extends ChangeNotifier {
     while (i < _playerZones.length) {
       PlayerZoneImpl pThread = _playerZones.elementAt(i);
 
-      pThread.release();
+      pThread.stopPlay();
       ZoneData? pData = pProductData.getZoneData(pThread.getZone());
       if (pData != null) {
         if (pThread.getEffect() != pData.getZoneEffect()) {
@@ -1252,10 +1256,13 @@ class PlayerScreenProvider extends ChangeNotifier {
         PlayerZoneImpl? pThread = getZoneThread(pData.nZoneID);
         pThread ??= _createZoneThreadByZoneData(pData);
         if (pThread != null) {
+          pThread.initResetFlag(pData.nZoneType, pData.strZoneFile,
+              playSkin.getZoneRect(pData.nZoneID));
           pThread.setZone(pData.nZoneID);
           pThread.setContentType(pData.nZoneType);
           pThread.setWindowRect(playSkin.getZoneRect(pData.nZoneID));
           pThread.setZoneData(pData);
+
           pThread.initZone();
         }
       }
@@ -1275,6 +1282,7 @@ class PlayerScreenProvider extends ChangeNotifier {
 
       PlayerZoneImpl pThread = _playerZones.elementAt(i);
       if (pThread.getZone() < 0) {
+        _playerZones[i].release();
         _playerZones.removeAt(i);
       } else {
         i++;
@@ -1299,6 +1307,9 @@ class PlayerScreenProvider extends ChangeNotifier {
   void deleteZoneThread(int nZone) {
     // release all zone thead
     if (nZone == 0) {
+      for (var pThread in _playerZones) {
+        pThread.release();
+      }
       _playerZones.clear();
 
       return;
@@ -1307,6 +1318,9 @@ class PlayerScreenProvider extends ChangeNotifier {
     // out of memory
     if (_nResetZoneThread == 1) {
       _nResetZoneThread = 0;
+      for (var pThread in _playerZones) {
+        pThread.release();
+      }
       _playerZones.clear();
 
       return;

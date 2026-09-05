@@ -26,9 +26,9 @@ Future<bool> initGlobalPlayer() async {
   if (await loadSettings()) {
     await getPlayerRegInfo();
     await getPublicIP();
-    PlayerRegisterImpl.updateNetworkInfo(globalPlayer);
+    await PlayerRegisterImpl.updateNetworkInfo(globalPlayer);
   } else {
-    autoRegister();
+    await autoRegister();
   }
 
   return false;

@@ -57,7 +57,17 @@ class App {
   }
 
   Future<void> init() async {
-    dataPath = (await getApplicationSupportDirectory()).path;
+    if (Platform.isAndroid) {
+      Directory? externalDir = await getExternalStorageDirectory();
+      if (externalDir != null) {
+        dataPath = externalDir.path;
+      }
+      if (dataPath.isEmpty) {
+        dataPath = (await getApplicationSupportDirectory()).path;
+      }
+    } else {
+      dataPath = (await getApplicationSupportDirectory()).path;
+    }
     initFileLogger(dataPath);
     // Get Device ID
     uniqueKey = await Utils.getUniqueKey();

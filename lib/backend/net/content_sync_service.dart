@@ -316,7 +316,7 @@ class ContentSyncService {
     }
 
     logI(
-        '''DCM Task check: '${globalPlayer.strUniqueName}'; CMS url: '${AppGlobal.cmsUrl}', _bTransfering: '$_bTransfering'.''',
+        '''Content Sync Task check: '${globalPlayer.strUniqueName}'; CMS url: '${AppGlobal.cmsUrl}', _bTransfering: '$_bTransfering'.''',
         syncTag);
 
     if (globalPlayer.strUniqueName.isNotEmpty) {

@@ -237,6 +237,22 @@ class ContentListPlayerImpl {
     return (status: bExisted, pNextData: pNextData);
   }
 
+  int getProductZones([int nProductID = 0]) {
+    if (_lstProduct == null) return 0;
+    int index = 0;
+    for (int i = 0; i < _lstProduct!.length; i++) {
+      ProductData? pData = getProductDataByID(i);
+      if (pData != null && isTimeForPlay(pData)) {
+        index++;
+        if (index == nProductID) {
+          return pData.lstZone.length;
+        }
+      }
+    }
+
+    return 0;
+  }
+
   ProductData? getProductDataByID([int nProductID = 0]) {
     if (_lstProduct == null) return null;
 
@@ -400,9 +416,12 @@ class ContentListPlayerImpl {
   }
 
   void stop() {
+    for (var pImpl in _players) {
+      pImpl.stopPlay();
+    }
     /*if (_bIsPlaying)
       return;*/
-    deleteZoneImpl(0);
+    //deleteZoneImpl(0);
     //_mapPreloadedContents?.clear();
     _nPrevTotalZone = -1;
     //_nPlayAHItem = -1;
@@ -576,6 +595,8 @@ class ContentListPlayerImpl {
       PlayerZoneImpl? pZoneImpl = getZoneImpl(nZone);
       ZoneData? pData = _pProductData!.getZoneData(nZone);
       if (pData == null) {
+        logD(
+            '''ContentListPlayerImpl - playProduct, Zone:'$_nZone', Content list item: '$nIndex'; Zone data is null.''');
         continue;
       }
 

@@ -38,24 +38,7 @@ class PreloadedContent {
     required this.filePath,
     this.text,
     this.images,
-  }) {
-    if (player != null) {
-      player!.stream.completed.listen(
-        (bool completed) async {
-          if (completed) {
-            logI('PreloadedContent - player completed');
-            await player!.seek(Duration.zero);
-            _isReadyToPlay = true;
-          }
-        },
-      );
-
-      player!.stream.error.listen((error) {
-        logI('PreloadedContent - player error');
-        _isReadyToPlay = false; // 发生错误时置为不可播放
-      });
-    }
-  }
+  });
 
   Future<void> release() async {
     if (player != null) {
@@ -66,10 +49,9 @@ class PreloadedContent {
 
   Future<void> stop() async {
     if (player != null) {
-      await player!.seek(Duration.zero);
-      //player!.stop();
-      /*player!.open(Media(LibraryHelper.normalizeMediaSource(filePath)),
-          play: false);*/
+      player!.stop();
+      player!.open(Media(LibraryHelper.normalizeMediaSource(filePath)),
+          play: false);
       _isReadyToPlay = true;
     }
   }
@@ -83,6 +65,8 @@ class PreloadedContent {
       }
     }
   }
+
+  double getActualDuration() => player!.state.duration.inMilliseconds / 1000.0;
 }
 
 class PlayerZoneImpl {
@@ -126,6 +110,8 @@ class PlayerZoneImpl {
   Rect? _rect;
   Rect? _rectPlayerOrg;
 
+  PreloadedContent? _preloadedContent;
+
   ContentListPlayerImpl? _contentListPlayer;
   VideoController? _controller;
   Player? _player;
@@ -139,7 +125,9 @@ class PlayerZoneImpl {
       }
       if (_contentListPlayer != null) {
         _contentListPlayer!.stop();
-        _contentListPlayer = null;
+      }
+      if (_preloadedContent != null) {
+        _preloadedContent!.stop();
       }
     } catch (e, stackTrace) {
       logE('PlayerZoneImpl - stopPlay error: $e', stackTrace);
@@ -155,6 +143,10 @@ class PlayerZoneImpl {
       if (_contentListPlayer != null) {
         _contentListPlayer!.release();
         _contentListPlayer = null;
+      }
+      if (_preloadedContent != null) {
+        _preloadedContent!.release();
+        _preloadedContent = null;
       }
     } catch (e, stackTrace) {
       logE('PlayerZoneImpl - release error: $e', stackTrace);
@@ -181,7 +173,11 @@ class PlayerZoneImpl {
       stopPlay();
     } else {
       _playCached = false;
-      release();
+      if (_bNeedReset) {
+        release();
+      } else {
+        stopPlay();
+      }
     }
 
     _rtCurrDuration = 0.00;
@@ -196,35 +192,49 @@ class PlayerZoneImpl {
     _dtStartPlay = DateTime.now();
     ZoneData? pZoneData = getZoneData();
     if (pZoneData == null) {
+      logE('PlayerZoneImpl - no zone data.');
       _bIsValid = false;
       return;
     }
 
     if (_zoneId < 0) _zoneId = pZoneData.nZoneID;
     if (_rect == null && _zoneId > -1) _rect = playSkin.getZoneRect(_zoneId);
+    _rectPlayerOrg = _rect;
+    _strContentName = pZoneData.strZoneFile;
+    _contentType = pZoneData.nZoneType;
 
     _bIsRendering = true;
-    int nCurSel = pZoneData.nZoneType;
     _strZoneFile = Utils.getFilePath(
         pZoneData.strZoneFile, pZoneData.nZoneType, _nPType, _strCompany);
+    logI(
+        'Try to init Zone - Zone: $_zoneId, _nPType: $_nPType, _strZoneFile: $_strZoneFile, _bNeedReset: $_bNeedReset, mapPreloadedContents: ${mapPreloadedContents != null ? mapPreloadedContents.length : 0}.');
     try {
-      if (await _validZone(_strZoneFile, nCurSel)) {
+      if (await _validZone(_strZoneFile, _contentType)) {
         //Log.i(PlayerMainActivity.LOG_TAG, "RenderZone step 4");
         _rtDuration = 0;
-        switch (nCurSel) {
+        switch (_contentType) {
           case cIMAGETYPE:
             break;
           case cVIDEOTYPE:
-            PreloadedContent? preloaded;
             if (mapPreloadedContents != null &&
                 mapPreloadedContents.containsKey(_strZoneFile)) {
-              preloaded = mapPreloadedContents[_strZoneFile];
-            }
-            _initVideoPlayer(pZoneData, preloaded);
-            if (_player != null) {
-              _rtAct = _player!.state.duration.inMilliseconds / 1000.0;
+              _preloadedContent = mapPreloadedContents[_strZoneFile];
+              _rtAct = _preloadedContent!.getActualDuration();
             } else {
-              logE('PlayerZoneImpl - initVideoPlayer error: _player is null');
+              if (_player != null) {
+                _player!.open(
+                    Media(LibraryHelper.normalizeMediaSource(_strZoneFile)),
+                    play: false);
+                _rtAct = _player!.state.duration.inMilliseconds / 1000.0;
+              } else {
+                _initVideoPlayer(pZoneData, null);
+                if (_player != null) {
+                  _rtAct = _player!.state.duration.inMilliseconds / 1000.0;
+                } else {
+                  logE(
+                      'PlayerZoneImpl - initVideoPlayer error: _player is null');
+                }
+              }
             }
             break;
 
@@ -254,7 +264,7 @@ class PlayerZoneImpl {
           case cDDETYPE:
           case cDIRECTPLAYTYPE:
           case cSITEPLAYLIST:
-            _initContentList(nCurSel, _strZoneFile, _rect!);
+            _initContentList(_contentType, _strZoneFile, _rect!);
             break;
           case cLINKAGETYPE:
             break;
@@ -272,9 +282,9 @@ class PlayerZoneImpl {
           stackTrace);
     }
 
-    if (nCurSel != cDDETYPE &&
-        nCurSel != cDIRECTPLAYTYPE &&
-        nCurSel != cSITEPLAYLIST) {
+    if (_contentType != cDDETYPE &&
+        _contentType != cDIRECTPLAYTYPE &&
+        _contentType != cSITEPLAYLIST) {
       _rtDuration = pZoneData.nZoneDuration;
     }
 
@@ -489,6 +499,7 @@ class PlayerZoneImpl {
       if (_rectPlayerOrg == rect && _contentType == nZoneType && _strContentName == strContent)
         _bNeedReset = false;
     }*/
+    _bNeedReset = true;
     if (_rectPlayerOrg != null &&
         _rectPlayerOrg == rect &&
         _contentType == nZoneType &&
@@ -537,6 +548,7 @@ class PlayerZoneImpl {
   }
 
   int play([int nStart = 0]) {
+    _bIsPlaying = true;
     /*if (nStart == 2) {
       if (m_pThumbCtrl != NULL) {
         int nProduct = (int)lParam;
@@ -588,18 +600,30 @@ class PlayerZoneImpl {
                 '''renderZone: $_zoneId, image file: "$_strZoneFile", _bNeedReset: $_bNeedReset, widget: "$widget".''');*/
             break;
           case cVIDEOTYPE:
-            if (_player != null) {
-              _player!.play();
-            }
-            if (_controller != null) {
+            if (_preloadedContent != null) {
+              _preloadedContent!.player!.play();
               widget = ClipRRect(
                 borderRadius: BorderRadius.zero,
                 child: Video(
                     key: Key(_strZoneFile),
-                    controller: _controller!,
+                    controller: _preloadedContent!.controller!,
                     fit: pZoneData.bZoneRatio ? BoxFit.contain : BoxFit.fill,
                     controls: null),
               );
+            } else {
+              if (_player != null) {
+                _player!.play();
+              }
+              if (_controller != null) {
+                widget = ClipRRect(
+                  borderRadius: BorderRadius.zero,
+                  child: Video(
+                      key: Key(_strZoneFile),
+                      controller: _controller!,
+                      fit: pZoneData.bZoneRatio ? BoxFit.contain : BoxFit.fill,
+                      controls: null),
+                );
+              }
             }
             break;
           case cPOWERPOINTTYPE:
@@ -662,7 +686,7 @@ class PlayerZoneImpl {
             break;
           case cLIGHTBOXTYPE:
             break;
-          case 27:
+          case cAMELEMENTTYPE: //27
             widget = PlatformUtils.isDesktop
                 ? WebviewDesktopPlayer(url: _strZoneFile)
                 : WebviewPlayer(url: _strZoneFile);
@@ -688,6 +712,7 @@ class PlayerZoneImpl {
   }
 
   void _initContentList(int nType, String strZoneFile, Rect rectWin) {
+    bool initialize = true;
     if (_contentListPlayer == null) {
       //logD('''Zone $_zoneId play '$strZoneFile' step 21, TID $pid.''');
       _contentListPlayer = ContentListPlayerImpl(nType, _zoneId);
@@ -695,7 +720,7 @@ class PlayerZoneImpl {
       //logD('''Zone $_zoneId play '$strZoneFile' step 22, TID $pid.''');
       _contentListPlayer!.resetFirstFinished();
       _contentListPlayer!.setTimeForStop(true);
-      _contentListPlayer!.release();
+      initialize = false;
     }
 
     if (_contentListPlayer != null) {
@@ -714,8 +739,13 @@ class PlayerZoneImpl {
         //CString strCompany = PlayList.GetCurrCompany();
         _contentListPlayer!.setCompany(_strCompany);
         //_contentListPlayer!.initZone(context); //
+        _contentListPlayer!
+            .matchZoneImpl(_contentListPlayer!.getProductZones(_nStart));
       }
       _contentListPlayer!.setTimeForStop(false);
+      if (!initialize) {
+        playContentList(nType, strZoneFile, rectWin);
+      }
     }
   }
 
@@ -847,7 +877,7 @@ class PlayerZoneImpl {
     double rtAct = _rtAct;
     if (!_bIsRendering && pZoneData.nZoneType == cVIDEOTYPE) {
       //logD('Zone ${_zoneId}; _rtDuration:'%.8f'; _rtAct:'%.8f'; rtCurrPos:'%.8f'; _rtLine:'%.8f'!!!', _nZone, _rtDuration, _rtAct, rtCurrPos, _rtLine);
-      if (_player != null) {
+      if (_player != null || _preloadedContent != null) {
         // && _pZonePlayer->State() == MLS_LOADED
         if (_rtDuration - rtAct < cPLAYINGINTERVAL * 10) {
           if (_rtDuration - rtCurrPos < cPLAYINGINTERVAL) {
@@ -931,7 +961,7 @@ class PlayerZoneImpl {
 
     double rtAct = _rtAct;
     if (!_bIsRendering && pZoneData.nZoneType == cVIDEOTYPE) {
-      if (_player != null) {
+      if (_player != null || _preloadedContent != null) {
         if (_rtDuration - rtAct < cPLAYINGINTERVAL) {
           if (_rtDuration - rtCurrPos < cPLAYINGINTERVAL) {
             logI(
@@ -1067,14 +1097,20 @@ class PlayerZoneImpl {
     if (_player != null) {
       _player!.play();
     }*/
-    if (_player != null) {
-      //_player!.seek(Duration.zero);
-      _player!.stop();
-      _player!.open(Media(LibraryHelper.normalizeMediaSource(_strZoneFile)),
-          play: true);
-      _rtAct = _player!.state.duration.inMilliseconds / 1000.0;
-
+    if (_preloadedContent != null) {
+      _preloadedContent!.stop();
+      _rtAct = _preloadedContent!.getActualDuration();
       return true;
+    } else {
+      if (_player != null) {
+        //_player!.seek(Duration.zero);
+        _player!.stop();
+        _player!.open(Media(LibraryHelper.normalizeMediaSource(_strZoneFile)),
+            play: true);
+        _rtAct = _player!.state.duration.inMilliseconds / 1000.0;
+
+        return true;
+      }
     }
     return false;
   }

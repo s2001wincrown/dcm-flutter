@@ -1,27 +1,27 @@
 import 'dart:io';
 
+import 'package:dcm/backend/app.dart';
+import 'package:dcm/backend/constants.dart' as constants;
+import 'package:dcm/backend/utils/file_utils.dart';
+import 'package:dcm/backend/utils/l10n_utils.dart';
+import 'package:dcm/backend/utils/route_utils.dart';
+import 'package:dcm/backend/utils/theme_utils.dart';
+import 'package:dcm/pages/file/file_explorer.dart';
+import 'package:dcm/pages/library/library_page.dart';
+import 'package:dcm/pages/media/player_page.dart';
+import 'package:dcm/pages/media/seekbar_builder.dart';
+import 'package:dcm/pages/playlist/playlist_page.dart';
+import 'package:dcm/pages/settings/settings_page.dart';
+import 'package:dcm/widgets/image.dart';
+import 'package:dcm/widgets/menu/menu_button.dart';
+import 'package:dcm/widgets/menu/menu_item.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:path/path.dart';
-import 'package:dcm/backend/utils/theme_utils.dart';
-import 'package:dcm/pages/media/seekbar_builder.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 import 'package:window_manager/window_manager.dart';
-
-import 'package:dcm/pages/file/file_explorer.dart';
-import 'package:dcm/widgets/menu/menu_button.dart';
-import 'package:dcm/widgets/menu/menu_item.dart';
-import 'package:dcm/backend/constants.dart' as constants;
-import 'package:dcm/backend/app.dart';
-import 'package:dcm/backend/utils/l10n_utils.dart';
-import 'package:dcm/backend/utils/route_utils.dart';
-import 'package:dcm/pages/media/player_page.dart';
-import 'package:dcm/pages/playlist/playlist_page.dart';
-import 'package:dcm/pages/settings/settings_page.dart';
-import 'package:dcm/pages/library/library_page.dart';
-import 'package:dcm/widgets/image.dart';
 
 class NoOpIntent extends Intent {
   const NoOpIntent();
@@ -57,15 +57,28 @@ class _HomePageState extends State<HomePage> {
   bool _showSidePanel = true;
 
   bool _miniMode = false;
+  String _androidHomePath = '/storage/emulated/0/';
 
   final _playlistPageKey = GlobalKey<NavigatorState>();
   final _libraryPageKey = GlobalKey<NavigatorState>();
   final _filePageKey = GlobalKey<NavigatorState>();
   final _playerPageKey = GlobalKey<NavigatorState>();
 
+  Future<void> _resolveAndroidHomePath() async {
+    if (!Platform.isAndroid) return;
+
+    final root = await FileUtils.getAndroidStorageRoot();
+    if (root != null) {
+      setState(() {
+        _androidHomePath = root;
+      });
+    }
+  }
+
   @override
   void initState() {
     super.initState();
+    _resolveAndroidHomePath();
     _tabIndex = App().settings.initPage;
     if (widget.playerView) {
       setState(() {
@@ -439,7 +452,7 @@ class _HomePageState extends State<HomePage> {
         label: '关于应用'.l10n,
         onPressed: () {
           App().dialog(
-            (context) => const AboutDialog(
+            (context) => AboutDialog(
               applicationName: constants.appName,
               applicationVersion: constants.version,
             ),
@@ -903,7 +916,7 @@ class _HomePageState extends State<HomePage> {
       } else if (Platform.isLinux || Platform.isMacOS) {
         homePath = Platform.environment['HOME']!;
       } else if (Platform.isAndroid) {
-        homePath = '/storage/emulated/0/';
+        homePath = _androidHomePath;
       } else {
         throw Exception('Home Path for this platform is not supported');
       }

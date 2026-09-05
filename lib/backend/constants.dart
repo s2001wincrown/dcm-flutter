@@ -2,9 +2,11 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 
+import 'git_version.dart';
+
 const IconData appIcon = Icons.play_circle_outline;
 const String appName = 'DCMPlayer';
-const String version = 'Beta 2026.4';
+final String version = GitVersionResolver.resolveVersion();
 const String flutterVersion = '3.29.0';
 
 const String cDCMFILEROOT = 'DCMDocument';

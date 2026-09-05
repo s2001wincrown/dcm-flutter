@@ -154,6 +154,95 @@ Generate the APK installation file with:
 
 - `flutter build apk`
 
+## Release Notes
+
+This project supports syncing the version in `pubspec.yaml` from git tags and provides a one-click script for building and publishing releases.
+
+### Version Sync
+
+From the project root, run:
+
+```bash
+git fetch --tags origin
+python tools/sync_version_from_git_tag.py
+```
+
+The script resolves the latest tag in this order:
+
+1. `git describe --tags --abbrev=0`
+2. local newest tag
+3. remote newest tag
+4. if no tag exists, keep the current version unchanged
+
+It also strips the leading `v`, for example:
+
+- `v1.0.1` -> `1.0.1`
+
+### Local Release Script
+
+Run from Windows PowerShell:
+
+```powershell
+./tools/release.ps1 -Target windows
+```
+
+Optional arguments:
+
+```powershell
+./tools/release.ps1 -Target all
+./tools/release.ps1 -Target linux -SkipBuild
+./tools/release.ps1 -Target windows -GenerateNotes
+./tools/release.ps1 -Target windows -AutoCommit -AutoTag
+./tools/release.ps1 -Target windows -AutoCommit -AutoTag -AutoPush
+./tools/release.ps1 -Target windows -AutoCommit -AutoTag -AutoPush -PublishGithub -GithubToken YOUR_GH_TOKEN
+```
+
+The script automatically performs:
+
+- fetch remote tags
+- sync the version to `pubspec.yaml`
+- optionally commit the `pubspec.yaml` change
+- optionally create and push the git tag
+- generate release notes
+- build the selected platform artifacts
+- optionally upload to GitHub Release
+
+### Full Release Workflow
+
+If you want the complete flow of “sync version + commit + tag + push + release”, run:
+
+```powershell
+./tools/release.ps1 -Target windows -AutoCommit -AutoTag -AutoPush -PublishGithub -GithubToken YOUR_GH_TOKEN
+```
+
+It will:
+
+1. fetch the newest remote tag
+2. sync the version into `pubspec.yaml`
+3. `git add pubspec.yaml`
+4. `git commit -m "chore: sync version to X.Y.Z"`
+5. create a tag such as `v1.0.1`
+6. `git push origin HEAD`
+7. `git push origin --tags`
+8. build the package and upload to GitHub Release
+
+### Upload to GitHub Release
+
+If GitHub CLI is installed and `GH_TOKEN` is configured, run:
+
+```powershell
+$env:GH_TOKEN = 'YOUR_GITHUB_TOKEN'
+./tools/release.ps1 -Target windows -PublishGithub
+```
+
+Or pass the token directly:
+
+```powershell
+./tools/release.ps1 -Target windows -PublishGithub -GithubToken YOUR_GITHUB_TOKEN
+```
+
+> If the network is unavailable or remote tag fetch fails, the script keeps the local tag and continues the release flow instead of aborting.
+
 ## Contributing
 
 Contributions are welcome. If you encounter a bug, want to report an issue, or propose a feature enhancement, please [create a new issue](https://github.com/s2001wincrown/dcm-flutter/issues/new).

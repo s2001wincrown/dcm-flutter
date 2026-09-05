@@ -162,6 +162,95 @@ DMC Digital Signage Player
 
 - `flutter build apk`
 
+## 发布说明
+
+本项目支持根据 git tag 自动同步 `pubspec.yaml` 中的版本号，并通过脚本一键执行构建与发布。
+
+### 版本同步方式
+
+在仓库根目录执行：
+
+```bash
+git fetch --tags origin
+python tools/sync_version_from_git_tag.py
+```
+
+脚本会按优先级读取最新 tag：
+
+1. `git describe --tags --abbrev=0`
+2. 本地最新 tag
+3. 远端最新 tag
+4. 若没有 tag，则保持现有版本不变
+
+并会自动去掉 `v` 前缀，例如：
+
+- `v1.0.1` -> `1.0.1`
+
+### 本地发布脚本
+
+在 Windows PowerShell 中执行：
+
+```powershell
+./tools/release.ps1 -Target windows
+```
+
+可选参数：
+
+```powershell
+./tools/release.ps1 -Target all
+./tools/release.ps1 -Target linux -SkipBuild
+./tools/release.ps1 -Target windows -GenerateNotes
+./tools/release.ps1 -Target windows -AutoCommit -AutoTag
+./tools/release.ps1 -Target windows -AutoCommit -AutoTag -AutoPush
+./tools/release.ps1 -Target windows -AutoCommit -AutoTag -AutoPush -PublishGithub -GithubToken YOUR_GH_TOKEN
+```
+
+脚本会自动完成：
+
+- 拉取远端 tag
+- 同步版本到 `pubspec.yaml`
+- 可选提交 `pubspec.yaml` 变更
+- 可选创建并推送 git tag
+- 生成 release notes
+- 构建指定平台的产物
+- 可选上传到 GitHub Release
+
+### 完整发布工作流
+
+如果你希望一键完成“版本同步 + 提交 + tag + 推送 + 发布”，可以直接运行：
+
+```powershell
+./tools/release.ps1 -Target windows -AutoCommit -AutoTag -AutoPush -PublishGithub -GithubToken YOUR_GH_TOKEN
+```
+
+它会做这些事：
+
+1. 拉取最新远端 tag
+2. 使用 git tag 更新 `pubspec.yaml` 版本
+3. `git add pubspec.yaml`
+4. `git commit -m "chore: sync version to X.Y.Z"`
+5. 创建 tag，例如 `v1.0.1`
+6. `git push origin HEAD`
+7. `git push origin --tags`
+8. 构建产物并上传到 GitHub Release
+
+### 直接上传到 GitHub Release
+
+如果已安装 GitHub CLI，并设置了 `GH_TOKEN`，可直接执行：
+
+```powershell
+$env:GH_TOKEN = 'YOUR_GITHUB_TOKEN'
+./tools/release.ps1 -Target windows -PublishGithub
+```
+
+或者在命令行中传入：
+
+```powershell
+./tools/release.ps1 -Target windows -PublishGithub -GithubToken YOUR_GITHUB_TOKEN
+```
+
+> 若网络异常或远端拉取 tags 失败，脚本会保留本地 tag，并继续后续流程，不会因为网络问题中断发布。
+
 ## 参与贡献
 
 欢迎参与本项目的建设。如果您在使用过程中发现问题、希望反馈缺陷或提出功能建议，请 [新建一个 issue](https://github.com/s2001wincrown/dcm-flutter/issues/new)。

@@ -1,7 +1,6 @@
 import 'dart:io';
 import 'dart:math';
 
-import 'package:dcm/backend/app.dart';
 import 'package:dcm/backend/models/app_global.dart';
 import 'package:dcm/backend/utils/extensions.dart';
 import 'package:dcm/backend/utils/log_utils.dart';
@@ -15,6 +14,25 @@ import 'package:path_provider/path_provider.dart';
 class FileUtils {
   static String waPath = '/storage/emulated/0/WhatsApp/Media/.Statuses';
 
+  static Future<String?> getAndroidStorageRoot() async {
+    if (!Platform.isAndroid) return null;
+
+    final dirs = await getExternalStorageDirectories();
+    if (dirs != null && dirs.isNotEmpty) {
+      final root = dirs.first.path;
+      final normalized =
+          root.contains('/Android') ? root.split('/Android').first : root;
+      return normalized.endsWith('/') ? normalized : '$normalized/';
+    }
+
+    final fallback = Directory('/storage/emulated/0');
+    if (await fallback.exists()) {
+      return '/storage/emulated/0/';
+    }
+
+    return null;
+  }
+
   /// Get mime information of a file
   static String getMime(String path) {
     File file = File(path);
@@ -22,18 +40,43 @@ class FileUtils {
     return mimeType;
   }
 
-  /// Return all available Storage path
+  /// Return all available Storage path.
+  ///
+  /// On Android 10, external storage directories can be null or vary by device.
+  /// Use a safe fallback so the app does not crash when scoped storage blocks the
+  /// legacy root path.
   static Future<List<Directory>> getStorageList() async {
-    List<Directory> paths = (await getExternalStorageDirectories())!;
-    List<Directory> filteredPaths = <Directory>[];
-    for (Directory dir in paths) {
-      filteredPaths.add(removeDataDirectory(dir.path));
+    final dirs = await getExternalStorageDirectories();
+    final filteredPaths = <Directory>[];
+
+    if (dirs != null && dirs.isNotEmpty) {
+      for (final dir in dirs) {
+        final normalized = removeDataDirectory(dir.path);
+        if (!filteredPaths.any((entry) => entry.path == normalized.path)) {
+          filteredPaths.add(normalized);
+        }
+      }
     }
+
+    if (filteredPaths.isEmpty) {
+      final fallbackRoot = await getAndroidStorageRoot();
+      if (fallbackRoot != null) {
+        final fallback = Directory(fallbackRoot);
+        if (await fallback.exists()) {
+          filteredPaths.add(fallback);
+        }
+      }
+    }
+
     return filteredPaths;
   }
 
   static Directory removeDataDirectory(String path) {
-    return Directory(path.split('Android')[0]);
+    final index = path.indexOf('/Android');
+    if (index > 0) {
+      return Directory(path.substring(0, index));
+    }
+    return Directory(path);
   }
 
   /// Get all Files and Directories in a Directory
@@ -102,8 +145,11 @@ class FileUtils {
           files.add(file);
         }
       } else {
-        if (!file.path.contains('/storage/emulated/0/Android')) {
-//          print(file.path);
+        final normalizedPath = file.path.replaceAll('\\', '/');
+        final isAndroidSystemDir = normalizedPath.contains('/Android/') ||
+            normalizedPath.contains('/Android') &&
+                normalizedPath.endsWith('/Android');
+        if (!isAndroidSystemDir) {
           if (!showHidden) {
             if (!file.isHidden) {
               files.addAll(
