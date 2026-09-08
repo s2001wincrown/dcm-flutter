@@ -11,6 +11,9 @@ class KeyMapHelper {
   }
 
   static bool _handleKeyEvent(KeyEvent e) {
+    if (keyBindinglock > 0) {
+      return false;
+    }
     if (e is KeyDownEvent) {
       String key = '';
       if (e.physicalKey == PhysicalKeyboardKey.keyA) key = 'a';
@@ -76,14 +79,12 @@ class KeyMapHelper {
       if (_keyboard.isControlPressed) key = 'CTRL+$key';
       if (_keyboard.isMetaPressed) key = 'META+$key';
 
-      if (keyBindinglock == 0) {
-        if (_keyBindings.containsKey(key)) {
-          // overrides mpv keymap
-          _executeKeyAction(key);
-        } else {
-          // use keymap from mpv builtin and user input.conf
-          App().player.command(['keypress', key]);
-        }
+      if (_keyBindings.containsKey(key)) {
+        // overrides mpv keymap
+        _executeKeyAction(key);
+      } else {
+        // use keymap from mpv builtin and user input.conf
+        App().player.command(['keypress', key]);
       }
     }
     return true;

@@ -135,7 +135,9 @@ void main(List<String> arguments) async {
     ScheduleList().loadSchedule();
     //runApp(const HomePage(playerView: false));
   }
-  await ContentSyncBackgroundService.instance.init();
+  if (!App().needsInitialSetup) {
+    await ContentSyncBackgroundService.instance.init();
+  }
 
   runApp(
     MultiProvider(

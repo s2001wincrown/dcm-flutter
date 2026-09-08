@@ -77,5 +77,16 @@
   "将当前画面设为封面": "Screenshot as cover",
   "从播放列表移除": "Remove from list",
   "设置播放速度": "Set Playback Speed",
-  "生成字幕": "Generate Subtitle"
+  "生成字幕": "Generate Subtitle",
+  "请输入此项": "Please input this item",
+  "播放器初始化": "Player initialization",
+  "请输入服务器和播放器信息以完成首次配置。": "Please input server and player information to complete the first configuration.",
+  "保存并继续": "Save and continue",
+  "取消并退出": "Cancel and exit",
+  "播放器名称": "Player Name",
+  "地点": "Location",
+  "组织代码": "Organization",
+  "频道": "Channel",
+  "设置分组": "Set Group",
+  "内容管理系统网址": "CMS URL"
 }

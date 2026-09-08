@@ -206,16 +206,26 @@ class PlayerRegisterImpl {
     );
   }
 
-  static Future<void> genPlayerInformation(String strPath) async {
+  static Future<void> genPlayerInformation(
+    String strPath, {
+    String? playerName,
+    String? location,
+    String? organization,
+    String? channel,
+    int settingsGroup = 3,
+    String httpRootLink = 'http://121.40.137.228:8080/demo',
+  }) async {
     final serverFile = IniFile(path.join(strPath, serverConfigFileName));
     serverFile.writeString('PlayerInformation', 'PlayerName',
-        'Player-${DateTime.now().microsecondsSinceEpoch}');
-    serverFile.writeString('PlayerInformation', 'Location', 'Player Location');
-    serverFile.writeString('PlayerInformation', 'Organization', 'DEMO');
-    serverFile.writeString('PlayerInformation', 'Channel', 'default');
-    serverFile.writeInt('PlayerInformation', 'SettingsGroup', 3);
+        playerName ?? 'Player-${DateTime.now().microsecondsSinceEpoch}');
     serverFile.writeString(
-        'Server', 'HTTPRootLink', 'http://121.40.137.228:8080/demo');
+        'PlayerInformation', 'Location', location ?? 'Player Location');
+    serverFile.writeString(
+        'PlayerInformation', 'Organization', organization ?? 'DEMO');
+    serverFile.writeString(
+        'PlayerInformation', 'Channel', channel ?? 'default');
+    serverFile.writeInt('PlayerInformation', 'SettingsGroup', settingsGroup);
+    serverFile.writeString('Server', 'HTTPRootLink', httpRootLink);
     await serverFile.save();
   }
 
@@ -223,25 +233,21 @@ class PlayerRegisterImpl {
   static Future<void> updateNetworkInfo(Player player) async {
     final info = NetworkInfo();
     String? wifiIP = await info.getWifiIP();
-    String? wifiMAC; //await info.getWifiMac();
+    String wifiMAC = 'Unknown-MAC'; //await info.getWifiMac();
 
     // Fallback for MAC if wifiMAC is null (common in newer Android/iOS versions due to privacy)
-    if (wifiMAC == null || wifiMAC.isEmpty) {
-      final deviceInfo = DeviceInfoPlugin();
-      if (Platform.isAndroid) {
-        final androidInfo = await deviceInfo.androidInfo;
-        wifiMAC = androidInfo.id; // Use Android ID as fallback identifier
-      } else if (Platform.isIOS) {
-        final iosInfo = await deviceInfo.iosInfo;
-        wifiMAC = iosInfo.identifierForVendor;
-      } else {
-        wifiMAC = 'Unknown-MAC';
-      }
+    final deviceInfo = DeviceInfoPlugin();
+    if (Platform.isAndroid) {
+      final androidInfo = await deviceInfo.androidInfo;
+      wifiMAC = androidInfo.id; // Use Android ID as fallback identifier
+    } else if (Platform.isIOS) {
+      final iosInfo = await deviceInfo.iosInfo;
+      wifiMAC = iosInfo.identifierForVendor ?? wifiMAC;
     }
 
     if (wifiIP != null && wifiIP.isNotEmpty && wifiIP != '0.0.0.0') {
       player.strLocalAddress = wifiIP;
-      player.strMACAddress = wifiMAC ?? '';
+      player.strMACAddress = wifiMAC;
     }
 
     if (player.nLocalPort < 1024) {

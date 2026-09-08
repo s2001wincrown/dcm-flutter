@@ -86,10 +86,10 @@ class SettingsImpl {
     }
   }
 
-  static Future<bool> loadFromXml(String strXml) async {
+  static Future<bool> loadFromXml(String strXml, String cmsUrl) async {
     XmlFile playbackSettings = XmlFile('PlaybackSetting');
     if (playbackSettings.loadXml(strXml)) {
-      return (await AppGlobal.loadGlobalSetting(playbackSettings));
+      return (await AppGlobal.loadGlobalSetting(playbackSettings, cmsUrl));
     }
 
     return false;

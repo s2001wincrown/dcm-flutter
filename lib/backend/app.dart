@@ -3,6 +3,7 @@ import 'dart:io';
 import 'dart:math';
 
 import 'package:dcm/backend/keymap_helper.dart';
+import 'package:dcm/backend/constants.dart';
 import 'package:dcm/backend/library_helper.dart';
 import 'package:dcm/backend/models/app_global.dart';
 import 'package:dcm/backend/models/player_global.dart';
@@ -23,6 +24,7 @@ import 'package:path_provider/path_provider.dart';
 class App {
   late final String dataPath;
   late final String? uniqueKey;
+  bool needsInitialSetup = false;
 
   late AppSettings settings;
   final ContentTypeManager contentTypeManager = ContentTypeManager();
@@ -68,16 +70,19 @@ class App {
     } else {
       dataPath = (await getApplicationSupportDirectory()).path;
     }
+    needsInitialSetup = !(await File(join(dataPath, configFILENAME)).exists());
     initFileLogger(dataPath);
     // Get Device ID
     uniqueKey = await Utils.getUniqueKey();
     //await AppGlobal.loadFromIni();
     //ContentTypeManager.loadContentTypes();
-    bool checked = await checkAppSetting();
-    await loadAppSetting(uniqueKey);
-    if (!checked && AppGlobal.autoContentUpdate) {
-      // Ensure globalPlayer is initialized from CMS or local fallback
-      await initGlobalPlayer();
+    if (!needsInitialSetup) {
+      bool checked = await checkAppSetting();
+      await loadAppSetting(uniqueKey);
+      if (!checked && AppGlobal.autoContentUpdate) {
+        // Ensure globalPlayer is initialized from CMS or local fallback
+        await initGlobalPlayer();
+      }
     }
     await loadSettings();
     bool needsUpdate = false;

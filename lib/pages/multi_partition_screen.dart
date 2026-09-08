@@ -4,6 +4,7 @@ import 'dart:io';
 import 'dart:isolate';
 import 'dart:ui';
 
+import 'package:dcm/backend/app.dart';
 import 'package:dcm/backend/constants.dart';
 import 'package:dcm/backend/models/app_global.dart';
 import 'package:dcm/backend/net/netdef.dart';
@@ -12,6 +13,7 @@ import 'package:dcm/backend/services/app_skin_impl.dart';
 import 'package:dcm/backend/utils/log_utils.dart';
 import 'package:dcm/backend/utils/utils.dart';
 import 'package:dcm/pages/home.dart';
+import 'package:dcm/pages/initial_setup_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -54,7 +56,17 @@ class DigitalSignageApp extends StatelessWidget {
       theme: ThemeData(
         primarySwatch: Colors.blue,
       ),
-      home: const DigitalSignageScreen(),
+      home: App().needsInitialSetup
+          ? InitialSetupPage(
+              onCompleted: (context) {
+                Navigator.of(context).pushReplacement(
+                  MaterialPageRoute(
+                    builder: (_) => const DigitalSignageScreen(),
+                  ),
+                );
+              },
+            )
+          : const DigitalSignageScreen(),
     );
   }
 }

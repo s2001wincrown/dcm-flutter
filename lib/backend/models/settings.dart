@@ -110,7 +110,7 @@ class AppSettings {
     this.tempPath = '',
 
     // Language Settings
-    this.language = 'zh_hans',
+    this.language = 'en_us',
 
     // Dev Settings
     this.enableDevSettings = false,

@@ -1051,7 +1051,7 @@ class AppGlobal {
         : (bMute ? cVOLUMESILENCE : nVolume));
   }
 
-  static Future<bool> loadGlobalSetting(XmlFile pXmlFile) async {
+  static Future<bool> loadGlobalSetting(XmlFile pXmlFile, String cmsUrl) async {
     bool bLoaded = false;
     if (configFile.isEmpty) {
       configFile = path.join(App().dataPath, configFILENAME);
@@ -1068,6 +1068,9 @@ class AppGlobal {
         String strValue = pItem.getItemValue('Value');
         if (strValue.isNotEmpty) {
           bLoaded = true;
+          if ('CMSUrl' == strName) {
+            strValue = cmsUrl;
+          }
           int nType = pItem.getItemValueI('Type');
           if (nType == 4) {
             settingsFile.writeString(

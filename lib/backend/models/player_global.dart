@@ -344,7 +344,8 @@ Future<({bool status, bool isNeedRestart})> loadPlaybackSettings(
         strGetSettings = Utils.addCMSParam(strGetSettings);
         var httpResult = await httpGet(strGetSettings);
         if (httpResult.status) {
-          if (await SettingsImpl.loadFromXml(httpResult.result!)) {
+          if (await SettingsImpl.loadFromXml(
+              httpResult.result!, result.pHttpLink)) {
             if (await AppGlobal.loadFromIni()) {
               return (status: true, isNeedRestart: true);
             }

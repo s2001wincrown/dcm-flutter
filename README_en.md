@@ -92,6 +92,18 @@ Supported platforms: Windows, macOS, Linux, Android, iOS, and Web.
   </tr>
 </table>
 
+## First-Launch Setup
+
+When the application has no local configuration, it opens the player initialization page on the first launch. Complete the setup as follows:
+
+1. Enter the player name in **播放器名称** (Player Name).
+2. Enter the player location in **地点** (Location).
+3. Enter the CMS address in **内容管理系统网址** (CMS URL), for example `http://121.40.137.228:8080/demo`.
+4. Click **保存并继续** (Save and Continue). The application saves the configuration, loads the player settings, starts the content synchronization service, and then opens the playback screen.
+5. To leave setup without saving, click **取消并退出** (Cancel and Exit). The desktop application exits, while Android/iOS closes the current application page.
+
+**组织代码** (Organization), **频道** (Channel), and **设置分组** (Settings Group) retain their built-in default values and are saved to the player configuration, but they are hidden from the setup page.
+
 ## App Startup and CMS Content Synchronization
 
 1. Download the installer or application package for your platform from the GitHub Releases page: <https://github.com/s2001wincrown/dcm-flutter/releases>.
