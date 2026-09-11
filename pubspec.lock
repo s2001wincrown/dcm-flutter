@@ -133,10 +133,10 @@ packages:
     dependency: transitive
     description:
       name: cnativeapi
-      sha256: "8316cee1e5ba8e80a3c6365a188119c3dc044f6a4b7e43a135dc802ab0bdfb0b"
+      sha256: "14f3e23c2990eae91507e46ce28d251a19a019a1ab214d23a7523c7a9a8ba367"
       url: "https://pub.flutter-io.cn"
     source: hosted
-    version: "0.1.4"
+    version: "0.2.3"
   code_assets:
     dependency: transitive
     description:
@@ -389,6 +389,14 @@ packages:
       url: "https://pub.flutter-io.cn"
     source: hosted
     version: "2.0.35"
+  flutter_screenutil:
+    dependency: "direct main"
+    description:
+      name: flutter_screenutil
+      sha256: "8239210dd68bee6b0577aa4a090890342d04a136ce1c81f98ee513fc0ce891de"
+      url: "https://pub.flutter-io.cn"
+    source: hosted
+    version: "5.9.3"
   flutter_test:
     dependency: "direct dev"
     description: flutter
@@ -731,18 +739,18 @@ packages:
     dependency: "direct main"
     description:
       name: mixin_logger
-      sha256: "13585c41685082f3fb6342ce109378d40bdd02a56901f820ae8835b316a8ff67"
+      sha256: "9fdb92b52caa2b012c7f25b719aa89821d7da8cc300e7703e74b1e91c99c8bf0"
       url: "https://pub.flutter-io.cn"
     source: hosted
-    version: "0.1.3"
+    version: "0.2.0"
   nativeapi:
     dependency: "direct main"
     description:
       name: nativeapi
-      sha256: bcf391b5fe317c540f3966810400a1a2f0f238e382ff5cfbbbf82203967b4fc4
+      sha256: "82262cfe721ad4e7ed6c973937adb5b76ae6c0090e25a816d5ea94ff87a35445"
       url: "https://pub.flutter-io.cn"
     source: hosted
-    version: "0.1.4"
+    version: "0.2.3"
   nested:
     dependency: transitive
     description:

@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
-import 'dart:isolate';
 import 'dart:ui';
 
 import 'package:dcm/backend/app.dart';
@@ -10,12 +9,15 @@ import 'package:dcm/backend/models/app_global.dart';
 import 'package:dcm/backend/net/netdef.dart';
 import 'package:dcm/backend/providers/player_screen_provider.dart';
 import 'package:dcm/backend/services/app_skin_impl.dart';
+import 'package:dcm/backend/utils/l10n_utils.dart';
 import 'package:dcm/backend/utils/log_utils.dart';
 import 'package:dcm/backend/utils/utils.dart';
 import 'package:dcm/pages/home.dart';
 import 'package:dcm/pages/initial_setup_page.dart';
+import 'package:dcm/pages/settings/settings_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:provider/provider.dart';
 import 'package:worker_manager/worker_manager.dart';
 
@@ -38,6 +40,7 @@ class DigitalSignageApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    ScreenUtil.init(context);
     return MaterialApp(
       shortcuts: {
         // override the default behavior of arrow and space key
@@ -97,10 +100,11 @@ class _DigitalSignageScreenState extends State<DigitalSignageScreen> {
   int currentShowIndex = 0;
   int nextShowIndex = 0;
   static const Duration _doubleTapWindow = Duration(milliseconds: 300);
-  Timer? _exitHintTimer;
+  static const Duration _menuTimeout = Duration(seconds: 5);
+  final _focusNode = FocusNode();
+  Timer? _menuTimer;
   DateTime? _lastTap;
-  bool _exitHintShown = false;
-  bool _showExitHint = false;
+  bool _showMenu = false;
   bool _isExiting = false;
   bool _forceRebuild = false;
 
@@ -113,13 +117,10 @@ class _DigitalSignageScreenState extends State<DigitalSignageScreen> {
     // the first frame to avoid accessing InheritedWidgets during initState.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       Provider.of<PlayerScreenProvider>(context, listen: false).playImm();
+      _focusNode.requestFocus();
       //_preloadAllContents();
     });
-    /*final window = WindowManager.instance.getCurrent();
-    if (window != null) {
-      window.setPosition(0, 0);
-      window.setSize(primaryDisplaySize.width, primaryDisplaySize.height);
-    }*/
+
     //_startPlaylist();
   }
 
@@ -139,7 +140,7 @@ class _DigitalSignageScreenState extends State<DigitalSignageScreen> {
     }
 
     _isExiting = true;
-    _exitHintTimer?.cancel();
+    _menuTimer?.cancel();
     PlayerScreenProvider.instance?.release();
     _notifyContentSyncIsolateCommand(PlayerNotice.ePLAYCLOSENOTICE.index, 0);
     //sleep(const Duration(seconds: 1));
@@ -156,7 +157,49 @@ class _DigitalSignageScreenState extends State<DigitalSignageScreen> {
     }
   }
 
-  Future<void> _handleExitTap() async {
+  void _showFloatingMenu() {
+    if (!mounted || _isExiting) return;
+    _menuTimer?.cancel();
+    setState(() => _showMenu = true);
+    _menuTimer = Timer(_menuTimeout, _hideFloatingMenu);
+  }
+
+  void _hideFloatingMenu() {
+    _menuTimer?.cancel();
+    if (mounted) {
+      setState(() => _showMenu = false);
+    }
+  }
+
+  Future<void> _openSettings() async {
+    _hideFloatingMenu();
+    await Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const SettingsPage()),
+    );
+    if (mounted) {
+      _focusNode.requestFocus();
+    }
+  }
+
+  Future<void> _reinitialize() async {
+    _hideFloatingMenu();
+    await Navigator.of(context).pushReplacement(
+      MaterialPageRoute(
+        builder: (_) => InitialSetupPage(
+          reloadSettings: true,
+          onCompleted: (context) {
+            Navigator.of(context).pushReplacement(
+              MaterialPageRoute(
+                builder: (_) => const DigitalSignageScreen(),
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  Future<void> _handleScreenTap() async {
     if (!mounted || _isExiting) {
       return;
     }
@@ -174,29 +217,18 @@ class _DigitalSignageScreenState extends State<DigitalSignageScreen> {
       mounted: mounted,
       isExiting: _isExiting,
     )) {
-      await _exitApplication();
-      return;
-    }
-
-    if (!_exitHintShown && !_isExiting) {
-      _exitHintShown = true;
-      _showExitHint = true;
-      _exitHintTimer?.cancel();
-      _exitHintTimer = Timer(const Duration(seconds: 3), () {
-        if (mounted) {
-          setState(() {
-            _showExitHint = false;
-            _exitHintShown = false;
-          });
-        }
-      });
-      if (mounted) {
-        setState(() {});
-      }
+      _showFloatingMenu();
     }
   }
 
-  // 双击退出功能
+  void _handleKeyEvent(KeyEvent event) {
+    if (event is KeyDownEvent &&
+        event.logicalKey == LogicalKeyboardKey.escape) {
+      _exitApplication();
+    }
+  }
+
+  // Handle the platform back action separately from the on-screen menu.
   Future<void> _onPopInvokedWithResult(bool didPop, Object? result) async {
     if (didPop) return;
     await _exitApplication();
@@ -206,7 +238,8 @@ class _DigitalSignageScreenState extends State<DigitalSignageScreen> {
   void dispose() {
     logI('multi_partition_screen dispose');
     _isExiting = true;
-    _exitHintTimer?.cancel();
+    _menuTimer?.cancel();
+    _focusNode.dispose();
     workerManager.dispose();
     super.dispose();
   }
@@ -227,8 +260,9 @@ class _DigitalSignageScreenState extends State<DigitalSignageScreen> {
     double screenHeight;
     final mq = MediaQuery.of(context);
     logD(
-        'multi_partition_screen - MediaQuery size: (${mq.size.width} x ${mq.size.height}), _forceRebuild: $_forceRebuild');
+        'multi_partition_screen - MediaQuery size: (${mq.size.width} x ${mq.size.height}), devicePixelRatio: ${mq.devicePixelRatio}, _forceRebuild: $_forceRebuild');
     if (playSkin.monitorRect.isEmpty) {
+      playSkin.setMonitorRect(mq.size);
       screenWidth = mq.size.width;
       screenHeight = mq.size.height;
     } else {
@@ -238,41 +272,44 @@ class _DigitalSignageScreenState extends State<DigitalSignageScreen> {
     logD(
         'multi_partition_screen - main screen size: ($screenWidth x $screenHeight), player screen size: (${playSkin.monitorRect.width} x ${playSkin.monitorRect.height})');
 
-    return PopScope(
-      canPop: false,
-      onPopInvokedWithResult: _onPopInvokedWithResult,
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: _handleExitTap,
-        child: Scaffold(
-          backgroundColor: Utils.fromRGB(AppGlobal.clrBGColor),
-          body: Consumer<PlayerScreenProvider>(
-            builder:
-                (BuildContext context, playerScreenProvider, Widget? child) {
-              if (!playerScreenProvider.isValidForPlay()) {
-                return Container(
-                  color: Utils.fromRGB(AppGlobal.clrBGColor),
-                );
-              }
-              return LayoutBuilder(
-                builder: (context, constraints) {
-                  return SizedBox(
-                    width: double.infinity,
-                    height: double.infinity,
-                    child: Stack(
-                      children: <Widget>[
-                        Builder(
-                          builder: (context) {
-                            final currentLayout =
-                                playerScreenProvider.getPlayingZones();
+    return KeyboardListener(
+      focusNode: _focusNode,
+      onKeyEvent: _handleKeyEvent,
+      child: PopScope(
+        canPop: false,
+        onPopInvokedWithResult: _onPopInvokedWithResult,
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: _handleScreenTap,
+          child: Scaffold(
+            backgroundColor: Utils.fromRGB(AppGlobal.clrBGColor),
+            body: Consumer<PlayerScreenProvider>(
+              builder:
+                  (BuildContext context, playerScreenProvider, Widget? child) {
+                if (!playerScreenProvider.isValidForPlay()) {
+                  return Container(
+                    color: Utils.fromRGB(AppGlobal.clrBGColor),
+                  );
+                }
+                return LayoutBuilder(
+                  builder: (context, constraints) {
+                    return SizedBox(
+                      width: double.infinity,
+                      height: double.infinity,
+                      child: Stack(
+                        children: <Widget>[
+                          Builder(
+                            builder: (context) {
+                              final currentLayout =
+                                  playerScreenProvider.getPlayingZones();
 
-                            return Stack(
-                              children: currentLayout.map((partition) {
-                                final left = partition.getRect().left;
-                                final top = partition.getRect().top;
-                                final w = partition.getRect().width;
-                                final h = partition.getRect().height;
-                                /*var left = 0.00;
+                              return Stack(
+                                children: currentLayout.map((partition) {
+                                  final left = partition.getRect().left;
+                                  final top = partition.getRect().top;
+                                  final w = partition.getRect().width;
+                                  final h = partition.getRect().height;
+                                  /*var left = 0.00;
                                 var top = 0.00;
                                 var w = mq.size.width / 2;
                                 var h = mq.size.height;
@@ -283,88 +320,82 @@ class _DigitalSignageScreenState extends State<DigitalSignageScreen> {
                                   h = mq.size.height;
                                 }*/
 
-                                /*logD(
-                                    'multi_partition_screen - Render partition ${partition.getZone()} at ($left, $top) with size ($w x $h)');*/
+                                  logD(
+                                      'multi_partition_screen - Render partition ${partition.getZone()} at ($left, $top) with size ($w x $h)');
 
-                                return Positioned(
-                                  left: left,
-                                  top: top,
-                                  width: w,
-                                  height: h,
-                                  child: Container(
+                                  return Positioned(
+                                    left: left,
+                                    top: top,
                                     width: w,
                                     height: h,
-                                    decoration: BoxDecoration(
-                                      color:
-                                          Utils.fromRGB(AppGlobal.clrBGColor),
-                                      border: null,
-                                      borderRadius: BorderRadius.zero,
-                                    ),
-                                    child: SizedBox(
+                                    child: Container(
                                       width: w,
                                       height: h,
-                                      child: partition.renderZone(),
+                                      decoration: BoxDecoration(
+                                        color:
+                                            Utils.fromRGB(AppGlobal.clrBGColor),
+                                        border: null,
+                                        borderRadius: BorderRadius.zero,
+                                      ),
+                                      child: SizedBox(
+                                        width: w,
+                                        height: h,
+                                        child: partition.renderZone(),
+                                      ),
                                     ),
-                                  ),
-                                );
-                              }).toList(),
-                            );
-                          },
-                        ),
-                        if (_showExitHint)
-                          Positioned(
-                            left: 0,
-                            right: 0,
-                            bottom: 32,
-                            child: Center(
-                              child: AnimatedOpacity(
-                                opacity: _showExitHint ? 1.0 : 0.0,
-                                duration: const Duration(milliseconds: 300),
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 20,
-                                    vertical: 12,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: Colors.white.withOpacity(0.92),
-                                    borderRadius: BorderRadius.circular(30),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: Colors.black.withOpacity(0.25),
-                                        blurRadius: 10,
-                                        offset: const Offset(0, 4),
-                                      ),
-                                    ],
-                                  ),
-                                  child: const Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Icon(Icons.touch_app,
-                                          color: Colors.black87),
-                                      SizedBox(width: 10),
-                                      Text(
-                                        '双击屏幕退出应用',
-                                        style: TextStyle(
-                                          color: Colors.black87,
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                      ),
-                                    ],
+                                  );
+                                }).toList(),
+                              );
+                            },
+                          ),
+                          if (_showMenu)
+                            Positioned(
+                              left: 0,
+                              right: 0,
+                              bottom: 32,
+                              child: Center(
+                                child: Card(
+                                  margin: EdgeInsets.zero,
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                      vertical: 6,
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        _menuButton(Icons.settings_outlined,
+                                            '设置'.l10n, _openSettings),
+                                        _menuButton(Icons.refresh, '重新初始化'.l10n,
+                                            _reinitialize),
+                                        _menuButton(Icons.exit_to_app,
+                                            '退出'.l10n, _exitApplication),
+                                        _menuButton(Icons.arrow_back, '返回'.l10n,
+                                            _hideFloatingMenu),
+                                      ],
+                                    ),
                                   ),
                                 ),
                               ),
                             ),
-                          ),
-                      ],
-                    ),
-                  );
-                },
-              );
-            },
+                        ],
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
           ),
         ),
       ),
+    );
+  }
+
+  Widget _menuButton(IconData icon, String label, VoidCallback onPressed) {
+    return TextButton.icon(
+      onPressed: onPressed,
+      icon: Icon(icon),
+      label: Text(label),
     );
   }
 }

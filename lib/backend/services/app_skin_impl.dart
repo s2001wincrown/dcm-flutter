@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'dart:math';
+import 'dart:ui';
 
 import 'package:dcm/backend/constants.dart';
 import 'package:dcm/backend/models/app_global.dart';
@@ -10,6 +11,7 @@ import 'package:dcm/backend/utils/log_utils.dart';
 import 'package:dcm/backend/utils/string_utils.dart';
 import 'package:dcm/backend/xmlfile/inifile.dart';
 import 'package:dcm/main.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:nativeapi/nativeapi.dart';
 
 enum AppSkinType { gdi, html, d2d, html5 }
@@ -458,6 +460,30 @@ class AppSkinSetting {
     }
   }
 
+  void setMonitorRect(Size mqSize) {
+    monitorRect = Rect.fromLTWH(0, 0, mqSize.width, mqSize.height);
+    final cx = monitorRect.width;
+    final cy = monitorRect.height;
+    screenRect = Rect.fromLTWH(0, 0, cx, cy);
+
+    if (hasFlag(AppGlobal.playMode, 2)) {
+      if (layout != null && layout!.width > 0 && layout!.height > 0) {
+        final fitted = _fitToSize(layout!, screenRect);
+        screenRect = fitted;
+      }
+    }
+
+    if (playerRect01.isEmpty) {
+      playerRect01 = screenRect;
+    }
+    if (playerRect02.isEmpty) {
+      playerRect02 = screenRect;
+    }
+    if (playerRect.isEmpty) {
+      playerRect = screenRect;
+    }
+  }
+
   void _loadHtmlSkins(IniFile iniFile) {
     if (skinCode.toLowerCase() != 'no frame and no button') {
       final frame = iniFile.readString(skinCode, 'Image Rect', '0,0,1600,900');
@@ -663,60 +689,67 @@ class AppSkinSetting {
       nMonitor = AppGlobal.output;
     }
 
-    final displayManager = DisplayManager.instance;
-    final allDisplays = displayManager.getAll();
-    //final allDisplays = await screenRetriever.getAllDisplays();
-    if (nMonitor == 0 && !hasFlag(AppGlobal.multiMonitor, cMULTIMONITORDV)) {
-      String strRect = iniFile.readString(skinCode, 'DisplayMonitor', '');
-      var displayMonitors = strRect.split(',');
-      monitorRect = Rect.zero;
-      if (displayMonitors.length > 1) {
-        for (int i = 0; i < allDisplays.length; i++) {
-          if (displayMonitors.contains(i.toString())) {
-            monitorRect =
-                monitorRect.expandToInclude(_displayRect(allDisplays[i]));
-            outputs.add(i);
-          }
-        }
-
-        if (!monitorRect.isEmpty) {
-          monitorRect = _normalizeRect(monitorRect);
-          return;
-        }
-      }
-
-      nMonitor = int.tryParse(strRect) ?? 0;
-    }
-
-    if (nMonitor == -1) {
-      monitorRect = Rect.zero;
-      for (int i = 0; i < allDisplays.length; i++) {
-        monitorRect = monitorRect.expandToInclude(_displayRect(allDisplays[i]));
-        outputs.add(i);
-      }
+    if (Platform.isAndroid || Platform.isIOS) {
+      monitorRect = Rect.fromLTWH(
+          0, 0, ScreenUtil().screenWidth, ScreenUtil().screenHeight);
     } else {
-      if (nMonitor < allDisplays.length) {
+      const displayManager = DisplayManager.instance;
+      final allDisplays = displayManager.getAll();
+      //final allDisplays = await screenRetriever.getAllDisplays();
+      if (nMonitor == 0 && !hasFlag(AppGlobal.multiMonitor, cMULTIMONITORDV)) {
+        String strRect = iniFile.readString(skinCode, 'DisplayMonitor', '');
+        var displayMonitors = strRect.split(',');
+        monitorRect = Rect.zero;
+        if (displayMonitors.length > 1) {
+          for (int i = 0; i < allDisplays.length; i++) {
+            if (displayMonitors.contains(i.toString())) {
+              monitorRect =
+                  monitorRect.expandToInclude(_displayRect(allDisplays[i]));
+              outputs.add(i);
+            }
+          }
+
+          if (!monitorRect.isEmpty) {
+            monitorRect = _normalizeRect(monitorRect);
+            return;
+          }
+        }
+
+        nMonitor = int.tryParse(strRect) ?? 0;
+      }
+
+      if (nMonitor == -1) {
+        monitorRect = Rect.zero;
         for (int i = 0; i < allDisplays.length; i++) {
-          if (nMonitor == i) {
-            monitorRect = _displayRect(allDisplays[i]);
-            outputs.add(i);
-            break;
+          monitorRect =
+              monitorRect.expandToInclude(_displayRect(allDisplays[i]));
+          outputs.add(i);
+        }
+      } else {
+        if (nMonitor < allDisplays.length) {
+          for (int i = 0; i < allDisplays.length; i++) {
+            if (nMonitor == i) {
+              monitorRect = _displayRect(allDisplays[i]);
+              outputs.add(i);
+              break;
+            }
           }
         }
       }
+
+      if (monitorRect.isEmpty &&
+          allDisplays.isNotEmpty &&
+          AppGlobal.multiMonitor != 99) {
+        monitorRect = _displayRect(allDisplays[0]);
+      }
+      monitorRect = _normalizeRect(monitorRect);
     }
 
-    if (monitorRect.isEmpty &&
-        allDisplays.isNotEmpty &&
-        AppGlobal.multiMonitor != 99) {
-      monitorRect = _displayRect(allDisplays[0]);
-    }
-    monitorRect = _normalizeRect(monitorRect);
     if (outputs.isEmpty) {
       outputs.add(0);
     }
     logD(
-        '''GetMonitorInfo Output:'${AppGlobal.output}'; rect:'$monitorRect'; Skin: '$skinCode', allDisplays: '${allDisplays.toString()}'.''');
+        '''GetMonitorInfo Output:'${AppGlobal.output}'; rect:'$monitorRect'; Skin: '$skinCode'.'''); //, allDisplays: '${allDisplays.length}'
   }
 
   Rect _displayRect(Display display) {

@@ -113,7 +113,7 @@ class _VideoPlayerState extends State<VideoPlayer> {
 
   @override
   void dispose() {
-    //_player.dispose();
+    _player.dispose();
     super.dispose();
   }
 

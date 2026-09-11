@@ -29,6 +29,7 @@ import 'package:dcm/backend/xmlfile/inifile.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_libserialport/flutter_libserialport.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:intl/intl.dart';
 import 'package:nativeapi/nativeapi.dart';
 import 'package:path/path.dart' as path;
@@ -159,7 +160,8 @@ class PlayerScreenProvider extends ChangeNotifier {
           rectMonitor.Width(),
           rectMonitor.Height(),
           SWP_NOACTIVATE | SWP_NOREPOSITION); //SWP_NOMOVE |*/
-      logD('No content to play: $_strDCMFile, TID $pid.');
+      logI(
+          'No content to play: $_strDCMFile, rectMonitor: (${rectMonitor.width} x ${rectMonitor.height}).');
       startTimer();
     } else {
       ScheduleList().writePlaylistLog();
@@ -2236,12 +2238,17 @@ class PlayerScreenProvider extends ChangeNotifier {
   }
 
   void _getClientRect() async {
-    final window = WindowManager.instance.getCurrent();
-    if (window != null) {
-      _rectPlayer = Rect.fromLTWH(window.position.dx, window.position.dy,
-          window.size.width, window.size.height);
-      logD('PlayerScreenProvider - GetClientRect: $_rectPlayer');
+    if (Platform.isAndroid || Platform.isIOS) {
+      _rectPlayer = Rect.fromLTWH(
+          0, 0, ScreenUtil().screenWidth, ScreenUtil().screenHeight);
+    } else {
+      final window = WindowManager.instance.getCurrent();
+      if (window != null) {
+        _rectPlayer = Rect.fromLTWH(window.position.dx, window.position.dy,
+            window.size.width, window.size.height);
+      }
     }
+    logD('PlayerScreenProvider - GetClientRect: $_rectPlayer');
   }
 
   void resetMusicPlayer() {
@@ -2350,6 +2357,9 @@ class PlayerScreenProvider extends ChangeNotifier {
     logI('PlayerScreenProvider dispose');
     _timer?.cancel();
     _playingTimer?.cancel();
+    _timer = null;
+    _playingTimer = null;
+    deleteZoneThread(0);
 
     super.dispose();
   }

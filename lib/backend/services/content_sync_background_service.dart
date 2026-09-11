@@ -9,13 +9,11 @@ import 'package:dcm/backend/models/app_global.dart';
 import 'package:dcm/backend/models/player_global.dart';
 import 'package:dcm/backend/net/content_sync_service.dart';
 import 'package:dcm/backend/net/netdef.dart';
-import 'package:dcm/backend/net/sync_http_client.dart';
 import 'package:dcm/backend/net/play_log_post.dart';
 import 'package:dcm/backend/net/player_path_service.dart';
 import 'package:dcm/backend/net/player_task_file.dart';
-import 'package:dcm/backend/services/content_downloader.dart';
+import 'package:dcm/backend/net/sync_http_client.dart';
 import 'package:dcm/backend/utils/log_utils.dart';
-import 'package:dcm/backend/xmlfile/xmlfile.dart';
 import 'package:flutter/services.dart';
 import 'package:path/path.dart' as path;
 import 'package:worker_manager/worker_manager.dart';
@@ -187,49 +185,5 @@ class ContentSyncBackgroundService {
       logE('ContentSyncBackgroundService.init() failed: $e', syncTag);
       stderr.writeln(stack);
     }
-  }
-
-  Future<void> _startPollingInWorker({
-    required String apiUrl,
-    required String queuePath,
-    required int pollingIntervalMinutes,
-    required String token,
-    required String organization,
-  }) async {
-    final downloader = ContentDownloader(
-      apiUrl: apiUrl,
-      queue: ContentDownloadQueue(persistencePath: queuePath),
-      maxRetries: AppGlobal.fileTransferRetries,
-      pollingInterval: Duration(minutes: pollingIntervalMinutes),
-      buildRequestBody: () async =>
-          _buildRequestBodyForWorker(token, organization),
-    );
-    await downloader.startPolling();
-  }
-
-  Future<String> _buildRequestBodyForWorker(
-      String token, String organization) async {
-    final xml = XmlFile('PublishFileInformation');
-    xml.setItemValue('Token', token);
-    xml.setItemValue('Organization', organization);
-    return xml.export();
-  }
-
-  Future<String> _buildRequestBody() async {
-    final xml = XmlFile('PublishFileInformation');
-    xml.setItemValue('Token', AppGlobal.cmsToken);
-    xml.setItemValue('Organization', AppGlobal.organization);
-    return xml.export();
-  }
-
-  void _onProgress(ContentDownloadTask task) {
-    // keep a lightweight log entry for background progress
-    stderr.writeln(
-        'ContentDownloader progress: ${task.title} (${task.downloaded}/${task.remoteSize})');
-  }
-
-  void _onTaskComplete(ContentDownloadTask task) {
-    stderr.writeln(
-        'ContentDownloader completed task ${task.id} status=${task.status.name}');
   }
 }

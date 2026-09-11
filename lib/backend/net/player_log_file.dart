@@ -383,7 +383,7 @@ class PlayerLogFile {
 
   static Future<void> genPlaylistContent(int nDays) async {
     if (cmsGenPlaylistContent.isEmpty) {
-      logE('GenPlaylistContentHttpLink is invalid\n');
+      logW('GenPlaylistContentHttpLink is invalid\n');
       return;
     }
 

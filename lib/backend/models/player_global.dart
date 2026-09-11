@@ -341,7 +341,7 @@ Future<({bool status, bool isNeedRestart})> loadPlaybackSettings(
         strGetSettings += '?';
         strGetSettings += Utils.urlEscape(strRequest);
         strRequest = '';
-        strGetSettings = Utils.addCMSParam(strGetSettings);
+        strGetSettings = Utils.addCMSParam(strGetSettings, true);
         var httpResult = await httpGet(strGetSettings);
         if (httpResult.status) {
           if (await SettingsImpl.loadFromXml(
@@ -379,13 +379,13 @@ Future<bool> loadContentTypeSettings(String deviceId) async {
     String strGetSettings = result.pHttpLink;
     nSettingsGroup = result.pSettingsGroup;
     String strRequest =
-        'uiType=99&strUniqueName=$deviceId&uiGroupID=$nSettingsGroup';
+        'uiType=99&strUniqueName=$deviceId&uiGroupID=$nSettingsGroup&o=${result.pOrganization}';
     strGetSettings = fADDSLASH(strGetSettings);
     strGetSettings += cmsGETSETTINGSURL;
     strGetSettings += '?';
     strGetSettings += Utils.urlEscape(strRequest);
     strRequest = '';
-    strGetSettings = Utils.addCMSParam(strGetSettings);
+    strGetSettings = Utils.addCMSParam(strGetSettings, true);
     String strResult = '';
     var httpResult = await httpGet(strGetSettings);
     if (httpResult.status) {

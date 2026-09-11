@@ -256,14 +256,14 @@ class ScheduleList {
       ChannelScheduleImpl scheduleImpl = ChannelScheduleImpl();
       List<DayInfoData> lstDayInfo =
           scheduleImpl.loadSchedule(channel, scheduleMonth: month);
-      logD('CScheduleList::LoadSchedule: $channel - $month');
+      logI('CScheduleList::LoadSchedule: $channel - $month');
       if (lstDayInfo.isNotEmpty) {
         for (var pDayInfoData in lstDayInfo) {
           if (pDayInfoData.day == day) {
             logD('CScheduleList::LoadSchedule:$month - $day');
             playMeth = pDayInfoData.playMeth;
             if (pDayInfoData.arrEvent.isEmpty) {
-              logD(
+              logI(
                   'CScheduleList::LoadSchedule: Current Playlist: ${pDayInfoData.event} - Orign Playlist: $strCurrEvent');
               PlayList? pList = createPlayList(pDayInfoData.event);
               if (pList != null) {
@@ -397,7 +397,7 @@ class ScheduleList {
       }
 
       getPlayRange();
-      logD('Load Schedule2 $pid.');
+      logI('Load Schedule - playlist size: ${arrEvent.length}, bLoad: $bLoad.');
 
       return bLoad;
     }

@@ -329,7 +329,7 @@ class ContentListPlayerImpl {
   }
 
   void setPlayerRect(Rect rect) {
-    if (rect.isEmpty) {
+    if (rect.isEmpty && _playerRect != null) {
       return;
     }
 
@@ -430,12 +430,12 @@ class ContentListPlayerImpl {
     _bIsPlaying = false;
   }
 
-  void release() {
+  Future<void> release() async {
     _bIsPlaying = false;
     _players.clear();
     if (_mapPreloadedContents != null && _mapPreloadedContents!.isNotEmpty) {
       for (var preloadedContent in _mapPreloadedContents!.values) {
-        preloadedContent.release();
+        await preloadedContent.release();
       }
       _mapPreloadedContents!.clear();
     }

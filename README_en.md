@@ -96,13 +96,22 @@ Supported platforms: Windows, macOS, Linux, Android, iOS, and Web.
 
 When the application has no local configuration, it opens the player initialization page on the first launch. Complete the setup as follows:
 
-1. Enter the player name in **播放器名称** (Player Name).
-2. Enter the player location in **地点** (Location).
+1. Optional: enter the player name in **播放器名称** (Player Name).
+2. Optional: enter the player location in **地点** (Location).
 3. Enter the CMS address in **内容管理系统网址** (CMS URL), for example `http://121.40.137.228:8080/demo`.
 4. Click **保存并继续** (Save and Continue). The application saves the configuration, loads the player settings, starts the content synchronization service, and then opens the playback screen.
 5. To leave setup without saving, click **取消并退出** (Cancel and Exit). The desktop application exits, while Android/iOS closes the current application page.
 
 **组织代码** (Organization), **频道** (Channel), and **设置分组** (Settings Group) retain their built-in default values and are saved to the player configuration, but they are hidden from the setup page.
+
+## Floating Menu
+
+Quickly tap the playback screen twice to open the floating menu at the bottom. It provides these actions:
+
+- **设置** (Settings): open the application settings page.
+- **重新初始化** (Reinitialize): reopen the player initialization page. After entering the CMS URL and saving, the application fetches the playback and content type settings again, then returns to playback. Player name and location may be left blank.
+- **退出** (Exit): exit the application.
+- **返回** (Back): close the floating menu.
 
 ## App Startup and CMS Content Synchronization
 

@@ -1,15 +1,17 @@
 import 'package:mixin_logger/mixin_logger.dart';
+import 'package:path/path.dart' as path;
 
 const String _tag = "dcm";
 const String syncTag = "content sync";
 void initFileLogger(String dataPath) {
   // init logger with dir. then all logs will be saved to this dir.
+  var logDir = path.join(dataPath, 'logs'); // '$dataPath/logs';
   initLogger(
-    '$dataPath/logs',
+    logDir,
     maxFileCount: 10, // max 10 files.
     maxFileLength: 5 * 1024 * 1024, // max to 5 MB for single file.
   );
-  logI('log_utils: after initLogger: $dataPath/logs');
+  logI('log_utils: after initLogger: $logDir');
 }
 
 void logV(String msg, [String tag = _tag]) {

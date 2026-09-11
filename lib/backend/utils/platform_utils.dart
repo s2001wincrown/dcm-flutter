@@ -52,6 +52,10 @@ class PlatformUtils {
   static bool get isDesktop => _isDesktop();
 
   String getMemoryLog() {
+    if (Platform.isAndroid) {
+      return '';
+    }
+
     const int megaByte = 1024 * 1024;
     return '''Total physical memory: ${SysInfo.getTotalPhysicalMemory() ~/ megaByte} MB,
      Free physical memory: ${SysInfo.getFreePhysicalMemory() ~/ megaByte} MB, 

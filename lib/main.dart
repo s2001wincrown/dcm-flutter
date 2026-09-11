@@ -18,6 +18,7 @@ import 'package:dcm/pages/multi_partition_screen.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:nativeapi/nativeapi.dart' as display_manager;
 import 'package:path/path.dart' as path;
@@ -69,7 +70,7 @@ void main(List<String> arguments) async {
 
   WidgetsFlutterBinding.ensureInitialized();
   MediaKit.ensureInitialized();
-  WakelockPlus.enable();
+  await WakelockPlus.enable();
 
   await App().init();
   _registerContentSyncPlayerRefreshPort();
@@ -94,7 +95,7 @@ void main(List<String> arguments) async {
   // On desktop, initialize window_manager and force fullscreen on primary display
   if (PlatformUtils.isDesktop) {
     await windowManager.ensureInitialized();
-    final displayManager = display_manager.DisplayManager.instance;
+    const displayManager = display_manager.DisplayManager.instance;
     final primaryDisplay = displayManager.getPrimary();
     //final primaryDisplay = await screenRetriever.getPrimaryDisplay();
     if (primaryDisplay != null) {
@@ -138,6 +139,7 @@ void main(List<String> arguments) async {
   if (!App().needsInitialSetup) {
     await ContentSyncBackgroundService.instance.init();
   }
+  await ScreenUtil.ensureScreenSize();
 
   runApp(
     MultiProvider(

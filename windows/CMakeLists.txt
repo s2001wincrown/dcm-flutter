@@ -62,6 +62,10 @@ add_subdirectory("runner")
 # them to the application.
 include(flutter/generated_plugins.cmake)
 
+if(TARGET cnativeapi)
+  target_link_libraries(cnativeapi PRIVATE version)
+endif()
+
 # Pre-build: ensure ANGLE artifacts are copied into build folder
 set(ANGLE_SCRIPT "${CMAKE_CURRENT_SOURCE_DIR}/../tools/copy_angle_artifacts.ps1")
 if(EXISTS ${ANGLE_SCRIPT})

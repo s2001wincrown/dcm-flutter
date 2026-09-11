@@ -49,8 +49,8 @@ class PreloadedContent {
 
   Future<void> stop() async {
     if (player != null) {
-      player!.stop();
-      player!.open(Media(LibraryHelper.normalizeMediaSource(filePath)),
+      await player!.stop();
+      await player!.open(Media(LibraryHelper.normalizeMediaSource(filePath)),
           play: false);
       _isReadyToPlay = true;
     }
@@ -607,6 +607,7 @@ class PlayerZoneImpl {
                 child: Video(
                     key: Key(_strZoneFile),
                     controller: _preloadedContent!.controller!,
+                    wakelock: false,
                     fit: pZoneData.bZoneRatio ? BoxFit.contain : BoxFit.fill,
                     controls: null),
               );
@@ -620,6 +621,7 @@ class PlayerZoneImpl {
                   child: Video(
                       key: Key(_strZoneFile),
                       controller: _controller!,
+                      wakelock: false,
                       fit: pZoneData.bZoneRatio ? BoxFit.contain : BoxFit.fill,
                       controls: null),
                 );
@@ -1131,9 +1133,12 @@ class PlayerZoneImpl {
 
     final video = Media(LibraryHelper.normalizeMediaSource(videoFile));
     await player.open(video, play: false);
-    player.setVolume(cVOLUMESILENCE);
+    await player.setVolume(cVOLUMESILENCE);
 
-    return player.state.duration.inMilliseconds / 1000.0;
+    var duration = player.state.duration.inMilliseconds / 1000.0;
+    await player.dispose();
+
+    return duration;
   }
 
   static Future<PreloadedContent?> preloadContent(

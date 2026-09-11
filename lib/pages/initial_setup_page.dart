@@ -2,17 +2,24 @@ import 'dart:io';
 
 import 'package:dcm/backend/app.dart';
 import 'package:dcm/backend/keymap_helper.dart';
+import 'package:dcm/backend/models/app_global.dart';
 import 'package:dcm/backend/models/player_global.dart';
 import 'package:dcm/backend/services/content_sync_background_service.dart';
 import 'package:dcm/backend/services/player_register_impl.dart';
 import 'package:dcm/backend/utils/l10n_utils.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:path/path.dart' as path;
 
 class InitialSetupPage extends StatefulWidget {
-  const InitialSetupPage({required this.onCompleted, super.key});
+  const InitialSetupPage({
+    required this.onCompleted,
+    this.reloadSettings = false,
+    super.key,
+  });
 
   final void Function(BuildContext context) onCompleted;
+  final bool reloadSettings;
 
   @override
   State<InitialSetupPage> createState() => _InitialSetupPageState();
@@ -20,7 +27,8 @@ class InitialSetupPage extends StatefulWidget {
 
 class _InitialSetupPageState extends State<InitialSetupPage> {
   final _formKey = GlobalKey<FormState>();
-  final _playerName = TextEditingController();
+  final _playerName = TextEditingController(
+      text: 'Player-${DateTime.now().microsecondsSinceEpoch}');
   final _location = TextEditingController();
   final _organization = TextEditingController(text: 'DEMO');
   final _channel = TextEditingController(text: 'default');
@@ -32,6 +40,27 @@ class _InitialSetupPageState extends State<InitialSetupPage> {
   void initState() {
     super.initState();
     KeyMapHelper.keyBindinglock++;
+    _loadServerSettings();
+  }
+
+  Future<void> _loadServerSettings() async {
+    final serverFile = File(
+      path.join(App().dataPath, PlayerRegisterImpl.serverConfigFileName),
+    );
+    if (!await serverFile.exists()) return;
+
+    final settings = await PlayerRegisterImpl.getPlayerInformation(
+      App().dataPath,
+    );
+    _playerName.text = settings.pPlayerName.isEmpty
+        ? 'Player-${DateTime.now().microsecondsSinceEpoch}'
+        : settings.pPlayerName;
+    _location.text = settings.pLocation;
+    _organization.text =
+        settings.pOrganization.isEmpty ? 'DEMO' : settings.pOrganization;
+    _channel.text = settings.channel.isEmpty ? 'default' : settings.channel;
+    _settingsGroup.text = settings.pSettingsGroup.toString();
+    _httpRootLink.text = settings.pHttpLink;
   }
 
   @override
@@ -61,9 +90,21 @@ class _InitialSetupPageState extends State<InitialSetupPage> {
       settingsGroup: settingsGroup,
       httpRootLink: _httpRootLink.text.trim(),
     );
+    if (widget.reloadSettings) {
+      await resetPlayerSettings();
+      final contentTypesFile =
+          File(path.join(App().dataPath, 'ContentTypes.xml'));
+      if (await contentTypesFile.exists()) {
+        await contentTypesFile.delete();
+      }
+    }
     App().needsInitialSetup = false;
+    bool checked = await checkAppSetting();
     await loadAppSetting(App().uniqueKey);
-    await initGlobalPlayer();
+    if (!checked && AppGlobal.autoContentUpdate) {
+      // Ensure globalPlayer is initialized from CMS or local fallback
+      await initGlobalPlayer();
+    }
     await ContentSyncBackgroundService.instance.init();
     if (mounted) widget.onCompleted(context);
   }
@@ -100,8 +141,12 @@ class _InitialSetupPageState extends State<InitialSetupPage> {
                     const SizedBox(height: 8),
                     Text('请输入服务器和播放器信息以完成首次配置。'.l10n),
                     const SizedBox(height: 24),
-                    _field(_playerName, '播放器名称'.l10n),
-                    _field(_location, '地点'.l10n),
+                    _field(_playerName, '播放器名称'.l10n, required: false),
+                    _field(_location, '地点'.l10n, required: false),
+                    /*_field(_organization, '组织'.l10n, required: false),
+                    _field(_channel, '频道'.l10n, required: false),
+                    _field(_settingsGroup, '设置组'.l10n,
+                        keyboardType: TextInputType.number),*/
                     _field(_httpRootLink, '内容管理系统网址'.l10n,
                         keyboardType: TextInputType.url),
                     const SizedBox(height: 16),
@@ -132,13 +177,13 @@ class _InitialSetupPageState extends State<InitialSetupPage> {
   }
 
   Widget _field(TextEditingController controller, String label,
-      {TextInputType? keyboardType}) {
+      {TextInputType? keyboardType, bool required = true}) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 14),
       child: TextFormField(
         controller: controller,
         keyboardType: keyboardType,
-        validator: _required,
+        validator: required ? _required : null,
         decoration: InputDecoration(
           labelText: label,
           border: const OutlineInputBorder(),

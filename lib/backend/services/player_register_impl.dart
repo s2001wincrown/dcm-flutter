@@ -193,7 +193,7 @@ class PlayerRegisterImpl {
         serverFile.readString('PlayerInformation', 'Organization', '');
     final channel = serverFile.readString('PlayerInformation', 'Channel', '');
     final pSettingsGroup =
-        serverFile.readInt('PlayerInformation', 'SettingsGroup', 1);
+        serverFile.readInt('PlayerInformation', 'SettingsGroup', 3);
     final pHttpLink = serverFile.readString('Server', 'HTTPRootLink', '');
 
     return (
@@ -417,16 +417,16 @@ class PlayerRegisterImpl {
 
   static Player addMultiMonitor(Player player) {
     player.freeOutputs();
-    final displayManager = DisplayManager.instance;
+    const displayManager = DisplayManager.instance;
     final allDisplays = displayManager.getAll();
     if (allDisplays.length > 1) {
       player.initOutputs(allDisplays.length);
 
       int nIndex = 1;
       for (int nMonitor = 0; nMonitor < allDisplays.length; nMonitor++) {
-        String strMonName = allDisplays[nMonitor].id;
+        String strMonName = allDisplays[nMonitor].id.toString();
         if (strMonName.isEmpty) {
-          strMonName = allDisplays[nMonitor].name;
+          strMonName = allDisplays[nMonitor].name ?? '';
         }
         if (!allDisplays[nMonitor].isPrimary) {
           if (strMonName.isEmpty) {
