@@ -49,8 +49,8 @@ dependencies:
   crypto: ^3.0.6
   xml: ^6.3.0
   # print colorful logs
-  # logger: ^2.7.0
-  mixin_logger: ^0.2.0
+  logger: ^2.7.0
+  # mixin_logger: ^0.2.0
   uuid: ^4.1.0
   isolate_handler: ^1.0.0
   shared_preferences: 2.5.2

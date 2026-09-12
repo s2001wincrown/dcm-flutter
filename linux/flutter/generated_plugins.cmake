@@ -19,7 +19,6 @@ list(APPEND FLUTTER_FFI_PLUGIN_LIST
   cnativeapi
   jni
   libmpv_dart
-  mixin_logger
   whisper4dart
 )
 

@@ -683,7 +683,7 @@ class ContentDownloader {
       if (task.status == ContentDownloadStatus.success) {
         await PlayerLogFile.updateSyncStatus();
       }
-      logI(strResult);
+      logI(strResult, syncTag);
     }
   }
 

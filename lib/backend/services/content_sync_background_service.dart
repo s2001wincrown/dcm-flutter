@@ -122,6 +122,7 @@ class ContentSyncBackgroundService {
           retryInterval: workerConfig['retryInterval'] as int?,
           autoSyncTime: workerConfig['autoSyncTime'] as bool?,
         );
+        initFileLogger(AppGlobal.appDataPath);
         syncHttpClientFactory.dispose();
         final workerReceivePort = ReceivePort();
 
