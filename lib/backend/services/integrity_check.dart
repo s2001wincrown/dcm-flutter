@@ -1,24 +1,39 @@
 // integrity_check.dart
 import 'dart:io';
-import 'dart:convert';
+
 import 'package:dcm/backend/constants.dart';
 import 'package:dcm/backend/models/app_global.dart';
+import 'package:dcm/backend/models/banner_data.dart';
+import 'package:dcm/backend/models/clock_data.dart' hide DateFormat;
+import 'package:dcm/backend/models/dcmfile_data.dart';
 import 'package:dcm/backend/models/eventitem_data.dart';
 import 'package:dcm/backend/models/message_data.dart';
 import 'package:dcm/backend/models/product_data.dart';
+import 'package:dcm/backend/models/slideshow_data.dart';
 import 'package:dcm/backend/models/zone_data.dart';
 import 'package:dcm/backend/services/ah_message_impl.dart';
+import 'package:dcm/backend/utils/extensions.dart';
 import 'package:dcm/backend/utils/log_utils.dart';
+import 'package:dcm/backend/utils/time_utils.dart';
 import 'package:dcm/backend/utils/utils.dart';
-import 'package:path/path.dart' as path;
+import 'package:dcm/backend/xml_settings/contentlist_impl.dart';
+import 'package:dcm/backend/xml_settings/dcmfile_Impl.dart';
+import 'package:dcm/backend/xml_settings/eventfile_impl.dart';
+import 'package:dcm/backend/xml_settings/text_impl.dart';
+import 'package:dcm/backend/xml_settings/xml_clock_setting.dart';
+import 'package:dcm/backend/xml_settings/xml_multi_image_setting.dart';
+import 'package:dcm/backend/xmlfile/xmlprofile.dart';
 import 'package:intl/intl.dart';
+import 'package:path/path.dart' as path;
 
 class IntegrityCheck {
   String _event = '';
+  String? _company;
   bool _writeLog = true;
 
   IntegrityCheck({bool writeLog = true, String? event, String? company}) {
     _event = event ?? '';
+    _company = company;
     _writeLog = writeLog;
   }
 
@@ -52,7 +67,7 @@ class IntegrityCheck {
       }
     }
 
-    writeLog("'$messageFile' not exist");
+    writeLog(''''$messageFile' not exist.''');
     return false;
   }
 
@@ -62,45 +77,41 @@ class IntegrityCheck {
     String filePath = path.join(AppGlobal.dayPath, '$_event.xml');
 
     if (!File(filePath).existsSync()) {
-      writeLog("Event '$_event' not exist");
+      writeLog('''Event '$_event' not exist''');
       return false;
     }
 
     // Simulate loading playlist
     try {
-      String content = File(filePath).readAsStringSync();
-      Map<String, dynamic> data = json.decode(content);
+      EventFileImpl fileImpl = EventFileImpl();
+      EventFileData objList = EventFileData();
+      if (!fileImpl.loadFromXML(_event, objList)) {
+        fileImpl.loadPlayList(objList, _event);
+      }
+      if (objList.lstPlayList == null || objList.lstPlayList!.isEmpty) {
+        writeLog('''Playlist '$_event' open failure''');
 
-      // Simulate processing playlist items
-      List<dynamic> playlist = data['playlist'] as List? ?? [];
+        return false;
+      }
 
-      for (dynamic item in playlist) {
-        EventItemData eventItem = EventItemData()
-          ..strDCMFile = item['strDCMFile'] ?? ''
-          ..arrDCMFile = (item['arrDCMFile'] as List<dynamic>?)
-              ?.map((value) => value.toString())
-              .toList()
-          ..nItemType = EventItemType.values.firstWhere(
-            (entry) => entry.value == (item['itemType'] ?? 0),
-            orElse: () => EventItemType.normal,
-          );
-
-        if (eventItem.nItemType != EventItemType.rtGroup) {
-          if (eventItem.arrDCMFile?.isNotEmpty == true) {
-            for (String dcmFile in eventItem.arrDCMFile!) {
-              if (!integrityCheckDCMFile(dcmFile)) {
+      for (var pPlayListData in objList.lstPlayList!) {
+        if (pPlayListData.nItemType != EventItemType.rtGroup) {
+          if (pPlayListData.arrDCMFile != null &&
+              pPlayListData.arrDCMFile!.isNotEmpty) {
+            for (int i = 0; i < pPlayListData.arrDCMFile!.length; i++) {
+              if (!integrityCheckDCMFile(pPlayListData.arrDCMFile![i])) {
                 return false;
               }
             }
           } else {
-            if (!integrityCheckDCMFile(eventItem.strDCMFile)) {
+            if (!integrityCheckDCMFile(pPlayListData.strDCMFile)) {
               return false;
             }
           }
         }
       }
     } catch (e) {
-      writeLog("Playlist '$_event' open failure");
+      writeLog('''Playlist '$_event' open failure''');
       return false;
     }
 
@@ -148,50 +159,41 @@ class IntegrityCheck {
   }
 
   bool integrityCheckDCMFile(String dcmFile, {dynamic file}) {
-    String filePath = path.join(AppGlobal.openPath, '$dcmFile.dcm');
+    String? filePath =
+        DCMFileImpl.getDCMPath(dcmFile, AppGlobal.openPath, _company);
 
-    if (!File(filePath).existsSync()) {
+    if (filePath == null) {
       writeLog('catalogue \'$dcmFile\' not exist');
       return false;
     }
 
     try {
-      String content = File(filePath).readAsStringSync();
-      Map<String, dynamic> dcmData = json.decode(content);
-
-      List<dynamic> products = dcmData['products'] as List? ?? [];
-
-      for (dynamic product in products) {
-        ProductData productData = ProductData()
-          ..strProductName = product['name'] ?? '';
-
-        // Process zones
-        List<dynamic> zones = product['zones'] as List? ?? [];
-        for (dynamic zone in zones) {
-          ZoneData zoneData = ZoneData()
-            ..strZoneFile = zone['strZoneFile'] ?? ''
-            ..strZoneBGFile = zone['zoneBGFile'] ?? ''
-            ..nZoneType = zone['nZoneType'] ?? 0;
-
-          productData.lstZone.add(zoneData);
+      DCMFileData? dcmFileData =
+          DCMFileImpl.openCatalogue(szEdit: filePath, bShort: false);
+      if (dcmFileData != null) {
+        int nProduct = dcmFileData.nQuantity;
+        for (int i = 0; i < nProduct; i++) {
+          ProductData? pData = dcmFileData.getProductDataByIndex(i);
+          if (!integrityCheckProduct(pData, ptype: -1, file: file)) {
+            return false;
+          }
         }
 
-        if (!integrityCheckProduct(productData, file: file)) {
-          return false;
+        if (dcmFileData.strMusicFile.isNotEmpty) {
+          String strFilePath1 = Utils.getFilePath(
+              dcmFileData.strMusicFile, cVIDEOTYPE, -1, _company);
+          if (!File(strFilePath1).existsSync()) {
+            writeLog(''''${dcmFileData.strMusicFile}' not exist''');
+            return false;
+          }
         }
-      }
+      } else {
+        writeLog('catalogue \'$dcmFile\' open failure');
 
-      // Check music file if exists
-      String? musicFile = dcmData['musicFile'];
-      if (musicFile != null && musicFile.isNotEmpty) {
-        String musicPath = Utils.getFilePath(musicFile, 5, -1); // VCD_TYPE = 5
-        if (!File(musicPath).existsSync()) {
-          writeLog("'$musicFile' not exist");
-          return false;
-        }
+        return false;
       }
     } catch (e) {
-      writeLog("catalogue '$dcmFile' open failure");
+      writeLog('catalogue \'$dcmFile\' open failure');
       return false;
     }
 
@@ -202,8 +204,7 @@ class IntegrityCheck {
       {int ptype = -1, dynamic file}) {
     if (data != null) {
       for (ZoneData zoneData in data.lstZone) {
-        if (ptype == -1 && zoneData.nZoneType == 4) {
-          // DDE_TYPE = 4
+        if (ptype == -1 && zoneData.nZoneType == cDDETYPE) {
           continue;
         }
 
@@ -224,29 +225,29 @@ class IntegrityCheck {
 
         if (valid > 0) {
           switch (zoneData.nZoneType) {
-            case 6: // DIRECTPLAY_TYPE = 6
+            case cDIRECTPLAYTYPE:
               if (!integrityCheckDirectType(filePath, file)) {
                 return false;
               }
               break;
-            case 0: // TEXT_TYPE = 0
+            case cTEXTTYPE:
               if (!integrityCheckTextSetting(zoneData.strZoneFile)) {
                 return false;
               }
               break;
-            case 2: // CLOCK_TYPE = 2
+            case cCLOCKTYPE:
               if (!integrityCheckClockSetting(zoneData.strZoneFile)) {
                 return false;
               }
               break;
-            case 3: // WEATHER_TYPE = 3
+            case cWEATHERTYPE:
               if (!integrityCheckWeatherSetting(zoneData.strZoneFile)) {
                 return false;
               }
               break;
-            case 1: // IMAGE_TYPE = 1
-              if (ptype != 6) {
-                // Not DIRECTPLAY_TYPE
+            case cIMAGETYPE:
+              if (ptype != cDIRECTPLAYTYPE) {
+                // Not content list
                 if (!integrityCheckImageSetting(zoneData.strZoneFile)) {
                   return false;
                 }
@@ -255,15 +256,16 @@ class IntegrityCheck {
           }
         } else {
           switch (zoneData.nZoneType) {
-            case 7: // TVCAPTURE_TYPE = 7
-            case 8: // WEBPAGE_TYPE = 8
-            case 9: // STREAMING_TYPE = 9
-            case 10: // ONLINE_TYPE = 10
+            case cTVCAPTURETYPE:
+            //case cWEBCAMTYPE:
+            case cWEBPAGETYPE:
+            case cSTREAMINGTYPE:
+            case cONLINETYPE:
               break;
             default:
               if (valid < 0) {
                 if (file == null) {
-                  writeLog("'$zoneData.strZoneFile' not exist");
+                  writeLog(''''${zoneData.strZoneFile}' not exist''');
                 }
               }
               return false;
@@ -272,10 +274,10 @@ class IntegrityCheck {
 
         // Check background file
         if (zoneData.strZoneBGFile.isNotEmpty) {
-          String bgPath = Utils.getFilePath(zoneData.strZoneBGFile, 1,
-              0); // IMAGE_TYPE = 1, DCM_SINGLEIMAGE_TYPE = 0
+          String bgPath = Utils.getFilePath(zoneData.strZoneBGFile, cIMAGETYPE,
+              cDCMSINGLEIMAGETYPE, _company);
           if (!File(bgPath).existsSync()) {
-            writeLog("'${zoneData.strZoneBGFile}' not exist");
+            writeLog('\'${zoneData.strZoneBGFile}\' not exist');
             return false;
           }
         }
@@ -286,27 +288,27 @@ class IntegrityCheck {
   }
 
   bool integrityCheckZone(ZoneData zoneData) {
-    String filePath =
-        Utils.getFilePath(zoneData.strZoneFile, zoneData.nZoneType, -1);
+    String filePath = Utils.getFilePath(
+        zoneData.strZoneFile, zoneData.nZoneType, -1, _company);
 
     if (!File(filePath).existsSync()) {
-      writeLog("'${zoneData.strZoneFile}' not exist");
+      writeLog('\'${zoneData.strZoneFile}\' not exist');
       return false;
     }
 
     if (zoneData.strZoneBGFile.isNotEmpty) {
-      String bgPath = Utils.getFilePath(zoneData.strZoneBGFile, 1,
-          0); // IMAGE_TYPE = 1, DCM_SINGLEIMAGE_TYPE = 0
+      String bgPath = Utils.getFilePath(
+          zoneData.strZoneBGFile, cIMAGETYPE, cDCMSINGLEIMAGETYPE, _company);
       if (!File(bgPath).existsSync()) {
-        writeLog("'${zoneData.strZoneBGFile}' not exist");
+        writeLog('\'${zoneData.strZoneBGFile}\' not exist');
         return false;
       }
     }
 
     switch (zoneData.nZoneType) {
-      case 0: // TEXT_TYPE = 0
+      case cTEXTTYPE:
         return integrityCheckTextSetting(zoneData.strZoneFile);
-      case 1: // IMAGE_TYPE = 1
+      case cIMAGETYPE:
         return integrityCheckImageSetting(zoneData.strZoneFile);
       default:
         return true;
@@ -314,42 +316,40 @@ class IntegrityCheck {
   }
 
   bool integrityCheckTextSetting(String file) {
-    String filePath = Utils.getFilePath(file, cTEXTTYPE);
-
-    if (!File(filePath).existsSync()) {
-      writeLog("'$file' not exist");
-      return false;
-    }
-
     try {
-      String content = File(filePath).readAsStringSync();
-      Map<String, dynamic> textSetting = json.decode(content);
+      BannerData? textobj = TextImpl.loadTextSetting(file, _company);
+      if (textobj == null) {
+        writeLog('Banner: \'$file\' not exist');
+        return false;
+      }
 
-      String? imageFile = textSetting['imageFile'];
-      if (imageFile != null && imageFile.isNotEmpty) {
-        String imagePath = path.join(AppGlobal.imagePath, imageFile);
-        if (!File(imagePath).existsSync()) {
-          writeLog("'$imageFile' not exist");
+      if (textobj.strFile.isNotEmpty) {
+        String strImageFile = Utils.getFilePath(
+            textobj.strFile, cIMAGETYPE, cDCMSINGLEIMAGETYPE, _company);
+        if (!File(strImageFile).existsSync()) {
+          writeLog('''Banner image file:'$strImageFile' not exist.''');
+
           return false;
         }
       }
+      var arrImages = TextImpl.getImagesPath(textobj);
+      if (arrImages != null) {
+        for (int i = 0; i < arrImages.length; i++) {
+          var strImageFile = arrImages[i];
 
-      List<dynamic> images = textSetting['images'] as List? ?? [];
-      for (dynamic img in images) {
-        String image = img.toString();
+          if (strImageFile.startsWithIgnoreCase('file:///')) {
+            strImageFile = strImageFile.substring(8);
+          }
+          strImageFile = strImageFile.replaceAll('/', '\\');
+          strImageFile = strImageFile.replaceAll('%20', ' ');
+          String fileName = path.basename(strImageFile);
+          strImageFile = Utils.getFilePath(
+              fileName, cIMAGETYPE, cDCMSINGLEIMAGETYPE, _company);
+          if (!File(strImageFile).existsSync()) {
+            writeLog('Banner image file:\'$fileName\' not exist');
 
-        if (image.startsWith('file:///')) {
-          image = image.substring(8);
-        }
-        image = image.replaceAll('/', '\\');
-        image = image.replaceAll('%20', ' ');
-
-        String fileName = path.basename(image);
-        String fullPath = path.join(AppGlobal.imagePath, fileName);
-
-        if (!File(fullPath).existsSync()) {
-          writeLog("'$fileName' not exist");
-          return false;
+            return false;
+          }
         }
       }
     } catch (e) {
@@ -360,23 +360,16 @@ class IntegrityCheck {
   }
 
   bool integrityCheckClockSetting(String file) {
-    String filePath = path.join(AppGlobal.clockPath, file);
-
-    if (!File(filePath).existsSync()) {
-      writeLog("'$file' not exist");
-      return false;
-    }
-
     try {
-      String content = File(filePath).readAsStringSync();
-      Map<String, dynamic> clockSetting = json.decode(content);
-
-      String? imageFile = clockSetting['imageFile'];
-      if (imageFile != null && imageFile.isNotEmpty) {
-        String imagePath = path.join(AppGlobal.imagePath, imageFile);
-        if (!File(imagePath).existsSync()) {
-          writeLog("'$imageFile' not exist");
-          return false;
+      ClockData clockData = ClockData();
+      if (XmlClockSetting.loadClockSetting(file, clockData, _company)) {
+        if (clockData.strFile.isNotEmpty) {
+          String strImageFile = Utils.getFilePath(
+              clockData.strFile, cIMAGETYPE, cDCMSINGLEIMAGETYPE, _company);
+          if (!File(strImageFile).existsSync()) {
+            writeLog('''Clock image file: '$strImageFile' not exist''');
+            return false;
+          }
         }
       }
     } catch (e) {
@@ -390,23 +383,7 @@ class IntegrityCheck {
     String filePath = path.join(AppGlobal.weatherPath, file);
 
     if (!File(filePath).existsSync()) {
-      writeLog("'$file' not exist");
-      return false;
-    }
-
-    try {
-      String content = File(filePath).readAsStringSync();
-      Map<String, dynamic> weatherSetting = json.decode(content);
-
-      String? imageFile = weatherSetting['imageFile'];
-      if (imageFile != null && imageFile.isNotEmpty) {
-        String imagePath = path.join(AppGlobal.imagePath, imageFile);
-        if (!File(imagePath).existsSync()) {
-          writeLog("'$imageFile' not exist");
-          return false;
-        }
-      }
-    } catch (e) {
+      writeLog('\'$file\' not exist');
       return false;
     }
 
@@ -414,24 +391,21 @@ class IntegrityCheck {
   }
 
   bool integrityCheckImageSetting(String file) {
-    String filePath = path.join(AppGlobal.imagePath, file);
-
-    if (!File(filePath).existsSync()) {
-      writeLog("'$file' not exist");
-      return false;
-    }
-
     try {
-      String content = File(filePath).readAsStringSync();
-      Map<String, dynamic> imageSetting = json.decode(content);
+      SlideShowData? slideShow = XmlMultiImageSetting.loadImageSetting(file);
+      if (slideShow == null) {
+        writeLog('''Slideshow: '$file' not exist.''');
+        return false;
+      }
 
-      List<dynamic> imageFiles = imageSetting['images'] as List? ?? [];
-      for (dynamic img in imageFiles) {
-        String imageFile = img.toString();
-        if (imageFile.isNotEmpty) {
-          String imagePath = path.join(AppGlobal.imagePath, imageFile);
-          if (!File(imagePath).existsSync()) {
-            writeLog("'$imageFile' not exist");
+      for (int i = 0; i < slideShow.arrImageFile!.length; i++) {
+        //strImageFile.Replace('\\', '/');
+        //strImageFile.Replace(' ', '%20');
+        if (slideShow.arrImageFile![i].isNotEmpty) {
+          String strImageFile = Utils.getFilePath(slideShow.arrImageFile![i],
+              cIMAGETYPE, cDCMSINGLEIMAGETYPE, _company);
+          if (!File(strImageFile).existsSync()) {
+            writeLog('\'${slideShow.arrImageFile![i]}\' not exist');
             return false;
           }
         }
@@ -444,25 +418,17 @@ class IntegrityCheck {
   }
 
   bool integrityCheckDirectType(String folderPath, dynamic file) {
-    // Simulate checking direct type content
-    Directory dir = Directory(folderPath);
-
-    if (!dir.existsSync()) {
-      writeLog("Directory '$folderPath' not exist");
-      return false;
-    }
-
     try {
-      List<FileSystemEntity> entities = dir.listSync();
+      ContentListImpl contentList = ContentListImpl(cDIRECTPLAYTYPE);
+      contentList.loadContentList(folderPath);
+      if (contentList.lstProduct.isEmpty) {
+        return false;
+      }
 
-      for (FileSystemEntity entity in entities) {
-        if (entity is File && entity.path.toLowerCase().endsWith('.xml')) {
-          ProductData product = ProductData()
-            ..strProductName = path.basename(entity.path);
-
-          // Simulate processing each product
-          if (!integrityCheckProduct(product, ptype: 6, file: file)) {
-            // DIRECTPLAY_TYPE = 6
+      for (var pData in contentList.lstProduct) {
+        if (!contentList.isOutdated(pData)) {
+          if (!integrityCheckProduct(pData,
+              ptype: cDIRECTPLAYTYPE, file: file)) {
             return false;
           }
         }
@@ -476,44 +442,9 @@ class IntegrityCheck {
 
   int integrityCheckRLTContent(String content, String filePath, dynamic file) {
     if (!File(filePath).existsSync()) {
-      writeLog("IntegrityCheckRLTContent; Content '$filePath' does not exist!");
+      writeLog(
+          'IntegrityCheckRLTContent; Content \'$filePath\' does not exist.');
       return -1;
-    }
-
-    String ext = path.extension(filePath).toLowerCase();
-    if (ext != '.swf') {
-      return 1;
-    }
-
-    String fileName = path.basenameWithoutExtension(content);
-    dynamic groupItem = file.getRLTContentGroupItem(fileName);
-
-    if (groupItem != null) {
-      dynamic currentItem = file.getFirstRLTContent(groupItem);
-
-      while (currentItem != null) {
-        String shortPath = file.getRLTContentShort(currentItem);
-
-        if (shortPath.isNotEmpty) {
-          String contentPath = path.join(AppGlobal.rltContentPath, shortPath);
-
-          if (File(contentPath).existsSync()) {
-            if (!integrityCheckValidityTime(contentPath)) {
-              writeLog(
-                  "IntegrityCheckRLTContent; Related Content '$contentPath' has expired for flash '$content'!");
-              return 0;
-            }
-          } else {
-            writeLog(
-                "IntegrityCheckRLTContent; Content '$contentPath' not exist!");
-            return 0;
-          }
-        }
-
-        currentItem = file.getNextRLTContent(currentItem);
-      }
-    } else {
-      return 0;
     }
 
     return 1;
@@ -526,18 +457,22 @@ class IntegrityCheck {
     }
 
     try {
-      String content = File(filePath).readAsStringSync();
-      Map<String, dynamic> xmlData = json.decode(content);
+      XmlProfile xmlProfile = XmlProfile.fromFile(filePath);
+      if (xmlProfile.loadProfile()) {
+        String strValidityTime = xmlProfile.getNodeText(null, 'ValidityTime');
+        if (strValidityTime.isNotEmpty) {
+          logI('''Read file '$filePath' Validity Time:'$strValidityTime'.''');
+          DateTime? dtValidity = fromDateTimeFormat(strValidityTime);
+          if (dtValidity != null) {
+            if (dtValidity.isAfter(DateTime.now())) {
+              logI('''IntegrityCheckValidityTime; file '$filePath' is Valid''');
 
-      String? validityTime = xmlData['ValidityTime'];
-
-      if (validityTime != null) {
-        DateTime validity = DateTime.parse(validityTime);
-
-        if (validity.isAfter(DateTime.now())) {
-          return true;
+              return true;
+            }
+          }
         }
       }
+      xmlProfile.close();
     } catch (e) {
       // If parsing fails, assume invalid
     }
@@ -546,9 +481,10 @@ class IntegrityCheck {
     try {
       File(filePath).deleteSync();
       writeLog(
-          "IntegrityCheckValidityTime; Delete file '$filePath' successfully!");
+          'IntegrityCheckValidityTime; Delete file \'$filePath\' successfully.');
     } catch (e) {
-      writeLog("IntegrityCheckValidityTime; Delete file '$filePath' failure!");
+      writeLog(
+          'IntegrityCheckValidityTime; Delete file \'$filePath\' failure.');
     }
 
     return false;

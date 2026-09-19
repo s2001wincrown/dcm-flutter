@@ -97,7 +97,15 @@ class Utils {
       return strFileName;
     }
 
-    strFileName = FileUtils.fixPathSeparators(strFileName);
+    bool isUrl =
+        (strFileName.startsWith(RegExp('udp://', caseSensitive: false)) ||
+            strFileName.startsWith(RegExp('rtp://', caseSensitive: false)) ||
+            strFileName.startsWith(RegExp('rtsp://', caseSensitive: false)) ||
+            strFileName.startsWith(RegExp('HTTP://', caseSensitive: false)) ||
+            strFileName.startsWith(RegExp('HTTPS://', caseSensitive: false)));
+    if (!isUrl) {
+      strFileName = FileUtils.fixPathSeparators(strFileName);
+    }
     int nPtype = ptype;
     String strExt = path.extension(strFileName).toUpperCase();
     if (type == cIMAGETYPE && (ptype == cDIRECTPLAYTYPE || ptype == -1)) {
@@ -125,11 +133,7 @@ class Utils {
         break;
 
       case cVIDEOTYPE:
-        if (strFileName.startsWith(RegExp('udp://', caseSensitive: false)) ||
-            strFileName.startsWith(RegExp('rtp://', caseSensitive: false)) ||
-            strFileName.startsWith(RegExp('rtsp://', caseSensitive: false)) ||
-            strFileName.startsWith(RegExp('HTTP://', caseSensitive: false)) ||
-            strFileName.startsWith(RegExp('HTTPS://', caseSensitive: false))) {
+        if (isUrl) {
           return strFileName;
         }
       case cPOWERPOINTTYPE:
@@ -151,9 +155,7 @@ class Utils {
       case cRSSTYPE:
         {
           //String strPre = strFileName.Left(7);
-          if (strFileName.startsWith(RegExp('HTTP://', caseSensitive: false)) ||
-              strFileName
-                  .startsWith(RegExp('HTTPS://', caseSensitive: false))) {
+          if (isUrl) {
             return strFileName;
           } else {
             if (strCompany != null && strCompany.isNotEmpty) {

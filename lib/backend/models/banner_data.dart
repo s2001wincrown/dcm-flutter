@@ -55,6 +55,11 @@ class BannerData {
 
   int nScrollAmount = 0;
 
+  int rssPageDurationSeconds = 8;
+  int rssRefreshIntervalSeconds = 600;
+  bool rssShowContent = true;
+  bool rssRandomTransition = false;
+
   String strUserCode = '';
   String strGroupCode = '';
   String dtModified = '';
@@ -99,6 +104,10 @@ class BannerData {
     copy.strHalign = strHalign;
     copy.strValign = strValign;
     copy.nScrollAmount = nScrollAmount;
+    copy.rssPageDurationSeconds = rssPageDurationSeconds;
+    copy.rssRefreshIntervalSeconds = rssRefreshIntervalSeconds;
+    copy.rssShowContent = rssShowContent;
+    copy.rssRandomTransition = rssRandomTransition;
     copy.strUserCode = strUserCode;
     copy.strGroupCode = strGroupCode;
     copy.dtModified = dtModified;

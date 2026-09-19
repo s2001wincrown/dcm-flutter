@@ -15,6 +15,7 @@ import media_kit_video
 import network_info_plus
 import open_file_mac
 import package_info_plus
+import pdfx
 import screen_retriever_macos
 import shared_preferences_foundation
 import unique_device_identifier
@@ -35,6 +36,7 @@ func RegisterGeneratedPlugins(registry: FlutterPluginRegistry) {
   NetworkInfoPlusPlugin.register(with: registry.registrar(forPlugin: "NetworkInfoPlusPlugin"))
   OpenFilePlugin.register(with: registry.registrar(forPlugin: "OpenFilePlugin"))
   FPPPackageInfoPlusPlugin.register(with: registry.registrar(forPlugin: "FPPPackageInfoPlusPlugin"))
+  PdfxPlugin.register(with: registry.registrar(forPlugin: "PdfxPlugin"))
   ScreenRetrieverMacosPlugin.register(with: registry.registrar(forPlugin: "ScreenRetrieverMacosPlugin"))
   SharedPreferencesPlugin.register(with: registry.registrar(forPlugin: "SharedPreferencesPlugin"))
   UniqueDeviceIdentifierPlugin.register(with: registry.registrar(forPlugin: "UniqueDeviceIdentifierPlugin"))

@@ -139,7 +139,7 @@ class PlayerScreenProvider extends ChangeNotifier {
     if (isBlank(_strDCMFile)) {
       _readyForPlay();
     } else {
-      if (loadCatalogue(_strDCMFile!)) {
+      if (loadCatalogue(_strDCMFile!, true)) {
         if (!ScheduleList().isCatalogueCanPlay()) {
           _bValidForPlay = false;
         }
@@ -441,7 +441,9 @@ class PlayerScreenProvider extends ChangeNotifier {
         changePlaylist();
         if (_needNotifyListeners) {
           _needNotifyListeners = false;
-          notifyListeners();
+          Future.delayed(const Duration(milliseconds: 50), () {
+            notifyListeners();
+          });
         }
       }
     } catch (e) {
@@ -1429,7 +1431,7 @@ class PlayerScreenProvider extends ChangeNotifier {
         logD(
             'PlayerScreenProvider - playNextContent, Zone: ${pThread0.getZone()} play finished, try to replay, Current TID $pid.');
         pThread0.rePlay();
-        //notifyListeners();
+        _needNotifyListeners = true;
       } else {
         if (pThread0.isContentFinished()) {
           pThread0.setContentFinished(false);
@@ -2116,7 +2118,8 @@ class PlayerScreenProvider extends ChangeNotifier {
         playSkin.loadFromCatalogue(ScheduleList().getCatalogue());
       }
 
-      //logD('PlayerScreenProvider - LoadCatalogue Step: %d, DCMFile:'%s'; last Zone Number:'%d'; Now Zone Number:'%d'; Current TID $pid.',
+      logD(
+          '''PlayerScreenProvider - LoadCatalogue: $_bIsSameSkin - $strCurrSkin - ${ScheduleList().getCatalogue().strSkinCode}, DCMFile:'$strDCMFile'; last Zone Number:'$nTotalZone1'; Now Zone Number:'$nTotalZone'; Current TID $pid.''');
       //	0, strDCMFile, nTotalZone1, nTotalZone, getCurrentThreadId());
       /*bool bIsTwoWindows = playSkin.isTwoWindows;
       bool bIsAutoHide = playSkin.isAutoHidePopupWindow;

@@ -176,7 +176,7 @@ class ContentSyncBackgroundService {
           logE('Failed to apply player snapshot in worker: $e', syncTag);
         }
 
-        logD('completer.future', syncTag);
+        logD('await completer.future', syncTag);
         // 5. 等待 Completer 完成，防止后台 Isolate 提前销毁
         await completer.future;
         logI('ContentSyncBackgroundService: completer.future end', syncTag);

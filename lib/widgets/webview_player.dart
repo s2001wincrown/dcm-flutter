@@ -122,7 +122,7 @@ class _WebviewPlayerState extends State<WebviewPlayer> {
   late final WebViewController _controller;
 
   @override
-  Future<void> initState() async {
+  void initState() {
     super.initState();
 
     // #docregion platform_features
@@ -201,6 +201,11 @@ Page resource error:
       controller.setBackgroundColor(Utils.fromRGB(AppGlobal.clrBGColor));
     }
 
+    _controller = controller;
+    unawaited(_configureController(controller));
+  }
+
+  Future<void> _configureController(WebViewController controller) async {
     if (await controller.supportsSetScrollBarsEnabled()) {
       controller
           .setVerticalScrollBarEnabled(hasFlag(AppGlobal.ieSetting, 0x0001));
@@ -215,8 +220,6 @@ Page resource error:
           .setMediaPlaybackRequiresUserGesture(false);
     }
     // #enddocregion platform_features
-
-    _controller = controller;
   }
 
   @override

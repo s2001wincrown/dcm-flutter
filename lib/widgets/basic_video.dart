@@ -70,29 +70,87 @@ class _BasicVideoState extends State<BasicVideo> {
         var factor = MediaQuery.of(context).devicePixelRatio;
         App().voHeight = (constrain.maxHeight * factor).toInt();
         App().voWidth = (constrain.maxWidth * factor).toInt();
-        return ValueListenableBuilder<int?>(
-          valueListenable: widget.controller.id,
-          builder: (context, id, _) {
-            return ValueListenableBuilder<Rect?>(
-              valueListenable: widget.controller.rect,
-              builder: (context, rect, _) {
-                if (id != null && rect != null && _visible) {
-                  return FittedBox(
-                    child: SizedBox(
-                      width: rect.width,
-                      height: rect.height,
-                      child: Texture(textureId: id),
-                    ),
-                  );
-                }
-                return Container(
-                  color: Color(AppGlobal.clrBGColor),
-                );
-              },
-            );
-          },
+        return _VideoTexture(
+          controller: widget.controller,
+          visible: _visible,
         );
       },
     );
+  }
+}
+
+class _VideoTexture extends StatefulWidget {
+  const _VideoTexture({
+    required this.controller,
+    required this.visible,
+  });
+
+  final VideoController controller;
+  final bool visible;
+
+  @override
+  State<_VideoTexture> createState() => _VideoTextureState();
+}
+
+class _VideoTextureState extends State<_VideoTexture> {
+  int? _id;
+  Rect? _rect;
+  bool _notifierUnavailable = false;
+
+  @override
+  void initState() {
+    super.initState();
+    try {
+      _id = widget.controller.id.value;
+      _rect = widget.controller.rect.value;
+      widget.controller.id.addListener(_update);
+      widget.controller.rect.addListener(_update);
+    } catch (_) {
+      _notifierUnavailable = true;
+    }
+  }
+
+  void _update() {
+    if (!mounted) {
+      return;
+    }
+    try {
+      setState(() {
+        _id = widget.controller.id.value;
+        _rect = widget.controller.rect.value;
+      });
+    } catch (_) {
+      setState(() {
+        _notifierUnavailable = true;
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    try {
+      widget.controller.id.removeListener(_update);
+      widget.controller.rect.removeListener(_update);
+    } catch (_) {
+      // The media controller may already have disposed its notifiers.
+    }
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!_notifierUnavailable &&
+        widget.visible &&
+        _id != null &&
+        _rect != null) {
+      return FittedBox(
+        child: SizedBox(
+          width: _rect!.width,
+          height: _rect!.height,
+          child: Texture(textureId: _id!),
+        ),
+      );
+    }
+    return Container(color: Color(AppGlobal.clrBGColor));
   }
 }

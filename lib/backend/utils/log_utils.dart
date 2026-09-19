@@ -54,14 +54,17 @@ class _PlayerFileOutput extends LogOutput {
       try {
         return await _lockFile.create(exclusive: true);
       } on FileSystemException {
-        if (await _lockFile.exists()) {
-          final modified = await _lockFile.lastModified();
-          if (DateTime.now().difference(modified) >
-              const Duration(seconds: 30)) {
-            try {
-              await _lockFile.delete();
-            } catch (_) {}
-          }
+        DateTime? modified;
+        try {
+          modified = await _lockFile.lastModified();
+        } on FileSystemException {
+          modified = null;
+        }
+        if (modified != null &&
+            DateTime.now().difference(modified) > const Duration(seconds: 30)) {
+          try {
+            await _lockFile.delete();
+          } catch (_) {}
         }
         await Future<void>.delayed(const Duration(milliseconds: 10));
       }

@@ -140,8 +140,7 @@ class XmlMultiImageSetting {
     return null;
   }
 
-  static SlideShowData? loadImageSetting(
-      String strImageFile, SlideShowData pSlideShow,
+  static SlideShowData? loadImageSetting(String strImageFile,
       [String? strCompany]) {
     String strFileName =
         Utils.getFilePath(strImageFile, cIMAGETYPE, -1, strCompany);

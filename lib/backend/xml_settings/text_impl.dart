@@ -177,6 +177,15 @@ class TextImpl {
           xmlProfile.getProfileString('TextSetting', 'm_strHalign', 'left');
       pBanner.strValign =
           xmlProfile.getProfileString('TextSetting', 'm_strValign', 'top');
+      pBanner.rssPageDurationSeconds =
+          xmlProfile.getProfileInt('TextSetting', 'm_nRssPageDuration', 8);
+      pBanner.rssRefreshIntervalSeconds =
+          xmlProfile.getProfileInt('TextSetting', 'm_nRssRefreshInterval', 600);
+      pBanner.rssShowContent =
+          xmlProfile.getProfileInt('TextSetting', 'm_bRssShowContent', 1) == 1;
+      pBanner.rssRandomTransition = xmlProfile.getProfileInt(
+              'TextSetting', 'm_bRssRandomTransition', 0) ==
+          1;
     }
 
     return pBanner;
@@ -237,6 +246,14 @@ class TextImpl {
     xmlProfile.writeProfileInt('TextSetting', 'm_nValign', pBanner.nValign);
     xmlProfile.writeProfileInt('TextSetting', 'm_nBullet', pBanner.nBullet);
     xmlProfile.writeProfileInt('TextSetting', 'm_nIndent', pBanner.nIndent);
+    xmlProfile.writeProfileInt(
+        'TextSetting', 'm_nRssPageDuration', pBanner.rssPageDurationSeconds);
+    xmlProfile.writeProfileInt('TextSetting', 'm_nRssRefreshInterval',
+        pBanner.rssRefreshIntervalSeconds);
+    xmlProfile.writeProfileInt(
+        'TextSetting', 'm_bRssShowContent', pBanner.rssShowContent ? 1 : 0);
+    xmlProfile.writeProfileInt('TextSetting', 'm_bRssRandomTransition',
+        pBanner.rssRandomTransition ? 1 : 0);
     xmlProfile.writeProfileString(
         'TextSetting', 'm_crTextBKColor', toRGBString(pBanner.crTextBKColor));
     xmlProfile.writeProfileString(

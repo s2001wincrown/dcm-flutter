@@ -7,6 +7,7 @@ import 'package:dcm/backend/constants.dart';
 import 'package:dcm/backend/utils/encoder_utils.dart';
 import 'package:dcm/backend/utils/file_utils.dart';
 import 'package:dcm/backend/utils/log_utils.dart';
+import 'package:dcm/backend/utils/string_utils.dart';
 import 'package:dcm/backend/xmlfile/inifile.dart';
 import 'package:dcm/backend/xmlfile/xmlfile.dart';
 import 'package:dcm/backend/xmlfile/xmlitem.dart';
@@ -219,7 +220,7 @@ class AppGlobal {
     'Global Setting.PlayMode': (v) => playMode = int.parse(v),
     'Global Setting.EventTimeout': (v) => eventTimeout = int.parse(v),
     'Global Setting.ZoneThread': (v) => maxZoneThread = int.parse(v),
-    'Global Setting.Background Color': (v) => clrBGColor = int.parse(v),
+    'Global Setting.Background Color': (v) => clrBGColor = fromRGBString(v),
     'Global Setting.BackgroundImage': (v) => bgImageFile = v,
     'Global Setting.StartupWallpaper': (v) => startupWallpaper = v,
     'Global Setting.nPDFViewMode': (v) => pdfViewMode = int.parse(v),
@@ -677,19 +678,25 @@ class AppGlobal {
       }
 
       for (var entry in _setters.entries) {
-        if ('Global Setting.CombSettings' == entry.key) {
-          entry.value.call(loadCombSettings(iniFile));
-        } else if ('Global Setting.PlaybackSettings' == entry.key) {
-          entry.value.call(loadPlaybackSettings(iniFile));
-        } else {
-          String? value = iniFile.getValue(
-              entry.key.split('.').first, entry.key.split('.').last);
-          if (value != null) {
-            entry.value.call(value);
+        try {
+          if ('Global Setting.CombSettings' == entry.key) {
+            entry.value.call(loadCombSettings(iniFile));
+          } else if ('Global Setting.PlaybackSettings' == entry.key) {
+            entry.value.call(loadPlaybackSettings(iniFile));
+          } else {
+            String? value = iniFile.getValue(
+                entry.key.split('.').first, entry.key.split('.').last);
+            if (value != null) {
+              entry.value.call(value);
+            }
           }
+        } catch (e) {
+          logE('Error loading config file: $e, key: ${entry.key}');
+          // Handle error
         }
       }
     } catch (e) {
+      logE('Error loading config file: $e');
       // Handle error
     }
 

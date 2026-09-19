@@ -4,6 +4,7 @@ import 'package:dcm/backend/constants.dart';
 import 'package:dcm/backend/models/app_global.dart';
 import 'package:dcm/backend/utils/log_utils.dart';
 import 'package:dcm/backend/utils/string_utils.dart';
+import 'package:dcm/backend/utils/utils.dart';
 import 'package:dcm/main.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -71,16 +72,19 @@ class _WebviewDesktopPlayerState extends State<WebviewDesktopPlayer> {
   @override
   Widget build(BuildContext context) {
     bool isUrlorFile = isBlank(widget.htmlContent) &&
-        isNotBlank(widget.url); // Utils.isURL(widget.url!);
+        isNotBlank(widget.url); //Utils.isURL(widget.url!);
+    String url = widget.url ?? '';
+    if (isUrlorFile && !Utils.isURL(widget.url!)) {
+      url = 'file:///${widget.url!}';
+    }
     //bool isUrl = isNotBlank(widget.url) && Utils.isURL(widget.url!);
     return InAppWebView(
       key: webViewKey,
       webViewEnvironment: webViewEnvironment,
-      initialUrlRequest:
-          isUrlorFile ? URLRequest(url: WebUri(widget.url!)) : null,
+      initialUrlRequest: isUrlorFile ? URLRequest(url: WebUri(url)) : null,
       // initialUrlRequest:
       // URLRequest(url: WebUri(Uri.base.toString().replaceFirst("/#/", "/") + 'page.html')),
-      //initialFile: (isUrlorFile && !isUrl) ? widget.url : null,
+      // initialFile: (isUrlorFile && !isUrl) ? widget.url : null,
       initialData: !isUrlorFile
           ? InAppWebViewInitialData(data: widget.htmlContent!)
           : null,

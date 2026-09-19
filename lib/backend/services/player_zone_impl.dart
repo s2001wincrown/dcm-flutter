@@ -15,6 +15,7 @@ import 'package:dcm/backend/utils/utils.dart';
 import 'package:dcm/widgets/content_list_player.dart';
 import 'package:dcm/widgets/scrolltext.dart';
 import 'package:dcm/widgets/slideshow.dart';
+import 'package:dcm/widgets/pdf_player.dart';
 import 'package:dcm/widgets/webview_desktop_player.dart';
 import 'package:dcm/widgets/webview_player.dart';
 import 'package:flutter/material.dart';
@@ -168,11 +169,13 @@ class PlayerZoneImpl {
 
   //mapPreloadedContents: cached contents
   void initZone([Map<String, PreloadedContent>? mapPreloadedContents]) async {
-    if (mapPreloadedContents != null) {
-      _playCached = true;
+    if (_playCached) {
       stopPlay();
+      _player = null;
+      _preloadedContent = null;
+      _contentListPlayer = null;
+      _controller = null;
     } else {
-      _playCached = false;
       if (_bNeedReset) {
         release();
       } else {
@@ -204,10 +207,13 @@ class PlayerZoneImpl {
     _contentType = pZoneData.nZoneType;
 
     _bIsRendering = true;
+    _bIsValid = true;
     _strZoneFile = Utils.getFilePath(
         pZoneData.strZoneFile, pZoneData.nZoneType, _nPType, _strCompany);
     logI(
         'Try to init Zone - Zone: $_zoneId, _nPType: $_nPType, _strZoneFile: $_strZoneFile, _bNeedReset: $_bNeedReset, mapPreloadedContents: ${mapPreloadedContents != null ? mapPreloadedContents.length : 0}.');
+
+    _playCached = false;
     try {
       if (await _validZone(_strZoneFile, _contentType)) {
         //Log.i(PlayerMainActivity.LOG_TAG, "RenderZone step 4");
@@ -218,6 +224,7 @@ class PlayerZoneImpl {
           case cVIDEOTYPE:
             if (mapPreloadedContents != null &&
                 mapPreloadedContents.containsKey(_strZoneFile)) {
+              _playCached = true;
               _preloadedContent = mapPreloadedContents[_strZoneFile];
               _rtAct = _preloadedContent!.getActualDuration();
             } else {
@@ -676,13 +683,7 @@ class PlayerZoneImpl {
           case cEVENTTYPE:
             break;
           case cPDFTYPE:
-            bool bShowPDFScrollBar = (hasFlag(AppGlobal.pdfViewMode, 0x0002));
-            var strContent = (bShowPDFScrollBar
-                ? '$_strZoneFile#toolbar=0&navpanes=0&scrollbar=0&view=FitH'
-                : '$_strZoneFile#toolbar=0&navpanes=0&scrollbar=0&view=Fit');
-            widget = PlatformUtils.isDesktop
-                ? WebviewDesktopPlayer(url: strContent)
-                : WebviewPlayer(url: strContent);
+            widget = PdfPlayer(source: _strZoneFile);
             break;
           case cPLUGINTYPE:
             break;
