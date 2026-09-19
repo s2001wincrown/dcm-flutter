@@ -5,6 +5,7 @@ import 'dart:io';
 import 'package:dcm/backend/app.dart';
 import 'package:dcm/backend/constants.dart';
 import 'package:dcm/backend/utils/encoder_utils.dart';
+import 'package:dcm/backend/utils/extensions.dart';
 import 'package:dcm/backend/utils/file_utils.dart';
 import 'package:dcm/backend/utils/log_utils.dart';
 import 'package:dcm/backend/utils/string_utils.dart';
@@ -228,8 +229,10 @@ class AppGlobal {
 
     'ContentSync.StatusCheckInterval': (v) =>
         statusCheckInterval = int.parse(v),
-    'ContentSync.EnableTaskCheck': (v) => enableTaskCheck = bool.parse(v),
-    'ContentSync.AutoContentUpdate': (v) => autoContentUpdate = bool.parse(v),
+    'ContentSync.EnableTaskCheck': (v) =>
+        enableTaskCheck = (v == '1' || v.equalsIgnoreCase('true')),
+    'ContentSync.AutoContentUpdate': (v) =>
+        autoContentUpdate = (v == '1' || v.equalsIgnoreCase('true')),
     'ContentSync.FileTransferRetries': (v) =>
         fileTransferRetries = int.parse(v),
     'ContentSync.TaskTransferRetries': (v) =>
@@ -239,15 +242,18 @@ class AppGlobal {
     'ContentSync.LogUploadInterval': (v) => logUploadInterval = int.parse(v),
     'ContentSync.LogUploadPeriod': (v) => logUploadPeriod = int.parse(v),
     'ContentSync.HTTPRetryTimes': (v) => httpRetryTimes = int.parse(v),
-    'ContentSync.FileIntegrityCheck': (v) => fileIntegrityCheck = bool.parse(v),
+    'ContentSync.FileIntegrityCheck': (v) =>
+        fileIntegrityCheck = (v == '1' || v.equalsIgnoreCase('true')),
     'ContentSync.DeleteContentIfFTPFail': (v) =>
-        deleteContentIfFTPFail = bool.parse(v),
+        deleteContentIfFTPFail = (v == '1' || v.equalsIgnoreCase('true')),
     'ContentSync.AvailableACUStart': (v) => availableACUStart = v,
     'ContentSync.AvailableACUEnd': (v) => availableACUEnd = v,
     //retryInterval
     'ContentSync.TaskRetryInterval': (v) => retryInterval = int.parse(v),
-    'ContentSync.AutoSyncTime': (v) => autoSyncTime = bool.parse(v),
-    'ContentSync.GetEventDisplay': (v) => getEventDisplay = bool.parse(v),
+    'ContentSync.AutoSyncTime': (v) =>
+        autoSyncTime = (v == '1' || v.equalsIgnoreCase('true')),
+    'ContentSync.GetEventDisplay': (v) =>
+        getEventDisplay = (v == '1' || v.equalsIgnoreCase('true')),
   };
 
   static final Map<String, String Function()> _getters = {
