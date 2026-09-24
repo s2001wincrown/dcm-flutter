@@ -288,20 +288,8 @@ class ContentSyncService {
     //todo wifi check
     //FTPMisc::NetworkCheck();
 
-    //todo UDP server init
-    /*if (g_UDPManager == null || (g_UDPManager && !g_UDPManager.IsOk()))
-		{
-			bool bUDP = InitUDPManager(globalPlayer);
-
-			PlayerLogFile.Message(MSG_INFO, bUDP ? 'Init UDP Socket Successfully!' : 'Init UDP Socket Failure!');
-
-			//FTPMisc::SendStatusToMonitor(0, 0, 'Init UDP Socket Successfully!');
-		}*/
-
     //todo sync time check
-    /*if (!PlayerTaskFile.bSyncTime && PlayerPathService.bAutoSyncTime)
-		{
-
+    /*if (!PlayerTaskFile.bSyncTime && PlayerPathService.bAutoSyncTime) {
 			PlayerLogFile.Message(MSG_INFO, 'Try to Sync Time.');
 
 			PlayerTaskFile.SynLocalTime();

@@ -16,6 +16,8 @@ import 'package:dcm/widgets/content_list_player.dart';
 import 'package:dcm/widgets/scrolltext.dart';
 import 'package:dcm/widgets/slideshow.dart';
 import 'package:dcm/widgets/pdf_player.dart';
+import 'package:dcm/widgets/ppt_file_preview.dart';
+import 'package:dcm/widgets/ppt_viewer_widget.dart';
 import 'package:dcm/widgets/webview_desktop_player.dart';
 import 'package:dcm/widgets/webview_player.dart';
 import 'package:flutter/material.dart';
@@ -145,12 +147,14 @@ class PlayerZoneImpl {
         _contentListPlayer!.release();
         _contentListPlayer = null;
       }
-      if (_preloadedContent != null) {
+      _preloadedContent = null;
+      /*if (_preloadedContent != null) {
         _preloadedContent!.release();
         _preloadedContent = null;
-      }
+      }*/
     } catch (e, stackTrace) {
-      logE('PlayerZoneImpl - release error: $e', stackTrace);
+      logE('PlayerZoneImpl - _playCached: $_playCached, release error: $e',
+          stackTrace);
     }
   }
 
@@ -246,7 +250,6 @@ class PlayerZoneImpl {
             break;
 
           case cPOWERPOINTTYPE:
-            //PlayPPT(strZone1File, rectWin);
             break;
 
           case cQUEUETYPE:
@@ -636,7 +639,24 @@ class PlayerZoneImpl {
             }
             break;
           case cPOWERPOINTTYPE:
-            //PlayPPT(strZone1File, rectWin);
+            final zoneSize = _rect?.size ?? Size.zero;
+            widget = PlatformUtils.isAndroid || PlatformUtils.isIOS
+                ? PptFilePreview(
+                    filePath: _strZoneFile,
+                    width: zoneSize.width,
+                    height: zoneSize.height,
+                  )
+                : PlatformUtils.isWindows
+                    ? PptViewerWidget(
+                        filePath: _strZoneFile,
+                        zoneRect: _rect ?? Rect.zero,
+                      )
+                    : SizedBox.fromSize(
+                        size: zoneSize,
+                        child: ColoredBox(
+                          color: Utils.fromRGB(AppGlobal.clrBGColor),
+                        ),
+                      );
             break;
 
           case cQUEUETYPE:
@@ -1062,6 +1082,7 @@ class PlayerZoneImpl {
         rePlayVideo();
         break;
       case cPOWERPOINTTYPE:
+        break;
       case cQUEUETYPE:
         break;
 

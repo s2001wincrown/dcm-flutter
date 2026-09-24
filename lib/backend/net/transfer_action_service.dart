@@ -376,7 +376,7 @@ class TransferActionService {
             '''Generate file list from Site Playlist '$strSitePlaylists' failure!''',
             syncTag);
         await PlayerLogFile.writeLogFile(cTRANSFEROTHERERR,
-            '''Generate file list from Site Playlist '$strSitePlaylists' failure!''');
+            '''Generate file list from Site Playlist ($strSitePlaylists) failure!''');
 
         return false;
       }
@@ -491,7 +491,7 @@ class TransferActionService {
             '''Generate file list from Content Lists '$strContentLists' failure!''',
             syncTag);
         await PlayerLogFile.writeLogFile(cTRANSFEROTHERERR,
-            '''Generate file list from Content Lists '$strContentLists' failure!''');
+            '''Generate file list from Content Lists ($strContentLists) failure!''');
 
         return false;
       }
@@ -698,7 +698,7 @@ class TransferActionService {
             '''Event Display: Parse XML result for '${globalPlayer.strName}' failure!''',
             syncTag);
         await PlayerLogFile.writeLogFile(cTRANSFEROTHERERR,
-            '''Event Display: Parse XML result for '${globalPlayer.strName}' failure!''');
+            '''Event Display: Parse XML result for (${globalPlayer.strName}) failure!''');
 
         return false;
       }
@@ -707,7 +707,7 @@ class TransferActionService {
           '''Event Display: Generate file list for '${globalPlayer.strName}' failure!''',
           syncTag);
       await PlayerLogFile.writeLogFile(cTRANSFEROTHERERR,
-          '''Event Display: Generate file list for '${globalPlayer.strName}' failure!''');
+          '''Event Display: Generate file list for (${globalPlayer.strName}) failure!''');
 
       return false;
     }
@@ -784,7 +784,7 @@ class TransferActionService {
             if (!await pData.getEventList(dailySchedule)) {
               logE('''Generate calendar file '${pData.strMonth}' failure''');
               await PlayerLogFile.writeLogFile(cTRANSFEROTHERERR,
-                  '''Generate calendar file '${pData.strMonth}' failure''');
+                  '''Generate calendar file (${pData.strMonth}) failure''');
               return false;
               //AfxMessageBox('DownloadMonthSchedule - successfully!!!');
             } else {
@@ -793,7 +793,7 @@ class TransferActionService {
                   syncTag);
 
               await PlayerLogFile.writeLogFile(cTRANSFEROTHERMSG,
-                  '''Generate calendar file '${pData.strMonth}' successfully''');
+                  '''Generate calendar file (${pData.strMonth}) successfully''');
             }
           }
           await PlayerTaskFile.writeTaskFile(
@@ -1597,7 +1597,7 @@ class TransferActionService {
       String strFtpSettingFile =
           path.join(AppGlobal.dayPath, '${DailyScheduleData.arrEvent[i]}.xml');
       if (!await File(strFtpSettingFile).exists()) {
-        String str = '''PlayList '$strFtpSettingFile' not exist in player!''';
+        String str = '''PlayList ($strFtpSettingFile) not exist in player!''';
         logE(str, syncTag);
         await PlayerLogFile.writeLogFile(cTRANSFEROTHERERR, str);
         return false;

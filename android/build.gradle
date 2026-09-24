@@ -5,7 +5,7 @@ buildscript {
         mavenCentral()
     }
     dependencies {
-        classpath 'com.android.tools.build:gradle:8.9.1'
+        classpath 'com.android.tools.build:gradle:8.11.1'
         classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:2.2.21"
     }
 }
@@ -22,6 +22,17 @@ ext.kotlin_version = '2.2.21'
 rootProject.buildDir = '../build'
 subprojects {
     project.buildDir = "${rootProject.buildDir}/${project.name}"
+
+    afterEvaluate { evaluatedProject ->
+        if (evaluatedProject.plugins.hasPlugin('com.android.library')) {
+            if (evaluatedProject.android.namespace == null) {
+                evaluatedProject.android.namespace = 'com.gstory.file_preview'
+            }
+            if (evaluatedProject.name == 'file_preview') {
+                evaluatedProject.android.compileSdkVersion = 35
+            }
+        }
+    }
 }
 subprojects {
     project.evaluationDependsOn(':app')

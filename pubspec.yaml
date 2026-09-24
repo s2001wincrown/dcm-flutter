@@ -46,6 +46,7 @@ dependencies:
   webview_flutter_wkwebview: ^3.26.0
   flutter_inappwebview: ^6.1.5
   pdfx: ^2.11.0
+  file_preview: ^1.2.0
   pointycastle: ^3.7.3
   crypto: ^3.0.6
   xml: ^6.3.0
@@ -66,6 +67,9 @@ dependencies:
   flutter_udid: ^4.1.4
   unique_device_identifier: ^2.0.4
   dio: ^5.11.0
+  web_socket_channel: ^3.0.3
+  protobuf: ^3.1.0
+  fixnum: ^1.1.1
   disk_space_2: ^1.0.13
   flutter_screenutil: ^5.9.3
 

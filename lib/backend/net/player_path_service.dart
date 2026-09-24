@@ -1,7 +1,6 @@
 import 'dart:io';
 
 import 'package:crypto/crypto.dart';
-import 'package:dcm/backend/app.dart';
 import 'package:dcm/backend/constants.dart';
 import 'package:dcm/backend/models/app_global.dart';
 import 'package:dcm/backend/models/download_file_info_data.dart';
@@ -415,7 +414,7 @@ class PlayerPathService {
                 '''Copy '${_tempFiles[i].strSourcePath}' to '${_tempFiles[i].strDestPath}' successfully''',
                 syncTag);
             await PlayerLogFile.writeLogFile(cTRANSFEROTHERMSG,
-                '''Update Schedule to '${_tempFiles[i].strDestPath}' successfully''');
+                '''Update Schedule to (${_tempFiles[i].strDestPath}) successfully''');
           } else {
             logI(
                 '''Copy '${_tempFiles[i].strSourcePath}' to '${_tempFiles[i].strDestPath}' failure''',
@@ -594,7 +593,7 @@ class PlayerPathService {
       var hashResult = await validHashData(strTempPath, pFileInfo);
       if (!hashResult.status) {
         String strErrMsg =
-            ''''${pFileInfo.strDestFile}' MD5: '${hashResult.strMd5}', Source file MD5: '${pFileInfo.strMD5}'; File integrity checks failure!''';
+            '''(${pFileInfo.strDestFile}) MD5: (${hashResult.strMd5}), Source file MD5: (${pFileInfo.strMD5}); File integrity checks failure.''';
         logE(strErrMsg, syncTag);
         if (await FileUtils.deleteFileEx(strTempPath, true)) {
           await FileUtils.deleteFileEx('$strTempPath.md5', false);
@@ -606,7 +605,7 @@ class PlayerPathService {
       var dwFileSize = await FileUtils.getFileSize(strTempPath);
       if (dwFileSize <= BigInt.zero) {
         String strErrMsg =
-            ''''$strTempPath' size: $dwFileSize, Source file size: ${pFileInfo.dwFileSize}; File integrity checks failure!''';
+            '''($strTempPath) size: $dwFileSize, Source file size: ${pFileInfo.dwFileSize}; File integrity checks failure.''';
         logE(strErrMsg, syncTag);
         if (await FileUtils.deleteFileEx(strTempPath, true)) {
           await FileUtils.deleteFileEx('$strTempPath.md5', false);
@@ -617,7 +616,7 @@ class PlayerPathService {
         if (!pFileInfo.ignoreFileSize() && pFileInfo.dwFileSize > BigInt.zero) {
           if (pFileInfo.dwFileSize != dwFileSize) {
             String strErrMsg =
-                ''''$strTempPath' size: $dwFileSize, Source file size: ${pFileInfo.dwFileSize}; File integrity checks failure!''';
+                '''($strTempPath) size: $dwFileSize, Source file size: ${pFileInfo.dwFileSize}; File integrity checks failure!''';
             logE(strErrMsg, syncTag);
             if (await FileUtils.deleteFileEx(strTempPath, true)) {
               await FileUtils.deleteFileEx('$strTempPath.md5', false);

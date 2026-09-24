@@ -310,18 +310,18 @@ class _DigitalSignageScreenState extends State<DigitalSignageScreen> {
                                   final w = partition.getRect().width;
                                   final h = partition.getRect().height;
                                   /*var left = 0.00;
-                                var top = 0.00;
-                                var w = mq.size.width / 2;
-                                var h = mq.size.height;
-                                if (partition.getZone() > 0) {
-                                  left = mq.size.width / 2;
-                                  top = 0;
-                                  w = mq.size.width / 2;
-                                  h = mq.size.height;
-                                }*/
+                                  var top = 0.00;
+                                  var w = mq.size.width / 2;
+                                  var h = mq.size.height;
+                                  if (partition.getZone() > 0) {
+                                    left = mq.size.width / 2;
+                                    top = 0;
+                                    w = mq.size.width / 2;
+                                    h = mq.size.height;
+                                  }*/
 
-                                  logD(
-                                      'multi_partition_screen - Render partition ${partition.getZone()} at ($left, $top) with size ($w x $h)');
+                                  /*logD(
+                                      'multi_partition_screen - Render partition ${partition.getZone()} at ($left, $top) with size ($w x $h)');*/
 
                                   return Positioned(
                                     left: left,
@@ -398,50 +398,4 @@ class _DigitalSignageScreenState extends State<DigitalSignageScreen> {
       label: Text(label),
     );
   }
-}
-
-// 分区配置类，使用像素定义位置与大小
-class PartitionConfig {
-  final int id;
-  final int type;
-  final String content; // URL、文件路径或文本内容
-  final int x;
-  final int y;
-  final int width;
-  final int height;
-
-  PartitionConfig({
-    required this.id,
-    required this.type,
-    required this.content,
-    required this.x,
-    required this.y,
-    required this.width,
-    required this.height,
-  });
-}
-
-// 内容类型枚举
-enum ContentType {
-  video,
-  image,
-  text,
-  scrollText,
-  html,
-  liveInfo,
-  slideshow,
-  empty, // 空分区
-}
-
-// 播放列表项
-class PlaylistItem {
-  final String name;
-  final int duration; // 播放持续时间（秒）
-  final List<PartitionConfig> layout;
-
-  PlaylistItem({
-    required this.name,
-    required this.duration,
-    required this.layout,
-  });
 }

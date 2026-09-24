@@ -1983,10 +1983,11 @@ class PlayerScreenProvider extends ChangeNotifier {
   }
 
   void stopAll() {
+    //release all zone thead and stop timers
     if (_bIsPlaying) {
       stopTimer();
       stopPlayingTimer();
-      //stopPlay();
+      stopPlay();
       _bIsPlaying = false;
       //_bIsFrame = false;
     }
@@ -1997,7 +1998,7 @@ class PlayerScreenProvider extends ChangeNotifier {
   void stopNotQuit() {
     if (_bIsPlaying) {
       resetMusicPlayer();
-      //stopPlayer();
+      stopPlay();
       _bIsPlaying = false;
 
       ///	_bIsFrame = false;
@@ -2012,9 +2013,6 @@ class PlayerScreenProvider extends ChangeNotifier {
   void release() {
     stopTimer();
     stopPlayingTimer();
-    for (var pThread in _playerZones) {
-      pThread.release();
-    }
     resetMusicPlayer();
     deleteZoneThread(0);
     deleteMessageThreadByOutput(cINTMIN);

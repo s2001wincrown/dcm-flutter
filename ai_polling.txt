@@ -517,3 +517,94 @@ TCP 只保证"字节可靠到达"，但不关心"业务语义"。如果你直接
 ### 📌 一句话总结
 > **WebSocket = TCP 长连接 + 标准化的消息帧 + HTTP 友好的握手 + 浏览器原生支持。**
 > 除非您的播放机是资源极度受限的嵌入式设备或有特殊性能要求，否则 **CMS 与播放机的双向通信应首选 WebSocket**，它在开发效率、网络兼容性和运维成本上全面优于裸 TCP。
+
+
+#sym:_handleEvent 到消息分发#sym:_dispatch ，有没可能会生成消息堵塞？
+
+有可能出现“消息堆积”，但不是 WebSocket 层面的死锁。
+
+当前调用链是同步执行的：
+
+```text
+channel.stream.listen
+  -> _handleEvent
+    -> MessageWrapper.fromBuffer
+    -> _dispatch
+      -> payload.fromBuffer
+      -> _enqueueDcmContent
+      -> _notify(handler)
+```
+
+存在几个阻塞点：
+
+- `_dispatch` 在收到消息的回调中同步执行。
+- `DcmContent.fromBuffer`、任务转换和 `PlayerTaskFile.updateTask()` 都会占用当前 isolate。
+- `_notify()` 中的业务 handler 是同步 `void`，如果 handler 做大量计算、同步文件操作或复杂业务，会阻塞后续消息处理。
+- `_messages.add(message)` 虽然使用了异步 broadcast controller，通常不会同步阻塞调用方，但如果生产速度长期高于消费速度，仍可能形成消息队列堆积。
+- WebSocket stream 本身没有这里的应用层背压控制，监听处理慢时，底层事件会继续排队。
+
+目前比较安全的是：
+
+- `PlayerTaskFile.writeTaskFile()` 使用了 `unawaited`，不会等待文件写入完成。
+- 单帧解析异常会被捕获，不会终止连接监听。
+- 心跳和重连 Timer 不会直接阻塞消息解析。
+
+建议重点关注 `_notify` handler。若 handler 可能较重，可以改成异步 handler，并把耗时任务移出消息回调；或者按命令建立串行队列/限长队列。不要简单地对每条消息都 `unawaited`，否则高频消息会制造更多并发任务和内存压力。
+
+
+#sym:_messages 要怎么使用，一直add会不会导致消息队列无穷多？
+`_messages` 是：
+
+```dart
+final _messages = StreamController<MessageWrapper>.broadcast();
+```
+
+它的行为不是“永久无限缓存”：
+
+```dart
+service.messages.listen((message) {
+  // 处理消息
+});
+```
+
+### 不会无限增长的情况
+
+- 没有订阅者：`broadcast` 不会缓存消息，`add()` 的消息直接丢弃。
+- 订阅者正常消费：消息会按顺序发送给订阅者。
+- 消费回调是同步快速处理：不会明显堆积。
+
+### 可能堆积的情况
+
+如果订阅者主动暂停：
+
+```dart
+final subscription = service.messages.listen(...);
+subscription.pause();
+```
+
+Dart 会为这个订阅保存后续事件。持续 `add()` 时，这个暂停订阅的缓存可能无限增长。
+
+另外，如果这样写：
+
+```dart
+service.messages.listen((message) async {
+  await handleMessage(message);
+});
+```
+
+`Stream` 不会等待这个 `Future` 完成，多个 `handleMessage` 可能并发执行。这不一定增长 `_messages` 队列，但可能造成业务任务并发堆积。
+
+### 建议
+
+订阅时确保最终取消：
+
+```dart
+late final StreamSubscription<MessageWrapper> subscription;
+
+subscription = service.messages.listen(handleMessage);
+
+// 页面或服务销毁时
+await subscription.cancel();
+```
+
+如果消息量可能很大，建议增加有界队列，例如只保留最近 N 条，或按命令分别处理并丢弃过期状态消息。当前 `_messages.add(message)` 本身没有队列上限，暂停订阅时确实存在无界增长风险。

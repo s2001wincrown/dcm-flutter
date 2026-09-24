@@ -661,10 +661,10 @@ class ContentDownloader {
         PlayerLogFile.nFileDownloaded++;
         PlayerLogFile.nTotalBytesDownloaded +=
             BigInt.from(task.remoteSize < 0 ? 0 : task.remoteSize);
-        taskResult = '"${task.title}" transfer completed.';
+        taskResult = '(${task.title}) transfer completed.';
       } else {
         taskResult =
-            '"${task.title}" transfer error. Error Message: "${task.errorMessage}".';
+            '(${task.title}) transfer error. Error Message: (${task.errorMessage}).';
         if (task.retryCount < maxRetries) {
           nError = cTRANSFERRETRYERR;
         } else if (task.retryCount == maxRetries) {

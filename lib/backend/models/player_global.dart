@@ -23,15 +23,16 @@ import 'package:path/path.dart' as path;
 final Player globalPlayer = Player();
 
 Future<bool> initGlobalPlayer() async {
+  bool initialized = false;
   if (await loadSettings()) {
-    await getPlayerRegInfo();
+    initialized = await getPlayerRegInfo();
     await getPublicIP();
     await PlayerRegisterImpl.updateNetworkInfo(globalPlayer);
   } else {
-    await autoRegister();
+    initialized = await autoRegister();
   }
 
-  return false;
+  return initialized;
 }
 
 Future<bool> getPlayerRegInfo() async {
@@ -62,7 +63,8 @@ Future<bool> getPlayerRegInfo() async {
           try {
             final strLogPost = xi.getItemValue('dwLogPost');
             final logPostValue = int.tryParse(strLogPost, radix: 16) ?? 0;
-            PlayLogPostService.processLogPostFlag(logPostValue);
+            //PlayLogPostService.processLogPostFlag(logPostValue);
+            PlayLogPostService.logPostFlags = logPostValue;
             final lastSyncTime = xi.getItemValueD('m_dtLastSyncTime');
             if (lastSyncTime != null) {
               PlayerTaskFile.dtSyncTime = lastSyncTime;
@@ -269,12 +271,9 @@ Future<bool> checkAppSetting() async {
   bool isServerFileOk = await serverFileIsOk();
   if (!isSettingsFileOk && !isServerFileOk) {
     await PlayerRegisterImpl.genPlayerInformation(App().dataPath);
-    await initGlobalPlayer();
-
-    return true;
+    if (await initGlobalPlayer()) return true;
   } else if (isServerFileOk) {
-    await initGlobalPlayer();
-    return true;
+    if (await initGlobalPlayer()) return true;
   }
 
   return false;

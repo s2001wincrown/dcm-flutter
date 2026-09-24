@@ -1,4 +1,5 @@
 import 'package:dcm/backend/app.dart';
+import 'package:dcm/backend/constants.dart';
 import 'package:dcm/backend/net/player_task_file.dart';
 import 'package:dcm/backend/utils/encoder_utils.dart';
 import 'package:dcm/backend/utils/time_utils.dart';
@@ -342,7 +343,7 @@ class Player implements IPlayer {
     strMACAddress = '';
     strMACAddress1 = '';
     strLocalAddress = '';
-    nLocalPort = 10025;
+    nLocalPort = cINTMAX;
 
     sUserAgent = '';
     sProxyServer = '';

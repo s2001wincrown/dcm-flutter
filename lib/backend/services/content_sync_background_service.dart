@@ -8,6 +8,7 @@ import 'package:dcm/backend/constants.dart';
 import 'package:dcm/backend/models/app_global.dart';
 import 'package:dcm/backend/models/player_global.dart';
 import 'package:dcm/backend/net/content_sync_service.dart';
+import 'package:dcm/backend/net/cms_websocket_service.dart';
 import 'package:dcm/backend/net/netdef.dart';
 import 'package:dcm/backend/net/play_log_post.dart';
 import 'package:dcm/backend/net/player_path_service.dart';
@@ -60,6 +61,7 @@ class ContentSyncBackgroundService {
         }
         // 3. 【核心】使用 Completer 保持后台任务存活
         final completer = Completer<String>();
+        final cmsWebSocket = CmsWebSocketService();
         //WidgetsFlutterBinding.ensureInitialized();
         // Apply AppGlobal config inside worker
         AppGlobal.applyWorkerConfig(
@@ -147,6 +149,7 @@ class ContentSyncBackgroundService {
           if (messageInfo != null) {
             if (messageInfo.messageID == PlayerNotice.ePLAYCLOSENOTICE.index) {
               workerReceivePort.close();
+              unawaited(cmsWebSocket.dispose());
               completer.complete(messageInfo.messageName);
             }
           }
@@ -172,8 +175,10 @@ class ContentSyncBackgroundService {
 
           await ContentSyncService().init();
           await ContentSyncService().startPolling();
+          await cmsWebSocket.connect();
         } catch (e) {
           logE('Failed to apply player snapshot in worker: $e', syncTag);
+          await cmsWebSocket.dispose();
         }
 
         logD('await completer.future', syncTag);

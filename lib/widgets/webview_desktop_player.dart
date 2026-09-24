@@ -27,6 +27,9 @@ class _WebviewDesktopPlayerState extends State<WebviewDesktopPlayer> {
   InAppWebViewController? webViewController;
   InAppWebViewSettings settings = InAppWebViewSettings(
       isInspectable: kDebugMode,
+      // The Windows plugin's false branch currently writes a transparent
+      // background, which exposes the black Flutter surface behind the page.
+      transparentBackground: true,
       mediaPlaybackRequiresUserGesture: false,
       allowsInlineMediaPlayback: true,
       disableContextMenu: true,
@@ -62,6 +65,25 @@ class _WebviewDesktopPlayerState extends State<WebviewDesktopPlayer> {
               }
             },
           );
+  }
+
+  @override
+  void didUpdateWidget(covariant WebviewDesktopPlayer oldWidget) {
+    super.didUpdateWidget(oldWidget);
+
+    if (oldWidget.url != widget.url && isNotBlank(widget.url)) {
+      final nextUrl =
+          Utils.isURL(widget.url!) ? widget.url! : 'file:///${widget.url!}';
+
+      webViewController?.loadUrl(
+        urlRequest: URLRequest(url: WebUri(nextUrl)),
+      );
+    } else if (oldWidget.htmlContent != widget.htmlContent &&
+        isNotBlank(widget.htmlContent)) {
+      webViewController?.loadData(
+        data: widget.htmlContent!,
+      );
+    }
   }
 
   @override
