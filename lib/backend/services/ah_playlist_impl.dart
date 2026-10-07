@@ -519,12 +519,12 @@ class AHPlayList {
   Map<int, AHMessageList> arrAHList = {};
   final Object ahListLock = Object();
 
-  static Rectangle<int> rcAHWnd = Rectangle(0, 0, 0, 0);
+  static Rectangle<int> rcAHWnd = const Rectangle(0, 0, 0, 0);
   static int nPercent = 10;
 
-  static const int AH_BOTTOM_MZ = 3;
-  static const int AH_END_TIMEOUT = 1;
-  static const int AH_END_BYTIME = 0;
+  static const int kAHBOTTOMMZ = 3;
+  static const int kAHENDTIMEOUT = 1;
+  static const int kAHENDBYTIME = 0;
 
   static bool isAHMessage(int nZone) {
     return nZone > cAHMESSAGETYPE - 1 && nZone < cTOUCHSCREENTYPE;
@@ -693,7 +693,7 @@ class AHPlayList {
     if (arrAHList.containsKey(nOutput)) {
       return arrAHList[nOutput]!.getEndType();
     }
-    return AH_END_BYTIME;
+    return kAHENDBYTIME;
   }
 
   int count(int nOutput) {

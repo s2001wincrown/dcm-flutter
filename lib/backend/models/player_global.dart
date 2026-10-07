@@ -344,7 +344,7 @@ Future<({bool status, bool isNeedRestart})> loadPlaybackSettings(
         var httpResult = await httpGet(strGetSettings);
         if (httpResult.status) {
           if (await SettingsImpl.loadFromXml(
-              httpResult.result!, result.pHttpLink)) {
+              httpResult.result!, result.pHttpLink, result.pOrganization)) {
             if (await AppGlobal.loadFromIni()) {
               return (status: true, isNeedRestart: true);
             }

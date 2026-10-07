@@ -5,6 +5,7 @@ import 'package:dcm/backend/constants.dart';
 import 'package:dcm/backend/library_helper.dart';
 import 'package:dcm/backend/models/app_global.dart';
 import 'package:dcm/backend/models/product_data.dart';
+import 'package:dcm/backend/models/weather_data.dart';
 import 'package:dcm/backend/models/zone_data.dart';
 import 'package:dcm/backend/services/content_list_player_impl.dart';
 import 'package:dcm/backend/services/app_skin_impl.dart';
@@ -12,12 +13,14 @@ import 'package:dcm/backend/services/schedulelist_impl.dart';
 import 'package:dcm/backend/utils/log_utils.dart';
 import 'package:dcm/backend/utils/platform_utils.dart';
 import 'package:dcm/backend/utils/utils.dart';
+import 'package:dcm/backend/xml_settings/xml_weather_setting.dart';
 import 'package:dcm/widgets/content_list_player.dart';
 import 'package:dcm/widgets/scrolltext.dart';
 import 'package:dcm/widgets/slideshow.dart';
 import 'package:dcm/widgets/pdf_player.dart';
 import 'package:dcm/widgets/ppt_file_preview.dart';
 import 'package:dcm/widgets/ppt_viewer_widget.dart';
+import 'package:dcm/widgets/weather_panel.dart';
 import 'package:dcm/widgets/webview_desktop_player.dart';
 import 'package:dcm/widgets/webview_player.dart';
 import 'package:flutter/material.dart';
@@ -72,6 +75,81 @@ class PreloadedContent {
   double getActualDuration() => player!.state.duration.inMilliseconds / 1000.0;
 }
 
+Future<void> _observePlayerOperation(
+  String operation,
+  String filePath,
+  Future<void> future,
+) async {
+  logD('PlayerZoneImpl - $operation requested for "$filePath".');
+  try {
+    await future;
+    logD('PlayerZoneImpl - $operation completed for "$filePath".');
+  } catch (error, stackTrace) {
+    logE('PlayerZoneImpl - $operation failed for "$filePath": $error',
+        stackTrace);
+  }
+}
+
+class _ZoneVideo extends StatefulWidget {
+  final Player player;
+  final VideoController controller;
+  final String filePath;
+  final BoxFit fit;
+  final bool shouldPlay;
+
+  const _ZoneVideo({
+    super.key,
+    required this.player,
+    required this.controller,
+    required this.filePath,
+    required this.fit,
+    required this.shouldPlay,
+  });
+
+  @override
+  State<_ZoneVideo> createState() => _ZoneVideoState();
+}
+
+class _ZoneVideoState extends State<_ZoneVideo> {
+  @override
+  void initState() {
+    super.initState();
+    _schedulePlayback();
+  }
+
+  @override
+  void didUpdateWidget(covariant _ZoneVideo oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.player != widget.player ||
+        oldWidget.controller != widget.controller ||
+        oldWidget.shouldPlay != widget.shouldPlay) {
+      _schedulePlayback();
+    }
+  }
+
+  void _schedulePlayback() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && widget.shouldPlay) {
+        unawaited(_observePlayerOperation(
+            'play', widget.filePath, widget.player.play()));
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: BorderRadius.zero,
+      child: Video(
+        controller: widget.controller,
+        wakelock: false,
+        fit: widget.fit,
+        controls: null,
+      ),
+    );
+  }
+}
+
 class PlayerZoneImpl {
   //int productId;
   int _zoneId = -1;
@@ -79,6 +157,7 @@ class PlayerZoneImpl {
   int _nStart = 0;
   ProductData? _pProductData;
   ZoneData? _pZoneData;
+  WeatherData? _weatherData;
   bool _bZoneFinish = false;
   bool _bFirstFinished = false;
   bool _bContinuePlaying = false;
@@ -89,6 +168,7 @@ class PlayerZoneImpl {
   late DateTime _dtStartPlay;
 
   bool _bIsRendering = false;
+  int _initGeneration = 0;
   bool _bIsAHPlaying = false;
   bool _bIsPlaying = false;
   bool _bIsValid = true;
@@ -118,44 +198,58 @@ class PlayerZoneImpl {
   ContentListPlayerImpl? _contentListPlayer;
   VideoController? _controller;
   Player? _player;
+  Future<void>? _stopFuture;
   int _nVideoStatus = -1;
   bool _bWantStop = false;
 
   void stopPlay() {
+    _initGeneration++;
+    final stopFuture = _stopPlayers();
+    _stopFuture = stopFuture;
+    unawaited(stopFuture.whenComplete(() {
+      if (identical(_stopFuture, stopFuture)) {
+        _stopFuture = null;
+      }
+    }));
+  }
+
+  Future<void> _stopPlayers() async {
     try {
-      if (_player != null) {
-        _player!.stop();
-      }
-      if (_contentListPlayer != null) {
-        _contentListPlayer!.stop();
-      }
-      if (_preloadedContent != null) {
-        _preloadedContent!.stop();
-      }
+      await _player?.stop();
+      _contentListPlayer?.stop();
+      await _preloadedContent?.stop();
     } catch (e, stackTrace) {
       logE('PlayerZoneImpl - stopPlay error: $e', stackTrace);
     }
   }
 
-  void release() {
+  Future<void> _disposePlayers() async {
+    final player = _player;
+    final contentListPlayer = _contentListPlayer;
+    _player = null;
+    _controller = null;
+    _preloadedContent = null;
+    _contentListPlayer = null;
+    _bIsPlaying = false;
+
     try {
-      if (_player != null) {
-        _player!.dispose();
-        _player = null;
-      }
-      if (_contentListPlayer != null) {
-        _contentListPlayer!.release();
-        _contentListPlayer = null;
-      }
-      _preloadedContent = null;
-      /*if (_preloadedContent != null) {
-        _preloadedContent!.release();
-        _preloadedContent = null;
-      }*/
+      await player?.dispose();
     } catch (e, stackTrace) {
-      logE('PlayerZoneImpl - _playCached: $_playCached, release error: $e',
-          stackTrace);
+      logE('PlayerZoneImpl - player dispose error: $e', stackTrace);
     }
+    try {
+      await contentListPlayer?.release();
+    } catch (e, stackTrace) {
+      logE('PlayerZoneImpl - content list dispose error: $e', stackTrace);
+    }
+  }
+
+  Future<void> release() async {
+    _initGeneration++;
+    _bIsValid = false;
+    _bIsRendering = false;
+    await _stopFuture;
+    await _disposePlayers();
   }
 
   void resetAllPlayer(bool bTypeChanged) {
@@ -172,22 +266,30 @@ class PlayerZoneImpl {
   }
 
   //mapPreloadedContents: cached contents
-  void initZone([Map<String, PreloadedContent>? mapPreloadedContents]) async {
+  Future<void> initZone(
+      [Map<String, PreloadedContent>? mapPreloadedContents]) async {
+    final generation = ++_initGeneration;
+    _bIsValid = false;
+    _bIsRendering = true;
+    _bIsPlaying = false;
+    await _stopFuture;
+    if (generation != _initGeneration) return;
+    //Preloaded Content not need release
     if (_playCached) {
-      stopPlay();
-      _player = null;
-      _preloadedContent = null;
-      _contentListPlayer = null;
-      _controller = null;
+      await _stopPlayers();
     } else {
+      //not preload content and need reset
       if (_bNeedReset) {
-        release();
+        await _disposePlayers();
       } else {
-        stopPlay();
+        await _stopPlayers();
       }
     }
+    if (generation != _initGeneration) return;
 
     _rtCurrDuration = 0.00;
+    _rtAct = 0;
+    _rtPlaying = 0;
     _bIsAHPlaylist = ScheduleList().isPlayingEpisode();
     _strCompany = ScheduleList().getCurrCompany();
 
@@ -201,6 +303,7 @@ class PlayerZoneImpl {
     if (pZoneData == null) {
       logE('PlayerZoneImpl - no zone data.');
       _bIsValid = false;
+      _bIsRendering = false;
       return;
     }
 
@@ -211,7 +314,7 @@ class PlayerZoneImpl {
     _contentType = pZoneData.nZoneType;
 
     _bIsRendering = true;
-    _bIsValid = true;
+    _bIsValid = false;
     _strZoneFile = Utils.getFilePath(
         pZoneData.strZoneFile, pZoneData.nZoneType, _nPType, _strCompany);
     logI(
@@ -220,6 +323,8 @@ class PlayerZoneImpl {
     _playCached = false;
     try {
       if (await _validZone(_strZoneFile, _contentType)) {
+        if (generation != _initGeneration) return;
+        _bIsValid = true;
         //Log.i(PlayerMainActivity.LOG_TAG, "RenderZone step 4");
         _rtDuration = 0;
         switch (_contentType) {
@@ -233,12 +338,12 @@ class PlayerZoneImpl {
               _rtAct = _preloadedContent!.getActualDuration();
             } else {
               if (_player != null) {
-                _player!.open(
+                unawaited(_player!.open(
                     Media(LibraryHelper.normalizeMediaSource(_strZoneFile)),
-                    play: false);
+                    play: false));
                 _rtAct = _player!.state.duration.inMilliseconds / 1000.0;
               } else {
-                _initVideoPlayer(pZoneData, null);
+                await _initVideoPlayer(pZoneData, null);
                 if (_player != null) {
                   _rtAct = _player!.state.duration.inMilliseconds / 1000.0;
                 } else {
@@ -260,21 +365,36 @@ class PlayerZoneImpl {
             break;
           case cTVCAPTURETYPE:
           case cWEBCAMTYPE:
+          case cSTREAMINGTYPE:
+            if (_player != null) {
+              unawaited(_player!.open(
+                  Media(LibraryHelper.normalizeMediaSource(_strZoneFile)),
+                  play: false));
+              _rtAct = _player!.state.duration.inMilliseconds / 1000.0;
+            } else {
+              await _initVideoPlayer(pZoneData, null);
+              if (_player != null) {
+                _rtAct = _player!.state.duration.inMilliseconds / 1000.0;
+              } else {
+                logE(
+                    'PlayerZoneImpl - init media source error: _player is null');
+              }
+            }
             break;
           case cTEXTTYPE:
-            break;
-          case cSTREAMINGTYPE:
             break;
           case cONLINETYPE:
             break;
           case cCLOCKTYPE:
             break;
           case cWEATHERTYPE:
+            _weatherData = XmlWeatherSetting.loadFromFile(
+                pZoneData.strZoneFile, _strCompany ?? '');
             break;
           case cDDETYPE:
           case cDIRECTPLAYTYPE:
           case cSITEPLAYLIST:
-            _initContentList(_contentType, _strZoneFile, _rect!);
+            await _initContentList(_contentType, _strZoneFile, _rect!);
             break;
           case cLINKAGETYPE:
             break;
@@ -287,32 +407,36 @@ class PlayerZoneImpl {
         _bIsValid = false;
       }
     } catch (e, stackTrace) {
+      _bIsValid = false;
       logE(
           'Init Zone failed - Zone: $_zoneId; _nPType: $_nPType; _strZoneFile: $_strZoneFile error: $e',
           stackTrace);
-    }
+    } finally {
+      if (generation == _initGeneration) {
+        if (_contentType != cDDETYPE &&
+            _contentType != cDIRECTPLAYTYPE &&
+            _contentType != cSITEPLAYLIST) {
+          _rtDuration = pZoneData.nZoneDuration;
+        }
 
-    if (_contentType != cDDETYPE &&
-        _contentType != cDIRECTPLAYTYPE &&
-        _contentType != cSITEPLAYLIST) {
-      _rtDuration = pZoneData.nZoneDuration;
+        if (_rtDuration < cEPSILON) {
+          _rtDuration = cDEFAULTDURATION;
+        }
+        if (_rtAct < cEPSILON) {
+          _rtAct = _rtDuration;
+        }
+        _bIsRendering = false;
+        _bIsPlaying = false;
+        _bNeedReset = true;
+        logI(
+            'Init Zone finished - Zone: $_zoneId; _nPType: $_nPType; _rtDuration: $_rtDuration; _rtAct: $_rtAct; _strZoneFile: $_strZoneFile; _playCached: $_playCached.');
+      }
     }
-
-    if (_rtDuration < cEPSILON) {
-      _rtDuration = cDEFAULTDURATION;
-    }
-    if (_rtAct < cEPSILON) {
-      _rtAct = _rtDuration;
-    }
-    _bIsRendering = false;
-    _bIsPlaying = false;
-    _bNeedReset = true;
-    logI(
-        'Init Zone finished - Zone: $_zoneId; _nPType: $_nPType; _rtDuration: $_rtDuration; _rtAct: $_rtAct; _strZoneFile: $_strZoneFile; _playCached: $_playCached.');
   }
 
-  void _initVideoPlayer(ZoneData pZoneData, [PreloadedContent? preloaded]) {
-    preloaded ??= preloadVideoPlayer(pZoneData,
+  Future<void> _initVideoPlayer(ZoneData pZoneData,
+      [PreloadedContent? preloaded]) async {
+    preloaded ??= await preloadVideoPlayer(pZoneData,
         filePath: _strZoneFile, size: _rect!.size);
     if (preloaded != null) {
       //preloaded.ready();
@@ -588,8 +712,8 @@ class PlayerZoneImpl {
     return 0;
   }
 
-  void rePlay() {
-    rePlayZone();
+  Future<void> rePlay() async {
+    await rePlayZone();
   }
 
   Widget renderZone([bool cached = false]) {
@@ -611,29 +735,23 @@ class PlayerZoneImpl {
             break;
           case cVIDEOTYPE:
             if (_preloadedContent != null) {
-              _preloadedContent!.player!.play();
-              widget = ClipRRect(
-                borderRadius: BorderRadius.zero,
-                child: Video(
-                    key: Key(_strZoneFile),
-                    controller: _preloadedContent!.controller!,
-                    wakelock: false,
-                    fit: pZoneData.bZoneRatio ? BoxFit.contain : BoxFit.fill,
-                    controls: null),
+              widget = _ZoneVideo(
+                key: Key(_strZoneFile),
+                player: _preloadedContent!.player!,
+                controller: _preloadedContent!.controller!,
+                filePath: _strZoneFile,
+                fit: pZoneData.bZoneRatio ? BoxFit.contain : BoxFit.fill,
+                shouldPlay: _nVideoStatus != 1,
               );
             } else {
-              if (_player != null) {
-                _player!.play();
-              }
-              if (_controller != null) {
-                widget = ClipRRect(
-                  borderRadius: BorderRadius.zero,
-                  child: Video(
-                      key: Key(_strZoneFile),
-                      controller: _controller!,
-                      wakelock: false,
-                      fit: pZoneData.bZoneRatio ? BoxFit.contain : BoxFit.fill,
-                      controls: null),
+              if (_player != null && _controller != null) {
+                widget = _ZoneVideo(
+                  key: Key(_strZoneFile),
+                  player: _player!,
+                  controller: _controller!,
+                  filePath: _strZoneFile,
+                  fit: pZoneData.bZoneRatio ? BoxFit.contain : BoxFit.fill,
+                  shouldPlay: _nVideoStatus != 1,
                 );
               }
             }
@@ -669,6 +787,17 @@ class PlayerZoneImpl {
             break;
           case cTVCAPTURETYPE:
           case cWEBCAMTYPE:
+          case cSTREAMINGTYPE:
+            if (_player != null && _controller != null) {
+              widget = _ZoneVideo(
+                key: Key(_strZoneFile),
+                player: _player!,
+                controller: _controller!,
+                filePath: _strZoneFile,
+                fit: pZoneData.bZoneRatio ? BoxFit.contain : BoxFit.fill,
+                shouldPlay: _nVideoStatus != 1,
+              );
+            }
             break;
           case cTEXTTYPE:
             if (_bNeedReset) {
@@ -677,14 +806,15 @@ class PlayerZoneImpl {
             }
             //if (_bNeedReset) PlayTextType(pZoneData, strZone1File, rectWin);
             break;
-
-          case cSTREAMINGTYPE:
-            break;
           case cONLINETYPE:
             break;
           case cCLOCKTYPE:
             break;
           case cWEATHERTYPE:
+            widget = WeatherPanel(
+              key: Key(_strZoneFile),
+              data: _weatherData,
+            );
             break;
           case cDDETYPE:
           case cDIRECTPLAYTYPE:
@@ -724,9 +854,14 @@ class PlayerZoneImpl {
       }
     }
 
-    _bIsPlaying = true;
+    final pZoneData = getZoneData();
+    final needsVideoController = pZoneData != null &&
+        (pZoneData.nZoneType == cVIDEOTYPE ||
+            pZoneData.nZoneType == cSTREAMINGTYPE ||
+            pZoneData.nZoneType == cTVCAPTURETYPE ||
+            pZoneData.nZoneType == cWEBCAMTYPE);
+    _bIsPlaying = !needsVideoController || widget != null;
     _bNeedReset = true;
-    _bIsRendering = false;
     //Log.i(PlayerMainActivity.LOG_TAG, "RenderZone step 6 _rtDuration: " + _rtDuration + " _rtAct " + _rtAct);
     logI(
         'RenderZone finished - Zone: $_zoneId; _nPType: $_nPType; _rtDuration: $_rtDuration; _rtAct $_rtAct; _strZoneFile: $_strZoneFile; _bIsValid: $_bIsValid.');
@@ -734,7 +869,8 @@ class PlayerZoneImpl {
     return widget ?? Container(color: Utils.fromRGB(AppGlobal.clrBGColor));
   }
 
-  void _initContentList(int nType, String strZoneFile, Rect rectWin) {
+  Future<void> _initContentList(
+      int nType, String strZoneFile, Rect rectWin) async {
     bool initialize = true;
     if (_contentListPlayer == null) {
       //logD('''Zone $_zoneId play '$strZoneFile' step 21, TID $pid.''');
@@ -750,6 +886,7 @@ class PlayerZoneImpl {
       //logD('''Zone $_zoneId play '$strZoneFile' step 23, TID $pid.''');
       _contentListPlayer!.loadContentList(contentList: strZoneFile);
       if (_contentListPlayer!.isValidForPlay()) {
+        _contentListPlayer!.setIsLoading(true);
         //logD('''Zone $_zoneId play '$strZoneFile' step 24, TID $pid.''');
         _rtDuration = _nStart > 0
             ? (_contentListPlayer!.getDuration() -
@@ -767,32 +904,57 @@ class PlayerZoneImpl {
       }
       _contentListPlayer!.setTimeForStop(false);
       if (!initialize) {
-        playContentList(nType, strZoneFile, rectWin);
+        await playContentList(nType, strZoneFile, rectWin);
       }
     }
   }
 
-  Future<void> preloadContentList(BuildContext context) async {
-    if (_contentListPlayer != null) {
-      _contentListPlayer!.initZone(context); //
+  Future<void> preloadContentList(
+    BuildContext context, {
+    VoidCallback? onFirstContentPreloaded,
+  }) async {
+    final contentListPlayer = _contentListPlayer;
+    if (contentListPlayer == null) {
+      throw StateError(
+          'Content list player is not initialized for zone $_zoneId.');
+    }
+    if (!await contentListPlayer.initZone(
+      context,
+      firstProductIndex: _nStart,
+      onFirstContentPreloaded: onFirstContentPreloaded,
+    )) {
+      throw StateError('Content list preload failed for zone $_zoneId.');
     }
   }
 
-  void playContentList(int nType, String strZoneFile, Rect rectWin) {
+  void cancelContentListPreload() {
+    _contentListPlayer?.setIsLoading(false);
+  }
+
+  Future<void> playContentList(
+      int nType, String strZoneFile, Rect rectWin) async {
     if (_contentListPlayer != null && _contentListPlayer!.isValidForPlay()) {
       _contentListPlayer!.setStartTime(_dwStartTime);
-      _contentListPlayer!.play(_nStart); //
+      await _contentListPlayer!.play(_nStart);
       _bShowMessage = _contentListPlayer!.isShowMessage();
       _bShowMessageNext = _contentListPlayer!.isShowMessageNext();
       _nStart = 0;
     }
   }
 
-  void playNextContentListItem(PlayFinish nFinish) {
+  Future<void> playNextContentListItem(PlayFinish nFinish) async {
     try {
       if (_contentListPlayer != null) {
         _contentListPlayer!.stopCurrProduct();
-        _contentListPlayer!.playNextProduct();
+        await _contentListPlayer!.playNextProduct().catchError(
+          (Object error, StackTrace stackTrace) {
+            logE(
+              'PlayerZoneImpl - next content-list item failed: $error',
+              error,
+              stackTrace,
+            );
+          },
+        );
 
         _bShowMessage = _contentListPlayer!.isShowMessage();
         _bShowMessageNext = _contentListPlayer!.isShowMessageNext();
@@ -809,14 +971,24 @@ class PlayerZoneImpl {
   }
 
   void videoVolumeControl(bool bMute) {
-    if (_player != null) {
-      _player!.setVolume(bMute ? cVOLUMESILENCE : cVOLUMEFULL);
-    }
+    final player = _preloadedContent?.player ?? _player;
+    player?.setVolume(bMute ? cVOLUMESILENCE : cVOLUMEFULL);
   }
 
   void videoStatusControl(int nVideoStatus) {
-    _nVideoStatus = nVideoStatus;
-    if (_player != null) _player!.playOrPause();
+    if (_nVideoStatus != nVideoStatus) {
+      _nVideoStatus = nVideoStatus;
+      final player = _preloadedContent?.player ?? _player;
+      if (nVideoStatus == 1) {
+        if (player != null) {
+          unawaited(player.pause());
+        }
+      } else if (nVideoStatus == 2) {
+        if (player != null) {
+          unawaited(player.play());
+        }
+      }
+    }
     if (_contentListPlayer != null) {
       _contentListPlayer!.videoStatusControl(nVideoStatus);
     }
@@ -829,8 +1001,9 @@ class PlayerZoneImpl {
 
     bool bRet = false;
     double? rtPosition;
-    if (_player != null) {
-      rtPosition = _player!.state.position.inMilliseconds / 1000.0;
+    final player = _preloadedContent?.player ?? _player;
+    if (player != null) {
+      rtPosition = player.state.position.inMilliseconds / 1000.0;
       bRet = true;
     }
 
@@ -1064,7 +1237,11 @@ class PlayerZoneImpl {
     return 0;
   }
 
-  void rePlayZone() {
+  Future<void> rePlayZone() async {
+    await _rePlayZone();
+  }
+
+  Future<void> _rePlayZone() async {
     _rtCurrDuration = 0.00;
     ZoneData? pZoneData = getZoneData();
     if (pZoneData == null) {
@@ -1079,7 +1256,10 @@ class PlayerZoneImpl {
         break;
 
       case cVIDEOTYPE:
-        rePlayVideo();
+      case cSTREAMINGTYPE:
+      case cTVCAPTURETYPE:
+      case cWEBCAMTYPE:
+        await rePlayVideo();
         break;
       case cPOWERPOINTTYPE:
         break;
@@ -1111,32 +1291,26 @@ class PlayerZoneImpl {
     calcDuration();
   }
 
-  bool rePlayVideo() {
-    /*if (!_playCached || _player == null) {
-      if (_player != null) {
-        _player!.dispose();
-      }
-      _initVideoPlayer(getZoneData()!);
-    }
-    if (_player != null) {
-      _player!.play();
-    }*/
-    if (_preloadedContent != null) {
-      _preloadedContent!.stop();
-      _rtAct = _preloadedContent!.getActualDuration();
-      return true;
-    } else {
-      if (_player != null) {
-        //_player!.seek(Duration.zero);
-        _player!.stop();
-        _player!.open(Media(LibraryHelper.normalizeMediaSource(_strZoneFile)),
-            play: true);
-        _rtAct = _player!.state.duration.inMilliseconds / 1000.0;
+  Future<bool> rePlayVideo() async {
+    final generation = _initGeneration;
+    final player = _preloadedContent?.player ?? _player;
+    if (player == null) return false;
 
-        return true;
-      }
+    try {
+      await player.stop();
+      if (generation != _initGeneration) return false;
+      final source = _preloadedContent?.filePath ?? _strZoneFile;
+      await player.open(
+        Media(LibraryHelper.normalizeMediaSource(source)),
+        play: _nVideoStatus != 1,
+      );
+      if (generation != _initGeneration) return false;
+      _rtAct = player.state.duration.inMilliseconds / 1000.0;
+      return true;
+    } catch (error, stackTrace) {
+      logE('PlayerZoneImpl - video replay failed: $error', stackTrace);
+      return false;
     }
-    return false;
   }
 
   void showZoneWnd(bool bool) {}
@@ -1172,7 +1346,7 @@ class PlayerZoneImpl {
     switch (pZoneData.nZoneType) {
       case cVIDEOTYPE:
         preloaded =
-            preloadVideoPlayer(pZoneData, filePath: filePath, size: size);
+            await preloadVideoPlayer(pZoneData, filePath: filePath, size: size);
         break;
       case cIMAGETYPE:
         if (filePath.startsWith('http')) {
@@ -1189,12 +1363,13 @@ class PlayerZoneImpl {
     return preloaded;
   }
 
-  static PreloadedContent? preloadVideoPlayer(ZoneData pZoneData,
-      {String? filePath, String? company, Size? size, int ptype = -1}) {
+  static Future<PreloadedContent?> preloadVideoPlayer(ZoneData pZoneData,
+      {String? filePath, String? company, Size? size, int ptype = -1}) async {
     filePath ??= Utils.getFilePath(
         pZoneData.strZoneFile, pZoneData.nZoneType, ptype, company);
+    Player? player;
     try {
-      var player = Player(
+      player = Player(
         configuration: const PlayerConfiguration(
           title: 'dcm',
           osc: false,
@@ -1205,25 +1380,67 @@ class PlayerZoneImpl {
         ),
       );
 
-      final video = Media(LibraryHelper.normalizeMediaSource(filePath));
-      player.open(video, play: false);
+      player.stream.error.listen(
+        (error) => logE(
+            'PlayerZoneImpl - MediaKit stream error for "$filePath": $error'),
+      );
+      player.stream.videoParams.listen(
+        (params) =>
+            logI('PlayerZoneImpl - video parameters for "$filePath": $params.'),
+      );
+      player.stream.width.listen(
+        (width) =>
+            logD('PlayerZoneImpl - video width for "$filePath": $width.'),
+      );
+      player.stream.height.listen(
+        (height) =>
+            logD('PlayerZoneImpl - video height for "$filePath": $height.'),
+      );
 
-      var controller = VideoController(
+      final controller = VideoController(
         player,
         configuration: VideoControllerConfiguration(
           width: size?.width.toInt() ?? 800,
           height: size?.height.toInt() ?? 600,
         ),
       );
-      player.setVolume(
-          AppGlobal.videoVolume(pZoneData.bZoneMute, pZoneData.dVolume));
 
+      final video = Media(LibraryHelper.normalizeMediaSource(filePath));
+      logD('PlayerZoneImpl - open requested for "$filePath".');
+      await player.open(video, play: false);
+      logD('PlayerZoneImpl - open completed for "$filePath".');
+      logD('PlayerZoneImpl - setVolume requested for "$filePath".');
+      await player.setVolume(
+          AppGlobal.videoVolume(pZoneData.bZoneMute, pZoneData.dVolume));
+      logD('PlayerZoneImpl - setVolume completed for "$filePath".');
+
+      unawaited(controller.platform.future.then((_) {
+        logI(
+            'PlayerZoneImpl - video controller ready for "$filePath"; texture: ${controller.id.value}; rect: ${controller.rect.value}.');
+        void logTextureUpdate() {
+          final textureId = controller.id.value;
+          final rect = controller.rect.value;
+          logI(
+              'PlayerZoneImpl - video texture update for "$filePath"; texture: $textureId; rect: $rect.');
+          if (textureId != null && rect != null) {
+            controller.id.removeListener(logTextureUpdate);
+            controller.rect.removeListener(logTextureUpdate);
+          }
+        }
+
+        controller.id.addListener(logTextureUpdate);
+        controller.rect.addListener(logTextureUpdate);
+      }).catchError((Object error, StackTrace stackTrace) {
+        logE('PlayerZoneImpl - video controller failed for "$filePath": $error',
+            stackTrace);
+      }));
       return PreloadedContent(
           type: cVIDEOTYPE,
           filePath: filePath,
           controller: controller,
           player: player);
     } catch (e, stackTrace) {
+      await player?.dispose();
       logE('PlayerZoneImpl - preloadVideoPlayer error: $e', stackTrace);
     }
 

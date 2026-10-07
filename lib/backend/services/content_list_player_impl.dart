@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:dcm/backend/constants.dart';
@@ -41,6 +42,7 @@ class ContentListPlayerImpl {
   ProductData? _pProductData;
   bool _bIsPlaying = false;
   bool _bIsLoading = false;
+  bool _bIsPreloading = false;
   bool _bNeedStop = false;
 
   int _nCurrProduct = 0;
@@ -65,7 +67,7 @@ class ContentListPlayerImpl {
     }
   }
 
-  bool get bIsLoading => _bIsLoading;
+  bool get bIsLoading => _bIsLoading || _bIsPreloading;
   void setIsLoading(bool value) {
     _bIsLoading = value;
   }
@@ -356,22 +358,63 @@ class ContentListPlayerImpl {
     _bTimeForStop = timeForStop;
   }
 
-  Future<bool> initZone(BuildContext context) async {
+  Future<bool> initZone(
+    BuildContext context, {
+    int firstProductIndex = 0,
+    VoidCallback? onFirstContentPreloaded,
+  }) async {
+    _bIsPreloading = true;
     stop();
-    if (_lstProduct == null) return false;
+    if (_lstProduct == null) {
+      _bIsPreloading = false;
+      return false;
+    }
 
-    _mapPreloadedContents ??= {};
-    for (var pData in _lstProduct!) {
-      if (!isOutdated(pData)) {
-        for (var pZoneData in pData.lstZone) {
-          var proloadContent = await PlayerZoneImpl.preloadContent(
-              pZoneData, context,
-              company: _strCompany);
-          if (proloadContent != null) {
-            _mapPreloadedContents?[proloadContent.filePath] = proloadContent;
-          }
+    try {
+      _mapPreloadedContents ??= {};
+      final products = _lstProduct!;
+      final playableProducts = <ProductData>[];
+      for (var index = 0; index < products.length; index++) {
+        final product = getProductDataByID(index);
+        if (product != null && isTimeForPlay(product)) {
+          playableProducts.add(product);
         }
       }
+      final firstProduct =
+          firstProductIndex >= 0 && firstProductIndex < playableProducts.length
+              ? playableProducts[firstProductIndex]
+              : null;
+      final preloadOrder = firstProduct == null
+          ? products
+          : <ProductData>[
+              firstProduct,
+              ...products.where((product) => !identical(product, firstProduct)),
+            ];
+
+      for (final product in preloadOrder) {
+        if (!isOutdated(product)) {
+          for (final zoneData in product.lstZone) {
+            final preloadedContent = await PlayerZoneImpl.preloadContent(
+              zoneData,
+              context,
+              company: _strCompany,
+            );
+            if (preloadedContent != null) {
+              _mapPreloadedContents![preloadedContent.filePath] =
+                  preloadedContent;
+            }
+          }
+        }
+
+        if (identical(product, firstProduct)) {
+          onFirstContentPreloaded?.call();
+        }
+      }
+    } catch (_) {
+      _bIsLoading = false;
+      rethrow;
+    } finally {
+      _bIsPreloading = false;
     }
 
     return true;
@@ -410,8 +453,8 @@ class ContentListPlayerImpl {
 
   void deleteZoneImpl(int nZone) {
     while (_players.length > nZone) {
-      _players[nZone].stopPlay();
-      _players.removeAt(nZone);
+      final player = _players.removeAt(nZone);
+      unawaited(player.release());
     }
   }
 
@@ -432,7 +475,11 @@ class ContentListPlayerImpl {
 
   Future<void> release() async {
     _bIsPlaying = false;
+    final players = List<PlayerZoneImpl>.of(_players);
     _players.clear();
+    for (final player in players) {
+      await player.release();
+    }
     if (_mapPreloadedContents != null && _mapPreloadedContents!.isNotEmpty) {
       for (var preloadedContent in _mapPreloadedContents!.values) {
         await preloadedContent.release();
@@ -446,10 +493,9 @@ class ContentListPlayerImpl {
     //g_pPlayerWnd->DetachMZThread(_nZone);
   }
 
-  void play([int nStart = 0]) {
-    _bIsLoading = true;
+  Future<void> play([int nStart = 0]) async {
     _dwFirstTime = DateTime.now();
-    playProduct(nStart, true);
+    await playProduct(nStart, true);
   }
 
   void stopCurrProduct() {
@@ -468,7 +514,7 @@ class ContentListPlayerImpl {
         '''ContentListPlayerImpl - StopCurrProduct; Zone:'$_nZone'; ${PlatformUtils().getMemoryLog()}; TID: '$pid'.''');
   }
 
-  void playNextProduct() {
+  Future<void> playNextProduct() async {
     //StopCurrProduct();
     //WriteMessage(MSG_INFO, _T("ContentListPlayerImpl - PlayNextProduct; m_nPlayAHItem:%d; m_dwPlayADItem: %d, Thread ID %d!!!"), m_nPlayAHItem, m_dwPlayADItem, GetCurrentThreadId());
     if (_nPlayAHItem == -1 || _dwPlayADItem == 0) {
@@ -479,7 +525,7 @@ class ContentListPlayerImpl {
       }
     }
 
-    playProduct(_nCurrProduct);
+    await playProduct(_nCurrProduct);
   }
 
   void playCurrProduct(ZoneExtData pZoneData) {
@@ -516,7 +562,16 @@ class ContentListPlayerImpl {
     pPlayer.setWindowRect(_playerRect!);
   }
 
-  void playProduct(int nIndex, [bool bStart = false]) {
+  Future<void> playProduct(int nIndex, [bool bStart = false]) async {
+    _bIsLoading = true;
+    try {
+      await _playProduct(nIndex, bStart);
+    } finally {
+      _bIsLoading = false;
+    }
+  }
+
+  Future<void> _playProduct(int nIndex, bool bStart) async {
     if (getCount() == 0) {
       logD(
           '''ContentListPlayerImpl - No item to play, Content Type: '$_nContentType'; Content Path: '$_strContentListPath'; nIndex: '$nIndex'.''');
@@ -530,7 +585,7 @@ class ContentListPlayerImpl {
     if (!result.status) {
       logD(
           '''ContentListPlayerImpl - Content list item not available to play, Content Type: '$_nContentType'; Content Path: '$_strContentListPath'; nIndex: '$nIndex'.''');
-      playNextProduct();
+      await playNextProduct();
       return;
     }
 
@@ -542,14 +597,14 @@ class ContentListPlayerImpl {
     if (_pProductData == null) {
       logD(
           '''ContentListPlayerImpl - Content list item (_pProductData is null) not available to play, Content Type: '$_nContentType'; Content Path: '$_strContentListPath'; nIndex: '$nIndex'.''');
-      playNextProduct();
+      await playNextProduct();
       return;
     }
 
     if (!_pProductData!.isValidForPlay()) {
       logD(
           '''ContentListPlayerImpl - Content list item content is invalid, Content Type: '$_nContentType'; Content Path: '$_strContentListPath'; nIndex: '$nIndex'.''');
-      playNextProduct();
+      await playNextProduct();
       return;
     }
 
@@ -616,7 +671,7 @@ class ContentListPlayerImpl {
       pZoneImpl!.setZone(nZone);
       pZoneImpl.setProductData(_pProductData);
       pZoneImpl.setAHPlaying(_bIsAHPlaying);
-      pZoneImpl.initZone(_mapPreloadedContents);
+      await pZoneImpl.initZone(_mapPreloadedContents);
       if (bStart) {
         /*if (!pZoneImpl.renderZone(pNextData)) {
             playNextProduct();
@@ -697,11 +752,15 @@ class ContentListPlayerImpl {
 
   bool isShowMessageNext() => _bShowMessageNext;
 
-  void videoStatusControl(int nVideoStatus) {}
+  void videoStatusControl(int nVideoStatus) {
+    for (final player in _players) {
+      player.videoStatusControl(nVideoStatus);
+    }
+  }
 
   ({bool status, PlayFinish? nFinish}) isPlayFinish(PlayFinish nFinish) {
     if (_bTimeForStop) return (status: false, nFinish: nFinish);
-    if (_bIsLoading) {
+    if (bIsLoading) {
       return (status: false, nFinish: PlayFinish.eCONTENTSTARTING);
     }
 

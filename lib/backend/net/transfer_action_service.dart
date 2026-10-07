@@ -84,6 +84,7 @@ class TransferActionService {
   /*																	*/
   /// *****************************************************************
   Future<bool> download() async {
+    await ContentSyncService().workQueue.resetQueue();
     if (_pTaskItem.nRetries > 0) {
       List<ContentDownloadTask> syncTasks = [];
       for (var iter in _fileListImpl.fileList) {

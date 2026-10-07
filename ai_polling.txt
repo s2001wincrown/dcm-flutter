@@ -608,3 +608,37 @@ await subscription.cancel();
 ```
 
 如果消息量可能很大，建议增加有界队列，例如只保留最近 N 条，或按命令分别处理并丢弃过期状态消息。当前 `_messages.add(message)` 本身没有队列上限，暂停订阅时确实存在无界增长风险。
+
+protoc --dart_out=lib/proto src/main/proto/player.proto
+
+我会按当前代码核对两条下载链路的队列文件、HTTP client 共享方式和目标文件路径，重点判断会不会同时写同一目标/`.part` 文件，而不只看它们是否用了不同队列。
+
+Read , lines 1 to 340
+
+Read , lines 55 to 100
+
+Read , lines 405 to 590
+
+Read , lines 725 to 850
+
+Read , lines 300 to 380
+
+初步看出两个层面的影响：不同目标文件不会共享 queue state，但两个 downloader 共享 `syncHttpClientFactory` 的同一底层 HTTP client；更危险的是，如果同一 `strDestFile` 在两边出现，它们会共用目标文件及 `.part`、`.part.dio.tmp` 路径。我再核实旧 `cSyncAHMESSAGE` 的本地目录映射是否与新服务完全相同，再给你准确结论。
+
+Searched for regex `cDCMAHMESSAGETYPE|case cDCMAHMESSAGETYPE` (`**/lib/backend/net/player_path_service.dart`), 1 result
+
+Searched for regex `cDCMAHMESSAGETYPE|ContentDownloadTask.fromFileInfoData` (`**/lib/backend/net/transfer_action_service.dart`), 1 result
+
+Read , lines 85 to 185
+
+Read , lines 302 to 330
+
+**会有影响；是否会发生文件冲突，取决于两边是否下载到同一个目标路径。**
+
+- 两边的任务队列是分开的：`ContentSyncService` 用 `download_queue.json`，`MessageSyncService` 用 `message_sync_download_queue.json`。队列之间没有互斥或去重机制。
+- 但两边都通过 `ContentDownloadTask` 下载，且 `cDCMAHMESSAGETYPE` 的目标目录都是 `AppGlobal.messagePath`。若 `strDestFile` 相同，就会同时写同一个目标文件、`.part` 和 `.part.dio.tmp`，可能互相删除临时文件、续传错位、重命名失败或最终文件损坏。`MessageSyncService` 的本地新旧检查不是跨服务锁，不能阻止两边同时通过检查。
+- 即使目标文件不重复，两边也共享 `syncHttpClientFactory` 的底层 HTTP client，会争用连接和带宽；通常是变慢，不是队列互相阻塞。
+
+相关实现见 MessageSyncService、ContentDownloader、ContentSyncService 和 消息文件目录映射。
+
+稳妥的方向是让两条链路共用一个下载协调器，或至少加跨服务的目标路径锁/去重。当前代码能保证各自队列内部串行，但**不能保证与 ContentSyncService 并发时同目标文件安全**。

@@ -10,7 +10,6 @@ import 'package:dcm/backend/utils/log_utils.dart';
 import 'package:dcm/backend/utils/utils.dart';
 import 'package:dcm/backend/xmlfile/xmlfile.dart';
 import 'package:dcm/backend/xmlfile/xmlitem.dart';
-import 'package:worker_manager/worker_manager.dart';
 
 enum ContentDownloadStatus {
   pending,
@@ -154,6 +153,7 @@ class ContentDownloadQueue {
   final String persistencePath;
   final String queueMode;
   final List<ContentDownloadTask> tasks;
+  Future<void> _saveTail = Future<void>.value();
   int finalFailedTaskCount = 0;
   int finalSuccessTaskCount = 0;
   String lastTaskOutcome = 'unknown';
@@ -196,16 +196,34 @@ class ContentDownloadQueue {
     }
   }
 
-  Future<void> save() async {
-    final file = File(persistencePath);
-    await file.parent.create(recursive: true);
-    final payload = jsonEncode({
-      'tasks': tasks.map((task) => task.toJson()).toList(),
-      'finalFailedTaskCount': finalFailedTaskCount,
-      'finalSuccessTaskCount': finalSuccessTaskCount,
-      'lastTaskOutcome': lastTaskOutcome,
-    });
-    await file.writeAsString(payload, flush: true);
+  Future<void> save() {
+    final previousSave = _saveTail;
+    final saveGate = Completer<void>();
+    _saveTail = saveGate.future;
+    return _saveAfter(previousSave, saveGate);
+  }
+
+  Future<void> _saveAfter(
+      Future<void> previousSave, Completer<void> saveGate) async {
+    try {
+      try {
+        await previousSave;
+      } catch (_) {
+        // A failed save must not permanently block later snapshots.
+      }
+
+      final file = File(persistencePath);
+      await file.parent.create(recursive: true);
+      final payload = jsonEncode({
+        'tasks': tasks.map((task) => task.toJson()).toList(),
+        'finalFailedTaskCount': finalFailedTaskCount,
+        'finalSuccessTaskCount': finalSuccessTaskCount,
+        'lastTaskOutcome': lastTaskOutcome,
+      });
+      await file.writeAsString(payload, flush: true);
+    } finally {
+      saveGate.complete();
+    }
   }
 
   bool containsUrl(String url) {
@@ -268,12 +286,14 @@ class ContentDownloadQueue {
       return false;
     }
 
-    existingTask.retryCount = task.retryCount + 1;
+    final nextRetryCount = task.retryCount + 1;
+    final shouldRetry = nextRetryCount <= maxRetries;
+    existingTask.retryCount = shouldRetry ? nextRetryCount : maxRetries;
     existingTask.status = ContentDownloadStatus.failed;
     existingTask.errorMessage = task.errorMessage;
     existingTask.lastUpdated = DateTime.now();
 
-    if (existingTask.retryCount > maxRetries) {
+    if (!shouldRetry) {
       tasks.removeWhere((candidate) => candidate.id == existingTask.id);
       finalFailedTaskCount += 1;
       lastTaskOutcome = 'failure';
@@ -419,6 +439,7 @@ class ContentDownloader {
     this.onTaskComplete,
     this.pollingInterval,
     this.buildRequestBody,
+    this.reportToPlayerLog = true,
     SyncHttpClientFactory? httpClientFactory,
   })  : maxRetries = maxRetries ?? AppGlobal.fileTransferRetries,
         _httpClientFactory = httpClientFactory ?? syncHttpClientFactory {
@@ -435,10 +456,15 @@ class ContentDownloader {
   final void Function(ContentDownloadTask task)? onTaskComplete;
   final Duration? pollingInterval;
   final Future<String> Function()? buildRequestBody;
+  final bool reportToPlayerLog;
   final SyncHttpClientFactory _httpClientFactory;
 
   late final SyncHttpClient _client;
-  bool _isRunning = false;
+  bool _isResetting = false;
+  bool _queueLoaded = false;
+  Future<void>? _queueLoadFuture;
+  Future<void>? _runFuture;
+  Future<void>? _resetFuture;
   Timer? _pollTimer;
   bool _pollInProgress = false;
 
@@ -500,19 +526,91 @@ class ContentDownloader {
 
   Future<void> addTasksFromApi(String xmlBody) async {
     final tasks = await fetchTasksFromApi(xmlBody);
+    final resetBeforeLoad = _resetFuture;
+    if (resetBeforeLoad != null) await resetBeforeLoad;
+    await _ensureQueueLoaded();
+    final resetAfterLoad = _resetFuture;
+    if (resetAfterLoad != null) await resetAfterLoad;
     queue.addTasks(tasks);
     await queue.save();
   }
 
   Future<void> start() async {
-    if (_isRunning) {
+    final resetFuture = _resetFuture;
+    if (resetFuture != null) {
+      await resetFuture;
+      return start();
+    }
+
+    final runningFuture = _runFuture;
+    if (runningFuture != null) {
+      await runningFuture;
+      if (!_isResetting && queue.nextPendingTask() != null) {
+        return start();
+      }
       return;
     }
-    _isRunning = true;
+
+    late final Future<void> runFuture;
+    runFuture = _runWorkersUntilIdle().whenComplete(() {
+      if (identical(_runFuture, runFuture)) {
+        _runFuture = null;
+      }
+    });
+    _runFuture = runFuture;
+    return runFuture;
+  }
+
+  Future<void> _runWorkersUntilIdle() async {
+    try {
+      await _ensureQueueLoaded();
+
+      while (!_isResetting && queue.nextPendingTask() != null) {
+        final workers = List.generate(concurrency, (_) => _workerLoop());
+        await Future.wait(workers);
+      }
+    } finally {
+      var recoveredRunningTasks = false;
+      for (final task in queue.tasks) {
+        if (task.status == ContentDownloadStatus.running) {
+          task.status = ContentDownloadStatus.pending;
+          recoveredRunningTasks = true;
+        }
+      }
+      if (recoveredRunningTasks) {
+        await queue.save();
+      }
+    }
+  }
+
+  Future<void> _ensureQueueLoaded() {
+    if (_queueLoaded) return Future<void>.value();
+    final currentLoad = _queueLoadFuture;
+    if (currentLoad != null) return currentLoad;
+
+    late final Future<void> loadFuture;
+    loadFuture = _loadQueue().whenComplete(() {
+      if (identical(_queueLoadFuture, loadFuture)) {
+        _queueLoadFuture = null;
+      }
+    });
+    _queueLoadFuture = loadFuture;
+    return loadFuture;
+  }
+
+  Future<void> _loadQueue() async {
     await queue.load();
-    final workers = List.generate(concurrency, (_) => _workerLoop());
-    await Future.wait(workers);
-    _isRunning = false;
+    _queueLoaded = true;
+    var recoveredRunningTasks = false;
+    for (final task in queue.tasks) {
+      if (task.status == ContentDownloadStatus.running) {
+        task.status = ContentDownloadStatus.pending;
+        recoveredRunningTasks = true;
+      }
+    }
+    if (recoveredRunningTasks) {
+      await queue.save();
+    }
   }
 
   Future<void> startPolling() async {
@@ -538,9 +636,39 @@ class ContentDownloader {
   bool get isPolling => _pollTimer != null;
 
   Future<void> resetQueue() async {
-    _isRunning = false;
+    final resetFuture = _resetFuture;
+    if (resetFuture != null) {
+      return resetFuture;
+    }
+
+    _isResetting = true;
+    late final Future<void> newResetFuture;
+    newResetFuture = _resetQueueAfterWorkers().whenComplete(() {
+      if (identical(_resetFuture, newResetFuture)) {
+        _resetFuture = null;
+      }
+      _isResetting = false;
+    });
+    _resetFuture = newResetFuture;
+    return newResetFuture;
+  }
+
+  Future<void> _resetQueueAfterWorkers() async {
     await stopPolling();
-    queue.reset();
+    final loadingFuture = _queueLoadFuture;
+    if (loadingFuture != null) {
+      await loadingFuture;
+    }
+    final runningFuture = _runFuture;
+    if (runningFuture != null) {
+      try {
+        await runningFuture;
+      } catch (error, stackTrace) {
+        logE('Content download workers stopped during reset: $error', error,
+            stackTrace);
+      }
+    }
+    queue.reset(persist: false);
     await queue.save();
   }
 
@@ -549,19 +677,29 @@ class ContentDownloader {
   }
 
   Future<void> addTask(ContentDownloadTask task) async {
+    final resetBeforeLoad = _resetFuture;
+    if (resetBeforeLoad != null) await resetBeforeLoad;
+    await _ensureQueueLoaded();
+    final resetAfterLoad = _resetFuture;
+    if (resetAfterLoad != null) await resetAfterLoad;
     queue.addTask(task);
     await queue.save();
-    if (!_isRunning && queue.nextPendingTask() != null) {
+    if (queue.nextPendingTask() != null) {
       await start();
     }
   }
 
   Future<void> addTasksToQueue(List<ContentDownloadTask> tasksList) async {
+    final resetBeforeLoad = _resetFuture;
+    if (resetBeforeLoad != null) await resetBeforeLoad;
+    await _ensureQueueLoaded();
+    final resetAfterLoad = _resetFuture;
+    if (resetAfterLoad != null) await resetAfterLoad;
     logI('''Try to addTasksToQueue, files count: ${tasksList.length}.''',
         syncTag);
     queue.addTasks(tasksList);
     await queue.save();
-    if (!_isRunning && queue.nextPendingTask() != null) {
+    if (queue.nextPendingTask() != null) {
       await start();
     }
   }
@@ -595,7 +733,7 @@ class ContentDownloader {
     try {
       final xmlBody = await buildRequestBody!();
       await addTasksFromApi(xmlBody);
-      if (!_isRunning && queue.nextPendingTask() != null) {
+      if (queue.nextPendingTask() != null) {
         await start();
       }
     } catch (e, stack) {
@@ -605,7 +743,7 @@ class ContentDownloader {
   }
 
   Future<void> _workerLoop() async {
-    while (true) {
+    while (!_isResetting) {
       final task = queue.nextPendingTask();
       if (task == null) {
         return;
@@ -658,9 +796,11 @@ class ContentDownloader {
       String taskResult;
       int nError = cTRANSFERSUCCESS;
       if (task.status == ContentDownloadStatus.success) {
-        PlayerLogFile.nFileDownloaded++;
-        PlayerLogFile.nTotalBytesDownloaded +=
-            BigInt.from(task.remoteSize < 0 ? 0 : task.remoteSize);
+        if (reportToPlayerLog) {
+          PlayerLogFile.nFileDownloaded++;
+          PlayerLogFile.nTotalBytesDownloaded +=
+              BigInt.from(task.remoteSize < 0 ? 0 : task.remoteSize);
+        }
         taskResult = '(${task.title}) transfer completed.';
       } else {
         taskResult =
@@ -676,18 +816,20 @@ class ContentDownloader {
         strResult = 'Retry: ${task.retryCount} Result: $taskResult';
       }
       //strResult.replaceAll(_T("%"), _T("%%"));
-      await PlayerLogFile.writeLogFile(nError, strResult,
-          fileTitle: task.title,
-          bUpdateStatus: false,
-          contentType: task.contentType);
-      if (task.status == ContentDownloadStatus.success) {
-        await PlayerLogFile.updateSyncStatus();
+      if (reportToPlayerLog) {
+        await PlayerLogFile.writeLogFile(nError, strResult,
+            fileTitle: task.title,
+            bUpdateStatus: false,
+            contentType: task.contentType);
+        if (task.status == ContentDownloadStatus.success) {
+          await PlayerLogFile.updateSyncStatus();
+        }
       }
       logI(strResult, syncTag);
     }
   }
 
-  Future<ContentDownloadTask> _processTaskWithWorker(
+  /*Future<ContentDownloadTask> _processTaskWithWorker(
       ContentDownloadTask task) async {
     final payload = ContentDownloadWorkerPayload(
       apiUrl: apiUrl,
@@ -703,7 +845,7 @@ class ContentDownloader {
     );
 
     return ContentDownloadTask.fromJson(result.taskJson);
-  }
+  }*/
 
   static Future<ContentDownloadWorkerResult> executeTaskInWorker(
       ContentDownloadWorkerPayload payload) async {
@@ -819,6 +961,10 @@ class ContentDownloader {
     }
 
     final downloadedBytes = await partialFile.length();
+    if (downloadedBytes == 0) {
+      throw HttpException('Downloaded file is empty (0 bytes)',
+          uri: Uri.parse(task.url));
+    }
     await partialFile.rename(task.targetPath);
     task.downloaded = downloadedBytes;
     task.errorMessage = null;
@@ -830,12 +976,18 @@ class ContentDownloader {
   Future<int> _prepareResume(
       ContentDownloadTask task, File targetFile, File partialFile) async {
     if (await targetFile.exists()) {
-      final localModified = await targetFile.lastModified();
-      if (task.remoteModified == null ||
-          !localModified.isBefore(task.remoteModified!)) {
-        task.status = ContentDownloadStatus.skipped;
-        task.errorMessage = 'Target already up to date';
-        return 0;
+      final targetSize = await targetFile.length();
+      if (targetSize == 0) {
+        await targetFile.delete();
+      } else {
+        final localModified = await targetFile.lastModified();
+        if (task.remoteModified == null ||
+            !localModified.isBefore(task.remoteModified!)) {
+          task.status = ContentDownloadStatus.skipped;
+          task.errorMessage = 'Target already up to date';
+          logI('Target already up to date: $targetFile', syncTag);
+          return 0;
+        }
       }
     }
 
@@ -860,11 +1012,6 @@ class ContentDownloader {
 
   String _apiPath(String apiUrl) {
     final uri = Uri.parse(apiUrl);
-    return uri.path.isEmpty ? '/' : uri.path;
-  }
-
-  String _urlPath(String url) {
-    final uri = Uri.parse(url);
     return uri.path.isEmpty ? '/' : uri.path;
   }
 }

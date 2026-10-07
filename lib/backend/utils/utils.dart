@@ -610,11 +610,11 @@ class Utils {
 
   static String urlEscape(String csURL) {
     csURL = csURL.replaceAll(' ', '+');
+    csURL = csURL.replaceAll('%', '%25');
     csURL = csURL.replaceAll('[', '%5B');
     csURL = csURL.replaceAll(']', '%5D');
     csURL = csURL.replaceAll('"', '%22');
     csURL = csURL.replaceAll('\'', '%27');
-    csURL = csURL.replaceAll('%', '%25');
     csURL = csURL.replaceAll('/', '%2F');
     csURL = csURL.replaceAll('\\', '%5C');
 

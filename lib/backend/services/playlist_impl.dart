@@ -799,6 +799,22 @@ class PlayList {
               return (status: true, strDCMFile: data.strDCMFile);
             }
           }
+        } else if (data.uiID == currEpisode) {
+          if (data.isGroupItem() || data.isRTGroupItem()) {
+            final result = data.getDCMFile(nCurrPlay, company);
+            if (result.status) {
+              ahPlaylistZone.setCurrPlay(result.nCurrPlay);
+              ahPlaylistZone.setDCMFile(result.strDCMFile!);
+              ahPlaylistZone.setPlayFile(data.uiID);
+              currGroup = data.uiID;
+              groupIndex = data.uiGroupID;
+              return (status: true, strDCMFile: result.strDCMFile);
+            }
+          } else if (data.isDCMFileExist(0, company)) {
+            ahPlaylistZone.setDCMFile(data.strDCMFile);
+            ahPlaylistZone.setPlayFile(data.uiID);
+            return (status: true, strDCMFile: data.strDCMFile);
+          }
         }
       }
     }

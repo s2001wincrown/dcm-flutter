@@ -24,8 +24,6 @@ class FileFilterService {
   int _nFtpImm = 0;
   bool bGenSitePlaylist = false;
 
-  int _nFtpPeriod = 7;
-
   int _nLevel = 0;
 
   final List<FileInfoData> _lstFileInfo = [];

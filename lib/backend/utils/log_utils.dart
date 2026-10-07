@@ -10,6 +10,17 @@ const String _tag = "player";
 const String syncTag = "content sync";
 const int _maxLogFileBytes = 5 * 1024 * 1024;
 const int _maxRotatedFiles = 10;
+final RegExp _authenticationTokenPattern = RegExp(
+  r'''(\bauthentication-token\b\s*[:=]\s*)(["']?)([^"'\s&,;}]*)\2''',
+  caseSensitive: false,
+);
+
+String _redactAuthenticationToken(String line) {
+  return line.replaceAllMapped(
+    _authenticationTokenPattern,
+    (match) => '${match.group(1)}${match.group(2)}***${match.group(2)}',
+  );
+}
 
 class _PlayerFileOutput extends LogOutput {
   _PlayerFileOutput(this.filePath);
@@ -21,7 +32,9 @@ class _PlayerFileOutput extends LogOutput {
 
   @override
   void output(OutputEvent event) {
-    final lines = event.lines.map((line) => '$line\n').join();
+    final lines = event.lines
+        .map((line) => '${_redactAuthenticationToken(line)}\n')
+        .join();
     _writeQueue = _writeQueue.then((_) => _write(lines));
   }
 

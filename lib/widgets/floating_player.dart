@@ -8,13 +8,13 @@ import 'package:dcm/backend/utils/utils.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-class ContentListPlayer extends StatefulWidget {
+class FloatingPlayer extends StatefulWidget {
   final String contentList;
   final int contentType;
   final int zone;
   final Rect rect;
 
-  const ContentListPlayer(
+  const FloatingPlayer(
       {super.key,
       required this.contentList,
       required this.contentType,
@@ -22,10 +22,10 @@ class ContentListPlayer extends StatefulWidget {
       required this.rect});
 
   @override
-  State<ContentListPlayer> createState() => _ContentListPlayerState();
+  State<FloatingPlayer> createState() => _FloatingPlayerState();
 }
 
-class _ContentListPlayerState extends State<ContentListPlayer> {
+class _FloatingPlayerState extends State<FloatingPlayer> {
   @override
   void initState() {
     super.initState();
@@ -41,10 +41,9 @@ class _ContentListPlayerState extends State<ContentListPlayer> {
     if (playerZoneImpl == null) return;
 
     try {
-      logI('ContentListPlayer - preloadContentList');
+      logI('FloatingPlayer - preloadContentList');
       await preloadContentListThenPlay(
-        preload: (onFirstContentPreloaded) =>
-            playerZoneImpl.preloadContentList(
+        preload: (onFirstContentPreloaded) => playerZoneImpl.preloadContentList(
           context,
           onFirstContentPreloaded: onFirstContentPreloaded,
         ),
@@ -60,8 +59,11 @@ class _ContentListPlayerState extends State<ContentListPlayer> {
         onPlaybackSkipped: playerZoneImpl.cancelContentListPreload,
       );
     } catch (error, stackTrace) {
-      logE('ContentListPlayer - preload or playback initialization failed: '
-          '$error', error, stackTrace);
+      logE(
+          'FloatingPlayer - preload or playback initialization failed: '
+          '$error',
+          error,
+          stackTrace);
     }
   }
 
@@ -88,10 +90,10 @@ class _ContentListPlayerState extends State<ContentListPlayer> {
               children: <Widget>[
                 Builder(
                   builder: (context) {
-                    final currentLayout = playerScreenProvider
-                        .getContentListPlayerZones(widget.zone);
+                    final currentLayout =
+                        playerScreenProvider.getFloatingPlayerZones();
                     /*logD(
-                        '''ContentListPlayer Zone: ${widget.zone}, play: '${widget.contentList}', contentType: ${widget.contentType}, currentLayout: ${currentLayout?.length}.''');*/
+                        '''FloatingPlayer Zone: ${widget.zone}, play: '${widget.contentList}', contentType: ${widget.contentType}, currentLayout: ${currentLayout?.length}.''');*/
                     if (currentLayout == null || currentLayout.isEmpty) {
                       return Container(
                         color: Utils.fromRGB(AppGlobal.clrBGColor),
@@ -105,7 +107,7 @@ class _ContentListPlayerState extends State<ContentListPlayer> {
                         final w = partition.getRect().width;
                         final h = partition.getRect().bottom;
                         /*logD(
-                            '''ContentListPlayer: Render '${partition.getZoneFile()}' in partition ${partition.getZone()} at ($left, $top) with size ($w x $h)''');*/
+                            '''FloatingPlayer: Render '${partition.getZoneFile()}' in partition ${partition.getZone()} at ($left, $top) with size ($w x $h)''');*/
 
                         return Positioned(
                           left: left,

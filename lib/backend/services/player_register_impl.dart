@@ -7,6 +7,7 @@ import 'package:dcm/backend/models/player.dart';
 import 'package:dcm/backend/net/player_log_file.dart';
 import 'package:dcm/backend/utils/encoder_utils.dart';
 import 'package:dcm/backend/utils/log_utils.dart';
+import 'package:dcm/backend/utils/string_utils.dart';
 import 'package:dcm/backend/utils/utils.dart';
 import 'package:dcm/backend/xmlfile/inifile.dart';
 import 'package:dcm/backend/xmlfile/xmlfile.dart';
@@ -293,7 +294,9 @@ class PlayerRegisterImpl {
     //await loadPlayerInformation(player, App().dataPath);
     var playerInformation = await getPlayerInformation(App().dataPath);
     player.setPlayerName(playerInformation.pPlayerName);
-    player.setLocation(playerInformation.pPlayerName);
+    player.setLocation(isBlank(playerInformation.pLocation)
+        ? playerInformation.pPlayerName
+        : playerInformation.pLocation);
     player.strOrganization = playerInformation.pOrganization;
     player.strChannel = playerInformation.channel;
     await updateNetworkInfo(player);

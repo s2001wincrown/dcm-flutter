@@ -91,5 +91,7 @@
   "组织代码": "Organization",
   "频道": "Channel",
   "设置分组": "Set Group",
-  "内容管理系统网址": "CMS URL"
+  "内容管理系统网址": "CMS URL",
+  "请输入合法的内容管理系统网址": "Please input a valid CMS URL",
+  "网址必须以 http:// 或 https:// 开头": "URL must start with http:// or https://"
 }

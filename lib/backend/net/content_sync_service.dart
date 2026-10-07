@@ -54,6 +54,7 @@ class ContentSyncService {
   Timer? _tempFileCopyTimer;
   Timer? _syncStatusTimer;
   bool _pollInProgress = false;
+  Future<void>? _startSyncActionFuture;
 
   //CDownloadDynamicDataThread *_pThreadDynamicDataUpdate;
 
@@ -422,7 +423,9 @@ class ContentSyncService {
   }
 
   Future<void> startTempFileCopy() async {
-    logI('Copy tempory file to playlist\n', syncTag);
+    logI(
+        'Check download queue status, total count: ${_workQueue.getQueueStatus().totalCount} and Copy tempory file to playlist\n',
+        syncTag);
     if (isFtpFinished()) {
       logI('Start To Copy tempory file to playlist\n', syncTag);
 
@@ -570,7 +573,23 @@ class ContentSyncService {
     }
   }
 
-  Future<void> startSyncAction() async {
+  Future<void> startSyncAction() {
+    final runningAction = _startSyncActionFuture;
+    if (runningAction != null) {
+      return runningAction;
+    }
+
+    late Future<void> action;
+    action = _runStartSyncAction().whenComplete(() {
+      if (identical(_startSyncActionFuture, action)) {
+        _startSyncActionFuture = null;
+      }
+    });
+    _startSyncActionFuture = action;
+    return action;
+  }
+
+  Future<void> _runStartSyncAction() async {
     if (!await startSyncActionLock()) {
       await PlayerLogFile.openLogFile(PlayerTaskFile.pCurrJob!);
       await flagRetryJob(AppGlobal.retryInterval);
@@ -692,10 +711,8 @@ class ContentSyncService {
 
             await PlayerLogFile.writeLogFile(
                 cTRANSFERFILECOUNT, '${transferAction.getFileCount()}');
-
-            startSyncStatusTimer();
             if (transferAction.isNoDownloadButScheduleChange()) {
-              await stopSyncStatusTimer();
+              //await stopSyncStatusTimer();
               //_dwJobStatus = FileTransferStatus.eTRANSFEREDTEMPFILE;
               await PlayerTaskFile.writeTaskFile(PlayerTaskFile.pCurrJob,
                   FileTransferStatus.eTRANSFEREDTEMPFILE);
@@ -704,6 +721,7 @@ class ContentSyncService {
               return true;
             } else {
               await transferAction.download();
+              startSyncStatusTimer();
             }
             bDownload = true;
             //_dwJobStatus = FileTransferStatus.eTRANSFERINGTEMPFILE;
@@ -836,9 +854,8 @@ class ContentSyncService {
 
           PlayerLogFile.writeLogFile(
               cTRANSFERFILECOUNT, '${transferAction.getFileCount()}');
-          startSyncStatusTimer();
           if (transferAction.getFileCount() == 0) {
-            await stopSyncStatusTimer();
+            //await stopSyncStatusTimer();
             await PlayerTaskFile.writeTaskFile(PlayerTaskFile.pCurrJob,
                 FileTransferStatus.eTRANSFEREDTEMPFILE);
             await startTempFileCopy();
@@ -846,6 +863,7 @@ class ContentSyncService {
             return true;
           } else {
             await transferAction.download();
+            startSyncStatusTimer();
           }
           bDownload = true;
           await PlayerTaskFile.writeTaskFile(
@@ -875,12 +893,11 @@ class ContentSyncService {
     if (await transferAction.genFileList()) {
       await PlayerLogFile.writeLogFile(
           cTRANSFERFILECOUNT, '${transferAction.getFileCount()}');
-      startSyncStatusTimer();
       if (pJob.dwSyncContent == cSyncAPCONTENTLIST ||
           pJob.dwSyncContent == cSyncEVENTCONTENTLIST ||
           pJob.dwSyncContent == cSyncEVENTDATA) {
         if (transferAction.getFileCount() == 0) {
-          await stopSyncStatusTimer();
+          //await stopSyncStatusTimer();
           //StartTempFileCopy();
           //PlayerTaskFile.writeTaskFile();
           await PlayerTaskFile.writeTaskFile(
@@ -888,25 +905,27 @@ class ContentSyncService {
           await startTempFileCopy();
         } else {
           await transferAction.download();
+          startSyncStatusTimer();
           await PlayerTaskFile.writeTaskFile(
               pJob, FileTransferStatus.eTRANSFERINGTEMPFILE);
         }
       } else if (pJob.dwSyncContent == cSyncDCMPLAYERLOG ||
           pJob.dwSyncContent == cSyncDCMTRANSFERLOG) {
         if (transferAction.getFileCount() == 0) {
-          await stopSyncStatusTimer();
+          //await stopSyncStatusTimer();
           await PlayerTaskFile.writeTaskFile(
               pJob, FileTransferStatus.eTRANSFEREDTEMPFILE);
           await startTempFileCopy();
         } else {
           //todo upload contents
           //transferAction.upload();
+          startSyncStatusTimer();
           await PlayerTaskFile.writeTaskFile(
               pJob, FileTransferStatus.eTRANSFERINGTEMPFILE);
         }
       } else {
         if (transferAction.isNoDownloadButScheduleChange()) {
-          await stopSyncStatusTimer();
+          //await stopSyncStatusTimer();
           //StartTempFileCopy();
           //PlayerTaskFile.writeTaskFile();
           await PlayerTaskFile.writeTaskFile(
@@ -914,6 +933,7 @@ class ContentSyncService {
           await startTempFileCopy();
         } else {
           await transferAction.download();
+          startSyncStatusTimer();
           await PlayerTaskFile.writeTaskFile(
               pJob, FileTransferStatus.eTRANSFERINGTEMPFILE);
         }
@@ -1088,7 +1108,7 @@ class ContentSyncService {
       strRequest  = strFormat) % HTTP_UNIQUE_KEY %
         globalPlayer.strUniqueName % m_dtStartup.Format('%Y-%m-%d %H:%M:%S') % m_dtSyncTime.Format('%Y-%m-%d %H:%M:%S') %
         m_strPublicIP % m_strMACID % m_strDeviceID % globalPlayer.strMACAddress % globalPlayer.strMACAddress1 %
-        globalPlayer.strLocalAddress % m_strVerInfo);*/
+        globalPlayer.strLocalAddress % _strVerInfo);*/
       //todo: get player information and send sms
       /*DateTime dtCurr = DateTime.now();
       String strRequest;
@@ -1103,7 +1123,7 @@ class ContentSyncService {
       strFormat = '%s=%s&dtStartup=%s&strMACAddress=%s&strMACAddress1=%s&strLocalAddress=%s&strDCMVersion=%s&dtLogDate=%s';
       strRequest = strFormat) % HTTP_UNIQUE_KEY %
         globalPlayer.strUniqueName % m_dtStartup.Format('%Y-%m-%d %H:%M:%S') % globalPlayer.strMACAddress % globalPlayer.strMACAddress1 %
-        '' % m_strVerInfo % dtCurr.Format('%Y-%m-%d %H:%M:%S'); //globalPlayer.strLocalAddress
+        '' % _strVerInfo % dtCurr.Format('%Y-%m-%d %H:%M:%S'); //globalPlayer.strLocalAddress
       SendSMS(strRequest, strResult, 3);*/
     }
 

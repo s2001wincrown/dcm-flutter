@@ -77,15 +77,28 @@ class _InitialSetupPageState extends State<InitialSetupPage> {
 
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
+
+    final httpRootLink = _httpRootLink.text.trim();
+    final uri = Uri.tryParse(httpRootLink);
+    if (uri == null ||
+        !uri.isAbsolute ||
+        uri.host.isEmpty ||
+        (uri.scheme != 'http' && uri.scheme != 'https')) {
+      return;
+    }
+
     final settingsGroup = int.tryParse(_settingsGroup.text.trim());
     if (settingsGroup == null) return;
 
     setState(() => _saving = true);
+    final organization = _organization.text.trim();
+    final playerName = _playerName.text.trim();
+    final location = _location.text.trim();
     await PlayerRegisterImpl.genPlayerInformation(
       App().dataPath,
-      playerName: _playerName.text.trim(),
-      location: _location.text.trim(),
-      organization: _organization.text.trim(),
+      playerName: playerName.isEmpty ? null : playerName,
+      location: location.isEmpty ? null : location,
+      organization: organization.isEmpty ? null : organization,
       channel: _channel.text.trim(),
       settingsGroup: settingsGroup,
       httpRootLink: _httpRootLink.text.trim(),
@@ -121,6 +134,23 @@ class _InitialSetupPageState extends State<InitialSetupPage> {
     return value == null || value.trim().isEmpty ? '请输入此项'.l10n : null;
   }
 
+  String? _validateHttpRootLink(String? value) {
+    if (value == null || value.trim().isEmpty) {
+      return '请输入此项'.l10n;
+    }
+
+    final uri = Uri.tryParse(value.trim());
+    if (uri == null || !uri.isAbsolute) {
+      return '请输入合法的内容管理系统网址'.l10n;
+    }
+
+    if (uri.scheme != 'http' && uri.scheme != 'https') {
+      return '网址必须以 http:// 或 https:// 开头'.l10n;
+    }
+
+    return null;
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -143,12 +173,16 @@ class _InitialSetupPageState extends State<InitialSetupPage> {
                     const SizedBox(height: 24),
                     _field(_playerName, '播放器名称'.l10n, required: false),
                     _field(_location, '地点'.l10n, required: false),
-                    /*_field(_organization, '组织'.l10n, required: false),
-                    _field(_channel, '频道'.l10n, required: false),
+                    _field(_organization, '组织'.l10n, required: false),
+                    /*_field(_channel, '频道'.l10n, required: false),
                     _field(_settingsGroup, '设置组'.l10n,
                         keyboardType: TextInputType.number),*/
-                    _field(_httpRootLink, '内容管理系统网址'.l10n,
-                        keyboardType: TextInputType.url),
+                    _field(
+                      _httpRootLink,
+                      '内容管理系统网址'.l10n,
+                      keyboardType: TextInputType.url,
+                      validator: _validateHttpRootLink,
+                    ),
                     const SizedBox(height: 16),
                     FilledButton.icon(
                       onPressed: _saving ? null : _save,
@@ -176,14 +210,19 @@ class _InitialSetupPageState extends State<InitialSetupPage> {
     );
   }
 
-  Widget _field(TextEditingController controller, String label,
-      {TextInputType? keyboardType, bool required = true}) {
+  Widget _field(
+    TextEditingController controller,
+    String label, {
+    TextInputType? keyboardType,
+    bool required = true,
+    String? Function(String?)? validator,
+  }) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 14),
       child: TextFormField(
         controller: controller,
         keyboardType: keyboardType,
-        validator: required ? _required : null,
+        validator: validator ?? (required ? _required : null),
         decoration: InputDecoration(
           labelText: label,
           border: const OutlineInputBorder(),

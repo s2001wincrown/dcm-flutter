@@ -1,11 +1,12 @@
 import 'dart:async';
-import 'dart:convert';
 import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:dcm/backend/models/app_global.dart';
 import 'package:dcm/backend/models/player_global.dart';
+import 'package:dcm/backend/net/message_sync_service.dart';
 import 'package:dcm/backend/net/content_sync_service.dart';
+import 'package:dcm/backend/net/player_log_impl.dart';
 import 'package:dcm/backend/net/player_task_file.dart';
 import 'package:dcm/backend/utils/log_utils.dart';
 import 'package:dcm/proto/websocket_def.pb.dart';
@@ -30,11 +31,13 @@ class CmsWebSocketService {
   CmsWebSocketService({
     WebSocketChannel Function(Uri uri)? channelFactory,
     Map<CommandType, CmsMessageHandler> handlers = const {},
+    MessageSyncService? messageSyncService,
     this.initialReconnectDelay = const Duration(seconds: 1),
     this.maxReconnectAttempts,
     this.reconnectJitter = const Duration(seconds: 1),
   })  : _channelFactory = channelFactory ?? WebSocketChannel.connect,
-        _handlers = Map.unmodifiable(handlers);
+        _handlers = Map.unmodifiable(handlers),
+        _messageSyncService = messageSyncService ?? MessageSyncService();
 
   static const heartbeatInterval = Duration(seconds: 30);
   static const heartbeatResponseTimeout = Duration(seconds: 90);
@@ -42,6 +45,7 @@ class CmsWebSocketService {
 
   final WebSocketChannel Function(Uri uri) _channelFactory;
   final Map<CommandType, CmsMessageHandler> _handlers;
+  final MessageSyncService _messageSyncService;
   final Duration initialReconnectDelay;
   final int? maxReconnectAttempts;
   final Duration reconnectJitter;
@@ -192,14 +196,16 @@ class CmsWebSocketService {
         break;
       case CommandType.CMD_DCM_CONTENT:
         final content = DcmContent.fromBuffer(message.payload);
-        _enqueueDcmContent(content);
+        unawaited(_enqueueDcmContent(content));
         _notify(message, content);
         break;
       case CommandType.CMD_AH_SENDER:
         _notify(message, AhSender.fromBuffer(message.payload));
         break;
       case CommandType.CMD_AH_MESSAGE:
-        _notify(message, MessageInfo.fromBuffer(message.payload));
+        final messageInfo = MessageInfo.fromBuffer(message.payload);
+        unawaited(_enqueueAhMessage(messageInfo));
+        _notify(message, messageInfo);
         break;
       case CommandType.CMD_EVENT_MESSAGE:
         _notify(message, DcmEventInfo.fromBuffer(message.payload));
@@ -241,32 +247,45 @@ class CmsWebSocketService {
     }
   }
 
-  void _enqueueDcmContent(DcmContent content) {
-    if (content.task.isEmpty) {
-      logW('Ignoring CMS DCM content without task id', syncTag);
-      return;
+  Future<void> _enqueueDcmContent(DcmContent content) async {
+    try {
+      if (content.task.isEmpty) {
+        logW('Ignoring CMS DCM content without task id', syncTag);
+        return;
+      }
+      final task = PlayerJobItem.fromDCMContent(content);
+      if (await PlayerLogImpl.isNewTaskSave(task.strJobItem)) {
+        final queued = await PlayerTaskFile.queueTask(task);
+        if (queued) {
+          _requestContentSync();
+        } else {
+          logW('CMS DCM content task was not queued: ${task.strJobItem}',
+              syncTag);
+        }
+      }
+    } catch (error, stackTrace) {
+      logW('CMS DCM content task enqueue failed: $error', syncTag);
+      logD('CMS DCM content task enqueue stack: $stackTrace', syncTag);
     }
-    final task = PlayerJobItem()
-      ..strJobItem = content.task
-      ..strFtpTime = content.ftpTime
-      ..strTimeOuts = content.timeout
-      ..strStartFtpTime = content.startFtpTime
-      ..strOtherInfo = jsonEncode({
-        'filePath': content.filePath,
-        'pid': content.pid,
-        'includeToday': content.includeToday,
-      })
-      ..dwSyncContent = content.ftpContent
-      ..nSyncPeriod = content.period
-      ..nRetries = content.retries
-      ..dwJobType = content.immediate ? JobItemType.eMANUAL : JobItemType.eAUTO
-      ..bReplaceFile = content.allContent;
-    if (content.validity.isNotEmpty) {
-      task.dtValidity = DateTime.tryParse(content.validity);
-    }
-    if (PlayerTaskFile.updateTask(task)) {
-      unawaited(PlayerTaskFile.writeTaskFile());
-      _requestContentSync();
+  }
+
+  Future<void> _enqueueAhMessage(MessageInfo messageInfo) async {
+    try {
+      final result = await _messageSyncService.enqueue(messageInfo);
+      if (result.succeeded) {
+        logI(
+          'AHMessage sync completed: ${result.messageName}; downloaded: ${result.downloadedCount}; skipped: ${result.skippedCount}.',
+          syncTag,
+        );
+      } else if (!result.cancelled) {
+        logW(
+          'AHMessage sync completed with failures: ${result.messageName}; failed: ${result.failedCount}; ${result.error ?? ''}',
+          syncTag,
+        );
+      }
+    } catch (error, stackTrace) {
+      logW('AHMessage enqueue failed: $error', syncTag);
+      logD('AHMessage enqueue stack: $stackTrace', syncTag);
     }
   }
 
@@ -413,6 +432,7 @@ class CmsWebSocketService {
     }
     _disposed = true;
     await disconnect();
+    await _messageSyncService.dispose();
     await _messages.close();
     await _connectionStates.close();
   }
@@ -442,7 +462,7 @@ class CmsWebSocketService {
     final query = <String, String>{
       ...baseUri.queryParameters,
       'uniqueName': globalPlayer.strUniqueName,
-      'token': AppGlobal.cmsToken,
+      'authentication-token': AppGlobal.cmsToken,
     };
     final uri = Uri(
       scheme: scheme,
@@ -466,7 +486,7 @@ class CmsWebSocketService {
   String _describeError(Object error) {
     final text = error.toString();
     final sanitized = text.replaceAllMapped(
-      RegExp(r'([?&]token=)[^&#\s]+'),
+      RegExp(r'([?&]authentication-token=)[^&#\s]+'),
       (match) => '${match.group(1)}***',
     );
     return '${error.runtimeType}: $sanitized';

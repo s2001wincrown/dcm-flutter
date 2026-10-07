@@ -5,7 +5,6 @@ import 'package:dcm/backend/models/app_global.dart';
 import 'package:dcm/backend/models/player_global.dart';
 import 'package:dcm/backend/net/player_log_file.dart';
 import 'package:dcm/backend/net/player_log_impl.dart';
-import 'package:dcm/backend/net/netdef.dart';
 import 'package:dcm/backend/net/play_log_post.dart';
 import 'package:dcm/backend/utils/extensions.dart';
 import 'package:dcm/backend/utils/log_utils.dart';
@@ -14,6 +13,7 @@ import 'package:dcm/backend/utils/time_utils.dart';
 import 'package:dcm/backend/utils/utils.dart';
 import 'package:dcm/backend/xmlfile/xmlfile.dart';
 import 'package:dcm/backend/xmlfile/xmlitem.dart';
+import 'package:dcm/proto/websocket_def.pb.dart';
 import 'package:intl/intl.dart';
 import 'package:path/path.dart' as path;
 
@@ -145,6 +145,44 @@ class PlayerJobItem {
 
   PlayerJobItem.copy(PlayerJobItem other) {
     copyFrom(other);
+  }
+
+  PlayerJobItem.fromDCMContent(DcmContent content) {
+    strJobItem = content.task;
+    strJobTime = content.ftpTime;
+    strFtpTime = '';
+    strTimeOuts = content.timeout;
+    if (strTimeOuts.isEmpty) {
+      strTimeOuts = PlayerTaskFile.strTimeOuts;
+    }
+    strStartFtpTime = content.startFtpTime;
+    bReplaceFile = content.allContent;
+    dwSyncContent = content.ftpContent;
+    nSyncPeriod = content.period;
+    if (nSyncPeriod <= 0 && dwSyncContent != cSyncDCMUPDATE) {
+      nSyncPeriod = PlayerTaskFile.nSyncPeriod;
+    }
+    dwJobType = content.immediate ? JobItemType.eMANUAL : JobItemType.eAUTO;
+    nBeforeDay = content.includeToday ? 1 : 0;
+    nTaskAction = 0;
+    strSyncContent = content.filePath;
+    strOtherInfo = '';
+    var syncContent = strSyncContent.split(',');
+    if (syncContent.length > 1) {
+      strSyncContent = syncContent[0];
+      strOtherInfo = syncContent[1];
+    }
+    dwJobStatus = FileTransferStatus.eNOTTRANSFER;
+    nMaximumLimit = content.pid;
+    if (content.validity.isNotEmpty) {
+      dtValidity = DateFormat('dd/MM/yyyy HH:mm:ss').tryParse(content.validity);
+    }
+    dtValidity ??= DateTime.now().add(Duration(days: content.period));
+
+    nRetries = content.retries;
+    if (nRetries < 0) nRetries = AppGlobal.taskTransferRetries;
+    nRetryCount = 0;
+    bIsCurrent = false;
   }
 
   void copyFrom(PlayerJobItem other) {
@@ -443,6 +481,27 @@ class PlayerTaskFile {
     }
   }
 
+  static Future<bool> queueTask(PlayerJobItem pTask,
+      [bool bUpdateTask = false]) async {
+    if (updateTask(pTask)) {
+      if (await writeTaskFile()) {
+        if (bUpdateTask) {
+          String strSyncTaskStatus =
+              '<?xml version="1.0" encoding="UTF-8"?><PlayerTasks $cHTTPUNIQUEKEY="${globalPlayer.strUniqueName}" organization="${AppGlobal.organization}">';
+          strSyncTaskStatus +=
+              '<TaskItem strTask="${pTask.strJobItem}" nAction="1"/>';
+          strSyncTaskStatus += '</PlayerTasks>';
+
+          updateTaskStatus(strSyncTaskStatus);
+        }
+
+        return true;
+      }
+    }
+
+    return false;
+  }
+
   static bool updateTask(PlayerJobItem pTask) {
     // 查找是否存在相同 JobItem
     int index =
@@ -612,7 +671,7 @@ class PlayerTaskFile {
         MessageInfo pMessage = MessageInfo();
         var strAHMessages = it.strSyncContent.split(';');
         String strAHMessageName = strAHMessages[0];
-        pMessage.messageID = int.tryParse(strAHMessages[1]) ?? -1;
+        pMessage.messageId = int.tryParse(strAHMessages[1]) ?? -1;
         pMessage.messageName = strAHMessageName;
         pMessage.status = it.nTaskAction;
         pMessage.task = it.strJobItem;

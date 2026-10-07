@@ -47,6 +47,7 @@ class PlayerScreenProvider extends ChangeNotifier {
   Timer? _timer;
   Timer? _playingTimer;
   final List<PlayerZoneImpl> _playerZones = [];
+  List<PlayerZoneImpl>? _floatingPlayerZones;
 
   String? _strDCMFile;
   bool _bValidForPlay = false;
@@ -112,6 +113,7 @@ class PlayerScreenProvider extends ChangeNotifier {
   bool _pollInProgress = false;
 
   List<PlayerZoneImpl> getPlayerZones() => _playerZones;
+  List<PlayerZoneImpl>? getFloatingPlayerZones() => _floatingPlayerZones;
   List<PlayerZoneImpl> getPlayingZones() =>
       _playerZones.where((element) => element.getZone() > -1).toList();
 
@@ -145,8 +147,7 @@ class PlayerScreenProvider extends ChangeNotifier {
         }
       }
       if (_bValidForPlay) {
-        initZoneThread();
-        //_PlayerFrame.BringWindowToTop();
+        await initZoneThread();
       }
     }
     if (!_bValidForPlay) {
@@ -225,7 +226,7 @@ class PlayerScreenProvider extends ChangeNotifier {
     //killPPProcess();
   }
 
-  void _zoneStatusCheck() {
+  Future<void> _zoneStatusCheck() async {
     if (_pollInProgress) {
       logW(
           'PlayerScreenProvider - _zoneStatusCheck - Zone play status check InProgress');
@@ -233,14 +234,14 @@ class PlayerScreenProvider extends ChangeNotifier {
     }
     _pollInProgress = true;
     try {
-      _onTimer();
+      await _onTimer();
     } finally {
       _pollInProgress = false;
     }
   }
 
-  void _onTimer() {
-    _needNotifyListeners = false;
+  Future<void> _onTimer() async {
+    //_needNotifyListeners = false;
     /*logD(
         'PlayerScreenProvider - OnTimer - _bValidForPlay: $_bValidForPlay; _bIsPlaying: \'$_bIsPlaying\'');*/
     if (!_bValidForPlay) {
@@ -438,7 +439,7 @@ class PlayerScreenProvider extends ChangeNotifier {
 
         isTimeForAHMessage(dtCurr);
 
-        changePlaylist();
+        await changePlaylist();
         if (_needNotifyListeners) {
           _needNotifyListeners = false;
           Future.delayed(const Duration(milliseconds: 50), () {
@@ -524,7 +525,6 @@ class PlayerScreenProvider extends ChangeNotifier {
             logD(
                 'PlayerScreenProvider - zoneThreadCheck, Zone: ${pThread0.getZone()}, rtPos: $rtPos, rtCurrPos1: $rtCurrPos1, pfResult: ${pfResult.status} - ${pfResult.nFinish}.');
             _needNotifyListeners = true;
-            pThread0.setContentStarting(false);
           }
           if (nFinish == PlayFinish.eCONTENTFINISH) {
             logD(
@@ -667,7 +667,7 @@ class PlayerScreenProvider extends ChangeNotifier {
     return bFinished;
   }
 
-  void changePlaylist() {
+  Future<void> changePlaylist() async {
     bool bIsPlayingEpisode = ScheduleList().isPlayingEpisode();
     //int nTotalZone = ScheduleList().getTotalZones();
     if (!isProductFinished()) //Product not finish
@@ -796,7 +796,7 @@ class PlayerScreenProvider extends ChangeNotifier {
                       Time for Play ad-hoc: $_bIsTimeForPlayAH; Time for play next playlist: $_bIsTimeForNextPlaylist; time for play next group: $_bIsTimeForNextGroup; Current TID: $pid.''');
       } else {
         // Play next content in contentlist or replay zone content
-        playNextContent();
+        await playNextContent();
       }
     } else {
       //Product finished
@@ -1146,7 +1146,7 @@ class PlayerScreenProvider extends ChangeNotifier {
       SendMouseEvent(GetSystemMetrics(SM_CXSCREEN)+10000, GetSystemMetrics(SM_CYSCREEN)+10000);*/
   }
 
-  int initZoneThread() {
+  Future<int> initZoneThread() async {
     int nZone = 0;
     ProductData? pProductData =
         ScheduleList().getProductData(ScheduleList().getPlayProduct());
@@ -1165,7 +1165,7 @@ class PlayerScreenProvider extends ChangeNotifier {
         } else {
           pThread = _createZoneThread(pData);
         }
-        pThread.initZone();
+        await pThread.initZone();
       }
 
       /*for(var pThread in _playerZones) {
@@ -1221,7 +1221,7 @@ class PlayerScreenProvider extends ChangeNotifier {
   }
 
   //#define DCMMATCHZONETHREAD
-  void matchZoneThread(int nTotalZone) {
+  Future<void> matchZoneThread(int nTotalZone) async {
     if (nTotalZone <= 0 || nTotalZone > 10000) {
       return;
     }
@@ -1232,7 +1232,7 @@ class PlayerScreenProvider extends ChangeNotifier {
 
     logI('Match Thread Count step 1, TID $pid.');
     logI('Match Thread Count step 2, TID $pid.');
-    initZoneThread();
+    await initZoneThread();
     logI('Match Thread Count step 3, TID $pid.');
   }
 
@@ -1267,16 +1267,16 @@ class PlayerScreenProvider extends ChangeNotifier {
           pThread.setWindowRect(playSkin.getZoneRect(pData.nZoneID));
           pThread.setZoneData(pData);
 
-          pThread.initZone();
+          unawaited(pThread.initZone());
         }
       }
     }
 
     _nTotalZoneThread = pProductData.getZoneCount();
     int nZone = _nTotalZoneThread;
-    if (nZone < AppGlobal.maxZoneThread) {
+    /*if (nZone < AppGlobal.maxZoneThread) {
       nZone = AppGlobal.maxZoneThread;
-    }
+    }*/
 
     i = 0;
     while (_playerZones.length > nZone) {
@@ -1286,7 +1286,7 @@ class PlayerScreenProvider extends ChangeNotifier {
 
       PlayerZoneImpl pThread = _playerZones.elementAt(i);
       if (pThread.getZone() < 0) {
-        _playerZones[i].release();
+        unawaited(_playerZones[i].release());
         _playerZones.removeAt(i);
       } else {
         i++;
@@ -1311,10 +1311,11 @@ class PlayerScreenProvider extends ChangeNotifier {
   void deleteZoneThread(int nZone) {
     // release all zone thead
     if (nZone == 0) {
-      for (var pThread in _playerZones) {
-        pThread.release();
-      }
+      final zones = List<PlayerZoneImpl>.of(_playerZones);
       _playerZones.clear();
+      for (final pThread in zones) {
+        unawaited(pThread.release());
+      }
 
       return;
     }
@@ -1322,10 +1323,11 @@ class PlayerScreenProvider extends ChangeNotifier {
     // out of memory
     if (_nResetZoneThread == 1) {
       _nResetZoneThread = 0;
-      for (var pThread in _playerZones) {
-        pThread.release();
-      }
+      final zones = List<PlayerZoneImpl>.of(_playerZones);
       _playerZones.clear();
+      for (final pThread in zones) {
+        unawaited(pThread.release());
+      }
 
       return;
     }
@@ -1334,9 +1336,9 @@ class PlayerScreenProvider extends ChangeNotifier {
       return;
     }
 
-    if (nZone < AppGlobal.maxZoneThread) {
+    /*if (nZone < AppGlobal.maxZoneThread) {
       nZone = AppGlobal.maxZoneThread;
-    }
+    }*/
 
     int i = 0;
     while (_playerZones.length > nZone) {
@@ -1346,6 +1348,7 @@ class PlayerScreenProvider extends ChangeNotifier {
 
       PlayerZoneImpl pThread = _playerZones.elementAt(i);
       if (pThread.getZone() + 1 > nZone) {
+        unawaited(pThread.release());
         _playerZones.removeAt(i);
       } else {
         i++;
@@ -1407,9 +1410,9 @@ class PlayerScreenProvider extends ChangeNotifier {
       }
     }
 
-    /*for (nZone=0; nZone<_arrLineThread.length; nZone++)
+    /*for (nZone=0; nZone<_floatingPlayerZones.length; nZone++)
     {
-      PlayerZone pZoneThread = (PlayerZone )_arrLineThread[nZone];
+      PlayerZone pZoneThread = (PlayerZone )_floatingPlayerZones[nZone];
       if (pZoneThread != null && pZoneThread.GetZone() > -1)
       {
         if (pZoneThread.hasContent(PDF_TYPE))
@@ -1422,7 +1425,7 @@ class PlayerScreenProvider extends ChangeNotifier {
     return false;
   }
 
-  void playNextContent() {
+  Future<void> playNextContent() async {
     for (var pThread0 in _playerZones) {
       if (pThread0.isZoneFinish()) {
         pThread0.setZoneFinish(false);
@@ -1430,7 +1433,7 @@ class PlayerScreenProvider extends ChangeNotifier {
         //::PostMessage(pThread0.GetPlayerHWnd(), WM_INFORM_REPLAY, 0, 0);
         logD(
             'PlayerScreenProvider - playNextContent, Zone: ${pThread0.getZone()} play finished, try to replay, Current TID $pid.');
-        pThread0.rePlay();
+        await pThread0.rePlay();
         _needNotifyListeners = true;
       } else {
         if (pThread0.isContentFinished()) {
@@ -1438,7 +1441,7 @@ class PlayerScreenProvider extends ChangeNotifier {
           logD(
               '''PlayerScreenProvider - playNextContent, Zone: ${pThread0.getZone()} contentlist's content play finished, try to playNextContentListItem, Current TID $pid.''');
           //::PostMessage(pThread0.GetPlayerHWnd(), WM_PLAYNEXT_CONTENTLIST, (WPARAM)CONTENT_FINISH, 0);
-          pThread0.playNextContentListItem(PlayFinish.eCONTENTFINISH);
+          await pThread0.playNextContentListItem(PlayFinish.eCONTENTFINISH);
           //notifyListeners();
           _needNotifyListeners = true;
         }
@@ -1694,11 +1697,11 @@ class PlayerScreenProvider extends ChangeNotifier {
         ::InvalidateRect(pThread.GetPlayerHWnd(), null, true);
       }
     }
-    for (int i=0; i<_arrLineThread.length; i++)
+    for (int i=0; i<_floatingPlayerZones.length; i++)
     {
-      if (((PlayerZone )_arrLineThread.elementAt(i)).GetZone() > TRANSPARENTZONE_TYPE - 1)
+      if (((PlayerZone )_floatingPlayerZones.elementAt(i)).GetZone() > TRANSPARENTZONE_TYPE - 1)
       {
-        PlayerZoneImpl pMessageThread = _arrLineThread.elementAt(i);
+        PlayerZoneImpl pMessageThread = _floatingPlayerZones.elementAt(i);
         if (pMessageThread != null)
         {
           pMessageThread.MakeHole();
@@ -1709,26 +1712,26 @@ class PlayerScreenProvider extends ChangeNotifier {
 
   void loadMessageThread([int nOutput = -1]) {
     /*if (nOutput != cINTMIN) {
-      CAHThread *pMessageThread = (CAHThread *)GetMessageThread(CAHPlayList::GetMessageId(nOutput));
+      PlayerZoneImpl pMessageThread = (PlayerZoneImpl )GetMessageThread(AHPlayList.GetMessageId(nOutput));
       LoadMessageThread(pMessageThread);
     }
     else
     {
-      for (int i=0; i<_arrLineThread.length; i++)
+      for (int i=0; i<_floatingPlayerZones.length; i++)
       {
-        if (CAHPlayList::IsAHMessage(((PlayerZone )_arrLineThread.elementAt(i)).GetZone()))
+        if (AHPlayList.IsAHMessage(((PlayerZone )_floatingPlayerZones.elementAt(i)).GetZone()))
         {
-          LoadMessageThread((CAHThread *)_arrLineThread.elementAt(i));
+          LoadMessageThread((PlayerZoneImpl )_floatingPlayerZones.elementAt(i));
         }
       }
     }*/
   }
 
-  /*void loadMessageThread(CAHThread *pMessageThread)
+  /*void loadMessageThread(PlayerZoneImpl pMessageThread)
   {
     if (pMessageThread != null)
     {
-      int nOutput = CAHPlayList::GetOutput(pMessageThread.GetZone());
+      int nOutput = AHPlayList.GetOutput(pMessageThread.GetZone());
       //logI('PlayerScreenProvider - LoadMessageThread: %d', GetCurrentThreadId());
       int nLayout = ScheduleList().messageList.GetMessageLayout(nOutput);
       if (nLayout != AH_BOTTOM_MZ)
@@ -1757,31 +1760,30 @@ class PlayerScreenProvider extends ChangeNotifier {
 
   PlayerZone getMessageThread(int nZone)
   {
-    for (int i=0; i<_arrLineThread.length; i++)
+    for (int i=0; i<_floatingPlayerZones.length; i++)
     {
-      if (((PlayerZone )_arrLineThread.elementAt(i)).GetZone() == nZone)
+      if (((PlayerZone )_floatingPlayerZones.elementAt(i)).GetZone() == nZone)
       {
-        return (PlayerZone )_arrLineThread.elementAt(i);
+        return (PlayerZone )_floatingPlayerZones.elementAt(i);
       }
     }
     return null;
   }*/
 
   void createMessageThread(int nOutput) {
-    /*int nZone = CAHPlayList::GetMessageId(nOutput);
-    DeleteMessageThread(nZone);
+    int nZone = AHPlayList.getMessageId(nOutput);
+    deleteMessageThread(nZone);
 
-    CAHThread *pMessageThread = new CAHThread(this.GetSafeHwnd());
-    _arrLineThread.Add(pMessageThread);
-    pMessageThread._bAutoDelete = false;	// Disable auto deletion of thread object upon thread termination.
+    PlayerZoneImpl pMessageThread = PlayerZoneImpl();
+    _addMessageThread(pMessageThread);
 
-    pMessageThread.SetPlayType(4);
+    /*pMessageThread.SetPlayType(4);
     pMessageThread.SetZone(nZone);
     pMessageThread.SetOutput(nOutput);
     String strCompany = ScheduleList().GetCurrCompany();
     pMessageThread.SetCompany(strCompany);
     //_pMessageThread.SetProductData(_pProductData);
-    if (CAHPlayList::IsAHMessage(nZone))
+    if (AHPlayList.IsAHMessage(nZone))
     { 
       /*HWND hPrev = null;
       HWND hNext = null;
@@ -1825,9 +1827,7 @@ class PlayerScreenProvider extends ChangeNotifier {
         Delay(500);
         //pMessageThread.SetParent(this.GetSafeHwnd());
       }
-    }
-    else
-    {
+    } else {
       pMessageThread.SetWindowRect(PlaySkin.GetZoneRect(nZone));
       // Start the interface thread.
       if (!pMessageThread.CreateThread(CREATE_SUSPENDED))
@@ -1842,15 +1842,20 @@ class PlayerScreenProvider extends ChangeNotifier {
     }*/
   }
 
+  void _addMessageThread(PlayerZoneImpl value) {
+    _floatingPlayerZones ??= [];
+    _floatingPlayerZones?.add(value);
+  }
+
   void deleteMessageThreadByOutput([int nOutput = -1]) {
     /*if (nOutput == cINTMIN) {
       int i=0;
-      while (i<_arrLineThread.length)
+      while (i<_floatingPlayerZones.length)
       {
-        if (CAHPlayList::IsAHMessage(((PlayerZone )_arrLineThread.elementAt(i)).GetZone()))
+        if (AHPlayList.IsAHMessage(((PlayerZone )_floatingPlayerZones.elementAt(i)).GetZone()))
         {
-          logI('PlayerScreenProvider - DeleteMessageThreadByOutput - Found Message Thread '%d', TID %d.', ((PlayerZone )_arrLineThread.elementAt(i)).GetZone(), GetCurrentThreadId());
-          DeleteMessageThread(((PlayerZone )_arrLineThread.elementAt(i)).GetZone());
+          logI('PlayerScreenProvider - DeleteMessageThreadByOutput - Found Message Thread '%d', TID %d.', ((PlayerZone )_floatingPlayerZones.elementAt(i)).GetZone(), GetCurrentThreadId());
+          DeleteMessageThread(((PlayerZone )_floatingPlayerZones.elementAt(i)).GetZone());
         }
         else
         {
@@ -1860,20 +1865,20 @@ class PlayerScreenProvider extends ChangeNotifier {
     }
     else
     {
-      logI('PlayerScreenProvider - DeleteMessageThreadByOutput - Found Message Thread '%d', Output: '%d'; TID %d.', CAHPlayList::GetMessageId(nOutput), nOutput, GetCurrentThreadId());
-      DeleteMessageThread(CAHPlayList::GetMessageId(nOutput));
+      logI('PlayerScreenProvider - DeleteMessageThreadByOutput - Found Message Thread '%d', Output: '%d'; TID %d.', AHPlayList.GetMessageId(nOutput), nOutput, GetCurrentThreadId());
+      DeleteMessageThread(AHPlayList.GetMessageId(nOutput));
     }*/
   }
 
   void deleteMessageThreadByLayer(int nLayer) {
     /*int i=0;
-    while (i<_arrLineThread.length)
+    while (i<_floatingPlayerZones.length)
     {
-      if (CAHPlayList::IsAHMessage(((PlayerZone )_arrLineThread.elementAt(i)).GetZone())
-        && nLayer == CAHPlayList::GetLayer(((PlayerZone )_arrLineThread.elementAt(i)).GetZone()))
+      if (AHPlayList.IsAHMessage(((PlayerZone )_floatingPlayerZones.elementAt(i)).GetZone())
+        && nLayer == AHPlayList.GetLayer(((PlayerZone )_floatingPlayerZones.elementAt(i)).GetZone()))
       {
-        logI('PlayerScreenProvider - DeleteMessageThreadByLayer - Found Message Thread '%d', TID %d.', ((PlayerZone )_arrLineThread.elementAt(i)).GetZone(), GetCurrentThreadId());
-        DeleteMessageThread(((PlayerZone )_arrLineThread.elementAt(i)).GetZone());
+        logI('PlayerScreenProvider - DeleteMessageThreadByLayer - Found Message Thread '%d', TID %d.', ((PlayerZone )_floatingPlayerZones.elementAt(i)).GetZone(), GetCurrentThreadId());
+        DeleteMessageThread(((PlayerZone )_floatingPlayerZones.elementAt(i)).GetZone());
       }
       else
       {
@@ -1884,9 +1889,9 @@ class PlayerScreenProvider extends ChangeNotifier {
 
   void deleteMessageThread(int nZone, [bool bGroup = false]) {
     /*if (nZone < 0) {
-      while (_arrLineThread.length > 0)
+      while (_floatingPlayerZones.length > 0)
       {
-        PlayerZone pMessageThread = (PlayerZone )_arrLineThread.elementAt(0);
+        PlayerZone pMessageThread = (PlayerZone )_floatingPlayerZones.elementAt(0);
         if (pMessageThread != null)
         {
           pMessageThread.SetThreadPriority(THREAD_PRIORITY_ABOVE_NORMAL);
@@ -1901,7 +1906,7 @@ class PlayerScreenProvider extends ChangeNotifier {
           }
 
           SAFE_DELETE(pMessageThread);
-          _arrLineThread.RemoveAt(0);
+          _floatingPlayerZones.RemoveAt(0);
         }
       }
       return;
@@ -1909,12 +1914,12 @@ class PlayerScreenProvider extends ChangeNotifier {
 
     bool bKilled =false;
     if (!bGroup){
-      for (int i=0; i<_arrLineThread.length; i++)
+      for (int i=0; i<_floatingPlayerZones.length; i++)
       {
-        if (((PlayerZone )_arrLineThread.elementAt(i)).GetZone() == nZone)
+        if (((PlayerZone )_floatingPlayerZones.elementAt(i)).GetZone() == nZone)
         {
-          PlayerZone pMessageThread = (PlayerZone )_arrLineThread.elementAt(i);
-          _arrLineThread.RemoveAt(i);
+          PlayerZone pMessageThread = (PlayerZone )_floatingPlayerZones.elementAt(i);
+          _floatingPlayerZones.RemoveAt(i);
           if (pMessageThread != null)
           {
             RecycleThread(1, pMessageThread);
@@ -1925,12 +1930,12 @@ class PlayerScreenProvider extends ChangeNotifier {
       }
     } else { 
       int i = 0;
-      while(i < _arrLineThread.length)
+      while(i < _floatingPlayerZones.length)
       {
-        PlayerZone pMessageThread = (PlayerZone )_arrLineThread.elementAt(i);
+        PlayerZone pMessageThread = (PlayerZone )_floatingPlayerZones.elementAt(i);
         if (pMessageThread != null && pMessageThread.GetZone() + 1 > nZone)
         {
-          _arrLineThread.RemoveAt(i);
+          _floatingPlayerZones.RemoveAt(i);
           RecycleThread(1, pMessageThread);
           bKilled =true;
         }
@@ -2600,17 +2605,12 @@ class PlayerScreenProvider extends ChangeNotifier {
   }
 
   void videoStatusControl(int nVideoStatus) {
-    int i;
-    for (i = 0; i < _playerZones.length; i++) {
-      //PlayerZoneImpl pThread = _playerZones.elementAt(i);
-      //::SendMessageTimeout((pThread).GetPlayerHWnd(), WM_INFORM_PAUSE, 1, nVideoStatus, SMTO_BLOCK, 10000, 0);
+    for (final playerZone in _playerZones) {
+      playerZone.videoStatusControl(nVideoStatus);
     }
-    /*for (i=0; i<_arrLineThread.length; i++) {
-      PlayerZoneImpl pThread = _arrLineThread.elementAt(i);
-      if (pThread != null && CAHPlayList::IsAHMessage((pThread).GetZone())) {;
-        ::SendMessageTimeout((pThread).GetPlayerHWnd(), WM_INFORM_PAUSE, 1, nVideoStatus, SMTO_BLOCK, 10000, 0);
-      }
-    }*/
+    for (final playerZone in _floatingPlayerZones ?? const <PlayerZoneImpl>[]) {
+      playerZone.videoStatusControl(nVideoStatus);
+    }
   }
 
   void tvChannelControl(int nNewChannel) {
@@ -2619,8 +2619,8 @@ class PlayerScreenProvider extends ChangeNotifier {
       //PlayerZoneImpl pThread = _playerZones.elementAt(i);
       //::SendMessageTimeout((pThread).GetPlayerHWnd(), WM_INFORM_PAUSE, 2, nNewChannel, SMTO_BLOCK, 10000, 0);
     }
-    /*for (i=0; i<_arrLineThread.length; i++) {
-      PlayerZoneImpl pThread = _arrLineThread.elementAt(i);
+    /*for (i=0; i<_floatingPlayerZones.length; i++) {
+      PlayerZoneImpl pThread = _floatingPlayerZones.elementAt(i);
       if (pThread != null && AHPlayList.isAHMessage((pThread).getZone()))
       {
         ::SendMessageTimeout((pThread).GetPlayerHWnd(), WM_INFORM_PAUSE, 2, nNewChannel, SMTO_BLOCK, 10000, 0);
