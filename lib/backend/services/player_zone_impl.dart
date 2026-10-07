@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:dcm/backend/constants.dart';
 import 'package:dcm/backend/library_helper.dart';
 import 'package:dcm/backend/models/app_global.dart';
+import 'package:dcm/backend/models/clock_data.dart' show ClockData;
 import 'package:dcm/backend/models/product_data.dart';
 import 'package:dcm/backend/models/weather_data.dart';
 import 'package:dcm/backend/models/zone_data.dart';
@@ -14,7 +15,9 @@ import 'package:dcm/backend/utils/log_utils.dart';
 import 'package:dcm/backend/utils/platform_utils.dart';
 import 'package:dcm/backend/utils/utils.dart';
 import 'package:dcm/backend/xml_settings/xml_weather_setting.dart';
+import 'package:dcm/backend/xml_settings/xml_clock_setting.dart';
 import 'package:dcm/widgets/content_list_player.dart';
+import 'package:dcm/widgets/clock_panel.dart';
 import 'package:dcm/widgets/scrolltext.dart';
 import 'package:dcm/widgets/slideshow.dart';
 import 'package:dcm/widgets/pdf_player.dart';
@@ -158,6 +161,7 @@ class PlayerZoneImpl {
   ProductData? _pProductData;
   ZoneData? _pZoneData;
   WeatherData? _weatherData;
+  ClockData? _clockData;
   bool _bZoneFinish = false;
   bool _bFirstFinished = false;
   bool _bContinuePlaying = false;
@@ -317,6 +321,7 @@ class PlayerZoneImpl {
     _bIsValid = false;
     _strZoneFile = Utils.getFilePath(
         pZoneData.strZoneFile, pZoneData.nZoneType, _nPType, _strCompany);
+    _clockData = null;
     logI(
         'Try to init Zone - Zone: $_zoneId, _nPType: $_nPType, _strZoneFile: $_strZoneFile, _bNeedReset: $_bNeedReset, mapPreloadedContents: ${mapPreloadedContents != null ? mapPreloadedContents.length : 0}.');
 
@@ -386,6 +391,15 @@ class PlayerZoneImpl {
           case cONLINETYPE:
             break;
           case cCLOCKTYPE:
+            final clockData = ClockData();
+            if (XmlClockSetting.loadClockSetting(
+                pZoneData.strZoneFile, clockData, _strCompany)) {
+              _clockData = clockData;
+            } else {
+              _bIsValid = false;
+              logE(
+                  'PlayerZoneImpl - failed to load clock setting "${pZoneData.strZoneFile}".');
+            }
             break;
           case cWEATHERTYPE:
             _weatherData = XmlWeatherSetting.loadFromFile(
@@ -809,6 +823,12 @@ class PlayerZoneImpl {
           case cONLINETYPE:
             break;
           case cCLOCKTYPE:
+            if (_clockData != null) {
+              widget = ClockPanel(
+                key: Key(_strZoneFile),
+                data: _clockData!,
+              );
+            }
             break;
           case cWEATHERTYPE:
             widget = WeatherPanel(

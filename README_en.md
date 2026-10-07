@@ -14,11 +14,12 @@ This project is a professional multi-screen playback system for digital signage,
 
 - Fullscreen playback for large displays, wall-mounted screens, and digital signage installations.
 - Flexible multi-region layout with configurable zone count, size, and position.
-- Support for multiple content formats, including video, images, text, real-time information, PPT, PDF, HTML, scrolling text, and image slideshows.
+- Support for multiple content formats, including video, media streams, images, text, weather, clock, PPT, PDF, HTML, scrolling text, and image slideshows.
 - Program rotation and playlist scheduling across different zones.
 - Playback from both local files and network-based media sources.
 - Automatic startup on device boot.
 - Standalone operation or synchronization with a CMS server for remote control, content updates, and centralized management.
+- Support for publishing emergency messages to players through the CMS.
 - Cross-platform deployment on Windows, macOS, Linux, Android, iOS, and Web.
 
 ### Key Highlights
