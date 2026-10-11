@@ -12,6 +12,7 @@ import 'package:dcm/backend/models/player.dart';
 import 'package:dcm/backend/models/layout_data.dart';
 import 'package:dcm/backend/models/product_data.dart';
 import 'package:dcm/backend/models/zoneext_data.dart';
+import 'package:dcm/backend/utils/extensions.dart';
 import 'package:dcm/backend/xml_settings/dcmfile_Impl.dart';
 import 'package:dcm/backend/xmlfile/xmlitem.dart';
 
@@ -306,7 +307,7 @@ class MessageData {
     return true;
   }
 
-  int getOutput(int nOutput, MessageData pMessageData) {
+  static int getOutput(int nOutput, MessageData pMessageData) {
     int nTemp = pMessageData.uiOutput == -2 ? nOutput : pMessageData.uiOutput;
     int nLayer = 0;
     if ((pMessageData.nOverlay & cAHMSGLAYERED) == 0) {
@@ -314,5 +315,67 @@ class MessageData {
     }
 
     return nTemp < 0 ? fMAKEWORD(cBYTEMAX, nLayer) : fMAKEWORD(nTemp, nLayer);
+  }
+
+  bool isEffective(DateTime dtCurrTime) {
+    return ((bEndManual || dtCurrTime.isBefore(dtEndTime!)) &&
+        ((dtStartTime != null && dtStartTime!.isAfter(cDateTimeMin)) ||
+            (dtEndTime != null && dtEndTime!.isAfter(cDateTimeMin))));
+  }
+
+  bool isChanged(MessageData messageData) {
+    if (nLayout !=
+            messageData
+                .nLayout //|| nPercentScreen != messageData.nPercentScreen
+        ||
+        nOverlay != messageData.nOverlay ||
+        nMessageZone != messageData.nMessageZone ||
+        bStartImm != messageData.bStartImm ||
+        bEndManual != messageData.bEndManual ||
+        dtStartTime != messageData.dtStartTime ||
+        dtEndTime != messageData.dtEndTime ||
+        nLevel != messageData.nLevel ||
+        strContent != messageData.strContent ||
+        nEndType != messageData.nEndType ||
+        nDelay != messageData.nDelay ||
+        strContent != messageData.strContent) {
+      return true;
+    }
+
+    if (sitesArray.length != messageData.sitesArray.length) return true;
+
+    if (messageData.getZoneData() != null && getZoneData() != null) {
+      if (messageData.getZoneData()!.nZoneType != getZoneData()!.nZoneType ||
+          messageData.getZoneData()!.strZoneFile !=
+              getZoneData()!.strZoneFile ||
+          messageData.getZoneData()!.bZoneMute != getZoneData()!.bZoneMute ||
+          messageData.getZoneData()!.bZoneRatio != getZoneData()!.bZoneRatio ||
+          messageData.getZoneData()!.strWebCharset !=
+              getZoneData()!.strWebCharset ||
+          messageData.getZoneData()!.nWebZoom != getZoneData()!.nWebZoom ||
+          messageData.getZoneData()!.dVolume != getZoneData()!.dVolume) {
+        return true;
+      }
+    } else {
+      if ((messageData.getZoneData() == null && getZoneData() != null) ||
+          (messageData.getZoneData() != null && getZoneData() == null)) {
+        return true;
+      }
+    }
+
+    for (int i = 0; i < messageData.sitesArray.length; i++) {
+      bool bFound = false;
+      for (int j = 0; j < sitesArray.length; j++) {
+        if (sitesArray[j]
+            .strUniqueName
+            .equalsIgnoreCase(messageData.sitesArray[i].strUniqueName)) {
+          bFound = true;
+          break;
+        }
+      }
+      if (!bFound) return true;
+    }
+
+    return false;
   }
 }

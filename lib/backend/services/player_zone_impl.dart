@@ -88,7 +88,7 @@ Future<void> _observePlayerOperation(
     await future;
     logD('PlayerZoneImpl - $operation completed for "$filePath".');
   } catch (error, stackTrace) {
-    logE('PlayerZoneImpl - $operation failed for "$filePath": $error',
+    logE('PlayerZoneImpl - $operation failed for "$filePath": $error', error,
         stackTrace);
   }
 }
@@ -223,7 +223,7 @@ class PlayerZoneImpl {
       _contentListPlayer?.stop();
       await _preloadedContent?.stop();
     } catch (e, stackTrace) {
-      logE('PlayerZoneImpl - stopPlay error: $e', stackTrace);
+      logE('PlayerZoneImpl - stopPlay error: $e', e, stackTrace);
     }
   }
 
@@ -239,12 +239,12 @@ class PlayerZoneImpl {
     try {
       await player?.dispose();
     } catch (e, stackTrace) {
-      logE('PlayerZoneImpl - player dispose error: $e', stackTrace);
+      logE('PlayerZoneImpl - player dispose error: $e', e, stackTrace);
     }
     try {
       await contentListPlayer?.release();
     } catch (e, stackTrace) {
-      logE('PlayerZoneImpl - content list dispose error: $e', stackTrace);
+      logE('PlayerZoneImpl - content list dispose error: $e', e, stackTrace);
     }
   }
 
@@ -424,6 +424,7 @@ class PlayerZoneImpl {
       _bIsValid = false;
       logE(
           'Init Zone failed - Zone: $_zoneId; _nPType: $_nPType; _strZoneFile: $_strZoneFile error: $e',
+          e,
           stackTrace);
     } finally {
       if (generation == _initGeneration) {
@@ -481,12 +482,16 @@ class PlayerZoneImpl {
     _strCompany = strCompany;
   } // for multi company
 
+  double getPlayerDuration() => _rtDuration;
+  double getActualDuration() => _rtAct;
+
+  void setPlayerDuration(double rtDuration) {
+    _rtDuration = rtDuration;
+  }
+
   double getPlayingDuration() {
     return _rtPlaying;
   }
-
-  double getPlayerDuration() => _rtDuration;
-  double getActualDuration() => _rtAct;
 
   void setPlayingDuration(double rtPosition) {
     _rtPlaying += rtPosition;
@@ -507,6 +512,7 @@ class PlayerZoneImpl {
 
   double getPlayingLine() => _rtLine;
   bool isShowMessage() => _bShowMessage;
+  bool isValid() => _bIsValid;
   int getEffect() => 100;
 
   void setPlayStart(int nStart) {
@@ -599,7 +605,7 @@ class PlayerZoneImpl {
     return (_bIsPlaying == true);
   }
 
-  void calcDuration() {
+  void _calcDuration() {
     if (_rtDuration < cEPSILON) {
       _rtDuration = cDEFAULTDURATION;
     }
@@ -870,6 +876,7 @@ class PlayerZoneImpl {
       } catch (e, stackTrace) {
         logE(
             'RenderZone failed - Zone: $_zoneId; _nPType: $_nPType; _strZoneFile: $_strZoneFile error: $e',
+            e,
             stackTrace);
       }
     }
@@ -1308,7 +1315,7 @@ class PlayerZoneImpl {
         nCurSel != cDIRECTPLAYTYPE) {
       _rtDuration = pZoneData.nZoneDuration;
     }
-    calcDuration();
+    _calcDuration();
   }
 
   Future<bool> rePlayVideo() async {
@@ -1328,7 +1335,7 @@ class PlayerZoneImpl {
       _rtAct = player.state.duration.inMilliseconds / 1000.0;
       return true;
     } catch (error, stackTrace) {
-      logE('PlayerZoneImpl - video replay failed: $error', stackTrace);
+      logE('PlayerZoneImpl - video replay failed: $error', error, stackTrace);
       return false;
     }
   }
@@ -1452,7 +1459,7 @@ class PlayerZoneImpl {
         controller.rect.addListener(logTextureUpdate);
       }).catchError((Object error, StackTrace stackTrace) {
         logE('PlayerZoneImpl - video controller failed for "$filePath": $error',
-            stackTrace);
+            error, stackTrace);
       }));
       return PreloadedContent(
           type: cVIDEOTYPE,
@@ -1461,7 +1468,7 @@ class PlayerZoneImpl {
           player: player);
     } catch (e, stackTrace) {
       await player?.dispose();
-      logE('PlayerZoneImpl - preloadVideoPlayer error: $e', stackTrace);
+      logE('PlayerZoneImpl - preloadVideoPlayer error: $e', e, stackTrace);
     }
 
     return null;

@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:dcm/backend/app.dart';
 import 'package:dcm/backend/constants.dart' as constants;
+import 'package:dcm/backend/services/app_watchdog.dart';
 import 'package:dcm/backend/utils/file_utils.dart';
 import 'package:dcm/backend/utils/l10n_utils.dart';
 import 'package:dcm/backend/utils/route_utils.dart';
@@ -509,8 +510,12 @@ class _HomePageState extends State<HomePage> {
             hoverColor: Theme.of(context).colorScheme.primaryContainer,
             padding: EdgeInsets.zero,
             iconSize: 20,
-            onPressed: () {
-              windowManager.close();
+            onPressed: () async {
+              try {
+                await AppWatchdog.markUserExit();
+              } finally {
+                await windowManager.close();
+              }
             },
             icon: const Icon(Icons.close),
           ),

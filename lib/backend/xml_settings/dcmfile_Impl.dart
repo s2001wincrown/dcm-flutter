@@ -287,8 +287,7 @@ class DCMFileImpl {
     return Rect.fromLTWH(0, 0, nVWWidth, nVWHeight);
   }
 
-  static Rect? getZoneRect(
-      LayoutData? pLayoutDataObj, int nZone, Rect rectVW, Rect rcZone) {
+  static Rect? getZoneRect(LayoutData? pLayoutDataObj, int nZone, Rect rectVW) {
     if (pLayoutDataObj == null) {
       return null;
     }

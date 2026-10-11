@@ -445,7 +445,7 @@ class MessageSyncService {
 
   void _logError(String message, [StackTrace? stackTrace]) {
     try {
-      logE(message, stackTrace);
+      logE(message, null, stackTrace);
     } catch (_) {}
   }
 

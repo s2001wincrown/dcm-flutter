@@ -8,11 +8,13 @@ import 'package:dcm/backend/keymap_helper.dart';
 import 'package:dcm/backend/models/app_global.dart';
 import 'package:dcm/backend/net/netdef.dart';
 import 'package:dcm/backend/providers/player_screen_provider.dart';
+import 'package:dcm/backend/services/app_watchdog.dart';
 import 'package:dcm/backend/services/content_sync_background_service.dart';
 import 'package:dcm/backend/services/schedulelist_impl.dart';
 import 'package:dcm/backend/utils/l10n_utils.dart';
 import 'package:dcm/backend/utils/log_utils.dart';
 import 'package:dcm/backend/utils/platform_utils.dart';
+import 'package:dcm/backend/utils/string_utils.dart';
 import 'package:dcm/backend/utils/utils.dart';
 import 'package:dcm/pages/multi_partition_screen.dart';
 import 'package:flutter/foundation.dart';
@@ -64,9 +66,9 @@ void _registerContentSyncPlayerRefreshPort() {
 }
 
 void main(List<String> arguments) async {
-  /*if (await AppWatchdog.runParentIfNeeded(arguments)) {
+  if (await AppWatchdog.runParentIfNeeded(arguments)) {
     return;
-  }*/
+  }
 
   WidgetsFlutterBinding.ensureInitialized();
   MediaKit.ensureInitialized();
@@ -127,15 +129,37 @@ void main(List<String> arguments) async {
 
   KeyMapHelper.init();
 
+  String? playlist;
+  String? playfile;
+  int? showAHMessage;
   if (arguments.isNotEmpty) {
-    ScheduleList().loadSchedule();
+    var args = Utils.parseArgs(arguments);
+    playlist = Utils.getArg<String>(args, 'p', null); //play a playlist
+    playfile = Utils.getArg<String>(args, 'd', null); //play a catalogue
+    //final int? output = Utils.getArg<int>(args, 'o', null); //output
+    //final int? playMode = Utils.getArg<int>(args, 'm', null); //play mode
+    showAHMessage = Utils.getArg<int>(args, 'a', null); //Show AHMessage or not
+    App().showAHMessage = (showAHMessage == null || showAHMessage == 0);
     /*String mediaToOpen = arguments[0];
     App().openMedia(await LibraryHelper.getItemFromFile(mediaToOpen));
     runApp(const HomePage(playerView: true));*/
+  }
+
+  if (showAHMessage == null || showAHMessage == 0) {
+    await ScheduleList().messageList.loadAHList();
+  }
+
+  if (isNotBlank(playfile)) {
+    final playerScreenProvider = PlayerScreenProvider.instance;
+    if (playerScreenProvider != null) {
+      playerScreenProvider.setPlayFile(playfile!);
+    }
+  } else if (isNotBlank(playlist)) {
+    ScheduleList().loadSchedule(playList: playlist);
   } else {
     ScheduleList().loadSchedule();
-    //runApp(const HomePage(playerView: false));
   }
+
   if (!App().needsInitialSetup) {
     await ContentSyncBackgroundService.instance.init();
   }
@@ -149,4 +173,5 @@ void main(List<String> arguments) async {
       child: const DigitalSignageApp(),
     ),
   );
+  AppWatchdog.startUiHeartbeat();
 }

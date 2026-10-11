@@ -13,6 +13,7 @@ import 'package:dcm/backend/services/ah_message_impl.dart';
 import 'package:dcm/backend/services/ah_playlist_impl.dart';
 import 'package:dcm/backend/services/app_skin_impl.dart';
 import 'package:dcm/backend/services/channel_schedule_impl.dart';
+import 'package:dcm/backend/services/floating_player_impl.dart';
 import 'package:dcm/backend/services/player_publish.dart';
 import 'package:dcm/backend/services/player_zone_impl.dart';
 import 'package:dcm/backend/services/schedulelist_impl.dart';
@@ -47,7 +48,7 @@ class PlayerScreenProvider extends ChangeNotifier {
   Timer? _timer;
   Timer? _playingTimer;
   final List<PlayerZoneImpl> _playerZones = [];
-  List<PlayerZoneImpl>? _floatingPlayerZones;
+  List<FloatingPlayerImpl>? _floatingPlayers;
 
   String? _strDCMFile;
   bool _bValidForPlay = false;
@@ -95,8 +96,7 @@ class PlayerScreenProvider extends ChangeNotifier {
 
   bool _bIsPushFile = false;
 
-  String _strSerialCommand = '';
-  int _nUDPPort = 0;
+  final String _strSerialCommand = '';
 
   int _dwUSBImport = 0;
   int _nResetZoneThread = 0;
@@ -105,17 +105,40 @@ class PlayerScreenProvider extends ChangeNotifier {
   late DateTime _dwStartTime;
   late DateTime _dwFirstTime;
 
-  bool _bClosing = false;
   int _nCurrProduct = 0;
   int _lVideoStatus = 0;
   int _lTVChannel = -1;
 
   bool _pollInProgress = false;
 
+  void setPlayFile(String playFile) {
+    _strDCMFile = playFile;
+  }
+
   List<PlayerZoneImpl> getPlayerZones() => _playerZones;
-  List<PlayerZoneImpl>? getFloatingPlayerZones() => _floatingPlayerZones;
   List<PlayerZoneImpl> getPlayingZones() =>
       _playerZones.where((element) => element.getZone() > -1).toList();
+
+  Future<void> addFloatingPlayer(FloatingPlayerImpl player) async {
+    _floatingPlayers ??= [];
+    if (_floatingPlayers!.contains(player)) {
+      logW('addFloatingPlayer - Already registered.');
+      return;
+    }
+
+    player.setOnStateChanged(notifyListeners);
+    player.onBackToSchedule ??=
+        (int wParam, int lParam) => requestBackToSchedule(wParam, lParam);
+    _floatingPlayers!.add(player);
+
+    player.start();
+  }
+
+  Future<void> removeFloatingPlayer(FloatingPlayerImpl player) async {
+    if (_floatingPlayers?.remove(player) ?? false) {
+      await player.release();
+    }
+  }
 
   PlayerZoneImpl? getPlayerZone(int zone) {
     for (var playerZoneImpl in _playerZones) {
@@ -150,6 +173,7 @@ class PlayerScreenProvider extends ChangeNotifier {
         await initZoneThread();
       }
     }
+
     if (!_bValidForPlay) {
       playSkin.loadSkins(0, 'No Frame and No Button', 0);
       Rect rectMonitor = playSkin.monitorRect;
@@ -181,8 +205,7 @@ class PlayerScreenProvider extends ChangeNotifier {
 
   void startTimer() {
     //_timer
-    // Cancel any pending timer event
-    _timer?.cancel();
+    if (_timer != null) return;
 
     _timer = Timer.periodic(const Duration(milliseconds: 10000), (timer) {
       ScheduleList().loadSchedule();
@@ -193,6 +216,7 @@ class PlayerScreenProvider extends ChangeNotifier {
   void stopTimer() {
     // Cancel the timer
     _timer?.cancel();
+    _timer = null;
   }
 
   void startPlayingTimer() {
@@ -208,6 +232,7 @@ class PlayerScreenProvider extends ChangeNotifier {
   void stopPlayingTimer() {
     // Cancel the timer
     _playingTimer?.cancel();
+    _playingTimer = null;
   }
 
   void playAll() {
@@ -557,7 +582,8 @@ class PlayerScreenProvider extends ChangeNotifier {
     }
   }
 
-  void isTimeForAHMessage(DateTime dtCurr) {
+  //play Emergency Message
+  Future<void> isTimeForAHMessage(DateTime dtCurr) async {
     if (!App().showAHMessage) {
       return;
     }
@@ -574,7 +600,7 @@ class PlayerScreenProvider extends ChangeNotifier {
     } else if (_msgNeedRefresh != cINTMIN) {
       int nOutput = _msgNeedRefresh;
       _msgNeedRefresh = cINTMIN;
-      loadMessageThread(nOutput);
+      await loadMessageThread(nOutput);
     }
 
     int nOutput = cINTMIN;
@@ -585,19 +611,20 @@ class PlayerScreenProvider extends ChangeNotifier {
 
       return;
     } else if (nRet == 2) {
-      loadMessageThread(nOutput);
+      await loadMessageThread(nOutput);
       tryStopPlaylist(nOutput);
     }
 
     nOutput = cINTMIN;
-    if ((nOutput = ScheduleList().isTimeForMessage(dtCurr)) != cINTMIN) {
-      createMessageThread(nOutput);
+    if ((nOutput = await ScheduleList().isTimeForMessage(dtCurr)) != cINTMIN) {
+      await createMessageThread(nOutput);
       tryStopPlaylist(nOutput);
     }
 
     nOutput = cINTMIN;
-    if ((nOutput = ScheduleList().isTimeForLoadMessage(dtCurr)) != cINTMIN) {
-      loadMessageThread(nOutput);
+    if ((nOutput = await ScheduleList().isTimeForLoadMessage(dtCurr)) !=
+        cINTMIN) {
+      await loadMessageThread(nOutput);
       tryStopPlaylist(nOutput);
     }
   }
@@ -1410,9 +1437,9 @@ class PlayerScreenProvider extends ChangeNotifier {
       }
     }
 
-    /*for (nZone=0; nZone<_floatingPlayerZones.length; nZone++)
+    /*for (nZone=0; nZone<_floatingPlayers.length; nZone++)
     {
-      PlayerZone pZoneThread = (PlayerZone )_floatingPlayerZones[nZone];
+      PlayerZone pZoneThread = (PlayerZone )_floatingPlayers[nZone];
       if (pZoneThread != null && pZoneThread.GetZone() > -1)
       {
         if (pZoneThread.hasContent(PDF_TYPE))
@@ -1646,6 +1673,25 @@ class PlayerScreenProvider extends ChangeNotifier {
     //startPlayingTimer();
   }
 
+  //OnBackToSchedule(WPARAM wParam, LPARAM lParam)
+  void requestBackToSchedule(int wParam, int lParam) {
+    if (_bDBClickClose) {
+      /*WantStopZone(-1);
+      if (playSkin.dcmFile.isNotEmpty) {
+        selectThumbButton(-1);
+      }*/
+      _bDBClickClose = false;
+      deleteMessageThread(cPOPUPWINDOWTYPE);
+    } else {
+      if (lParam > 0) {
+        if (_bIsPause) {
+          _bIsPause = false;
+        }
+      }
+      _needBackToSchedule = lParam > 0 ? 2 : 1;
+    }
+  }
+
   void backToSchedule() {
     var needBackToSchedule = _needBackToSchedule;
     _needBackToSchedule = 0;
@@ -1697,11 +1743,11 @@ class PlayerScreenProvider extends ChangeNotifier {
         ::InvalidateRect(pThread.GetPlayerHWnd(), null, true);
       }
     }
-    for (int i=0; i<_floatingPlayerZones.length; i++)
+    for (int i=0; i<_floatingPlayers.length; i++)
     {
-      if (((PlayerZone )_floatingPlayerZones.elementAt(i)).GetZone() > TRANSPARENTZONE_TYPE - 1)
+      if (((PlayerZone )_floatingPlayers.elementAt(i)).GetZone() > TRANSPARENTZONE_TYPE - 1)
       {
-        PlayerZoneImpl pMessageThread = _floatingPlayerZones.elementAt(i);
+        PlayerZoneImpl pMessageThread = _floatingPlayers.elementAt(i);
         if (pMessageThread != null)
         {
           pMessageThread.MakeHole();
@@ -1710,261 +1756,253 @@ class PlayerScreenProvider extends ChangeNotifier {
     }*/
   }
 
-  void loadMessageThread([int nOutput = -1]) {
-    /*if (nOutput != cINTMIN) {
-      PlayerZoneImpl pMessageThread = (PlayerZoneImpl )GetMessageThread(AHPlayList.GetMessageId(nOutput));
-      LoadMessageThread(pMessageThread);
-    }
-    else
-    {
-      for (int i=0; i<_floatingPlayerZones.length; i++)
-      {
-        if (AHPlayList.IsAHMessage(((PlayerZone )_floatingPlayerZones.elementAt(i)).GetZone()))
-        {
-          LoadMessageThread((PlayerZoneImpl )_floatingPlayerZones.elementAt(i));
-        }
-      }
-    }*/
-  }
-
-  /*void loadMessageThread(PlayerZoneImpl pMessageThread)
-  {
-    if (pMessageThread != null)
-    {
-      int nOutput = AHPlayList.GetOutput(pMessageThread.GetZone());
-      //logI('PlayerScreenProvider - LoadMessageThread: %d', GetCurrentThreadId());
-      int nLayout = ScheduleList().messageList.GetMessageLayout(nOutput);
-      if (nLayout != AH_BOTTOM_MZ)
-      {
-        ::SendMessageTimeout(pMessageThread.GetPlayerHWnd(), WM_INFORM_STOP, 1, 0, SMTO_BLOCK, 10000, 0);
-
-        String strCompany = ScheduleList().GetCurrCompany();
-        pMessageThread.SetCompany(strCompany);
-        //pMessageThread.SetZoneData(ScheduleList()._messageList.GetZoneData());
-        pMessageThread.SetProductData(ScheduleList()._messageList.GetProductData(nOutput));
-      }
-      
-      ChangeMessageRect(nOutput);
-      ChangeMessageRgn(nOutput);
-      ReCalcPlayerRect(nOutput);
-      ReCalcZoneRect();
-      ChangePlayerRgn();
-      ChangeFrameRgn();
-
-      if (nLayout != AH_BOTTOM_MZ)
-      {
-        ::SendMessageTimeout(pMessageThread.GetPlayerHWnd(), WM_INFORM_PLAY, 0, 0, SMTO_BLOCK, 10000, 0);
-      }
-    }
-  }
-
-  PlayerZone getMessageThread(int nZone)
-  {
-    for (int i=0; i<_floatingPlayerZones.length; i++)
-    {
-      if (((PlayerZone )_floatingPlayerZones.elementAt(i)).GetZone() == nZone)
-      {
-        return (PlayerZone )_floatingPlayerZones.elementAt(i);
-      }
-    }
-    return null;
-  }*/
-
-  void createMessageThread(int nOutput) {
-    int nZone = AHPlayList.getMessageId(nOutput);
-    deleteMessageThread(nZone);
-
-    PlayerZoneImpl pMessageThread = PlayerZoneImpl();
-    _addMessageThread(pMessageThread);
-
-    /*pMessageThread.SetPlayType(4);
-    pMessageThread.SetZone(nZone);
-    pMessageThread.SetOutput(nOutput);
-    String strCompany = ScheduleList().GetCurrCompany();
-    pMessageThread.SetCompany(strCompany);
-    //_pMessageThread.SetProductData(_pProductData);
-    if (AHPlayList.IsAHMessage(nZone))
-    { 
-      /*HWND hPrev = null;
-      HWND hNext = null;
-      GetHWnd(nOutput, hPrev, hNext);*/
-      ProductData pProductData = ScheduleList()._messageList.GetProductData(nOutput);
-      if (pProductData != null)
-      {
-        //pMessageThread.SetZoneData(ScheduleList()._messageList.GetZoneData());
-        pMessageThread.SetProductData(pProductData);
-        pMessageThread.SetID(IDC_ZONE_WND + nZone);
-        //pMessageThread.SetPrevHwnd(hPrev);
-        //pMessageThread.SetNextHwnd(hNext);
-
-        CRect rcAH = ScheduleList()._messageList.GetMessageRect(nOutput);
-        int nLayout = ScheduleList()._messageList.GetMessageLayout(nOutput);
-        int nMessageZone = ScheduleList()._messageList.GetMessageZone(nOutput);
-        PlaySkin.SetAHMessageRect(ScheduleList().GetProductData(ScheduleList().GetPlayProduct()), nLayout, nMessageZone,
-          ScheduleList()._messageList.GetMessageZoneType(nOutput), rcAH, nOutput);
-        PlaySkin.SetMessageTransparency(ScheduleList()._messageList.IsTransparency(nOutput));
-
-        rcAH = PlaySkin.GetAHMessageRect(nOutput);
-        pMessageThread.SetWindowRect(rcAH);
-
-        ReCalcPlayerRect(nOutput);
-        ReCalcZoneRect();
-        ChangePlayerRgn();
-        ChangeFrameRgn();
-
-        if (nLayout == AH_REPLACEZONE)
-        {
-          PlayerZone pZoneThread = GetZoneThread(nZone);
-          if (pZoneThread != null)
-          {
-            pZoneThread.WantStop();
-            ::SendMessageTimeout(pZoneThread.GetPlayerHWnd(), WM_INFORM_STOP, 1, 0, SMTO_BLOCK, 10000, 0);
-          }
-        }
-
-        // Start the interface thread.
-        pMessageThread.CreateThread();
-        Delay(500);
-        //pMessageThread.SetParent(this.GetSafeHwnd());
-      }
+  FloatingPlayerImpl? getFloatingPlayer([int nOutput = -1]) {
+    if (nOutput != cINTMIN) {
+      return getMessageThread(AHPlayList.getMessageId(nOutput));
     } else {
-      pMessageThread.SetWindowRect(PlaySkin.GetZoneRect(nZone));
-      // Start the interface thread.
-      if (!pMessageThread.CreateThread(CREATE_SUSPENDED))
-          {
-        delete pMessageThread;
-        return;
+      if (_floatingPlayers != null) {
+        for (final player in _floatingPlayers!) {
+          if (AHPlayList.isAHMessage(player.getZone())) {
+            return player;
           }
-      Delay(500);
-      VERIFY(pMessageThread.SetThreadPriority(THREAD_PRIORITY_NORMAL));
-      //pMessageThread.SetParent(this.GetSafeHwnd());
-      pMessageThread.ResumeThread();
-    }*/
-  }
-
-  void _addMessageThread(PlayerZoneImpl value) {
-    _floatingPlayerZones ??= [];
-    _floatingPlayerZones?.add(value);
-  }
-
-  void deleteMessageThreadByOutput([int nOutput = -1]) {
-    /*if (nOutput == cINTMIN) {
-      int i=0;
-      while (i<_floatingPlayerZones.length)
-      {
-        if (AHPlayList.IsAHMessage(((PlayerZone )_floatingPlayerZones.elementAt(i)).GetZone()))
-        {
-          logI('PlayerScreenProvider - DeleteMessageThreadByOutput - Found Message Thread '%d', TID %d.', ((PlayerZone )_floatingPlayerZones.elementAt(i)).GetZone(), GetCurrentThreadId());
-          DeleteMessageThread(((PlayerZone )_floatingPlayerZones.elementAt(i)).GetZone());
-        }
-        else
-        {
-          i++;
         }
       }
     }
-    else
-    {
-      logI('PlayerScreenProvider - DeleteMessageThreadByOutput - Found Message Thread '%d', Output: '%d'; TID %d.', AHPlayList.GetMessageId(nOutput), nOutput, GetCurrentThreadId());
-      DeleteMessageThread(AHPlayList.GetMessageId(nOutput));
-    }*/
+
+    return null;
   }
 
-  void deleteMessageThreadByLayer(int nLayer) {
-    /*int i=0;
-    while (i<_floatingPlayerZones.length)
-    {
-      if (AHPlayList.IsAHMessage(((PlayerZone )_floatingPlayerZones.elementAt(i)).GetZone())
-        && nLayer == AHPlayList.GetLayer(((PlayerZone )_floatingPlayerZones.elementAt(i)).GetZone()))
-      {
-        logI('PlayerScreenProvider - DeleteMessageThreadByLayer - Found Message Thread '%d', TID %d.', ((PlayerZone )_floatingPlayerZones.elementAt(i)).GetZone(), GetCurrentThreadId());
-        DeleteMessageThread(((PlayerZone )_floatingPlayerZones.elementAt(i)).GetZone());
+  List<FloatingPlayerImpl> getFloatingPlayers() {
+    List<FloatingPlayerImpl> result = [];
+    if (_floatingPlayers != null) {
+      for (final player in _floatingPlayers!) {
+        if (AHPlayList.isAHMessage(player.getZone())) {
+          result.add(player);
+        }
       }
-      else
-      {
-        i++;
-      }
-    }*/
+    }
+
+    return result;
   }
 
-  void deleteMessageThread(int nZone, [bool bGroup = false]) {
-    /*if (nZone < 0) {
-      while (_floatingPlayerZones.length > 0)
-      {
-        PlayerZone pMessageThread = (PlayerZone )_floatingPlayerZones.elementAt(0);
-        if (pMessageThread != null)
-        {
-          pMessageThread.SetThreadPriority(THREAD_PRIORITY_ABOVE_NORMAL);
-          if (pMessageThread.IsRunning())
-          {
-            pMessageThread.Kill();
-          }
-
-          if (::WaitForSingleObject(pMessageThread._hThread, 5000) == WAIT_TIMEOUT)
-          {
-            ::TerminateThread(pMessageThread._hThread, 0);
-          }
-
-          SAFE_DELETE(pMessageThread);
-          _floatingPlayerZones.RemoveAt(0);
+  Future<void> loadMessageThread([int nOutput = -1]) async {
+    if (nOutput == cINTMIN) {
+      final messages = List<FloatingPlayerImpl>.of(
+        _floatingPlayers ?? const <FloatingPlayerImpl>[],
+      );
+      for (final player in messages) {
+        if (AHPlayList.isAHMessage(player.getZone())) {
+          await _loadMessageThread(player, AHPlayList.getOutput(player.zone));
         }
       }
       return;
     }
 
-    bool bKilled =false;
-    if (!bGroup){
-      for (int i=0; i<_floatingPlayerZones.length; i++)
-      {
-        if (((PlayerZone )_floatingPlayerZones.elementAt(i)).GetZone() == nZone)
-        {
-          PlayerZone pMessageThread = (PlayerZone )_floatingPlayerZones.elementAt(i);
-          _floatingPlayerZones.RemoveAt(i);
-          if (pMessageThread != null)
-          {
-            RecycleThread(1, pMessageThread);
-          }
-          bKilled =true;
-          break;
-        }
-      }
-    } else { 
-      int i = 0;
-      while(i < _floatingPlayerZones.length)
-      {
-        PlayerZone pMessageThread = (PlayerZone )_floatingPlayerZones.elementAt(i);
-        if (pMessageThread != null && pMessageThread.GetZone() + 1 > nZone)
-        {
-          _floatingPlayerZones.RemoveAt(i);
-          RecycleThread(1, pMessageThread);
-          bKilled =true;
-        }
-        else
-        {
-          i++;
+    final player = getMessageThread(AHPlayList.getMessageId(nOutput));
+    if (player == null) {
+      await createMessageThread(nOutput);
+      return;
+    }
+    await _loadMessageThread(player, nOutput);
+  }
+
+  Future<void> _loadMessageThread(
+    FloatingPlayerImpl player,
+    int output,
+  ) async {
+    final messageList = ScheduleList().messageList;
+    final product = messageList.getProductData(output);
+    final rect = _getAHMessageRect(output);
+    if (product == null || rect.isEmpty) {
+      await removeFloatingPlayer(player);
+      return;
+    }
+
+    AHMessagePos nLayout = messageList.getMessageLayout(output);
+    if (nLayout != AHMessagePos.eAHBOTTOMMZ) {
+      player.setCompany(ScheduleList().getCurrCompany());
+      //player.setZoneData(PlayList.m_MessageList.GetZoneData());
+      player.setProductData(messageList.getProductData(output));
+    }
+
+    changeMessageRect(output);
+    //changeMessageRgn(output);
+    reCalcPlayerRect(output);
+    reCalcZoneRect();
+    changePlayerRgn();
+    //changeFrameRgn();
+
+    player.start();
+  }
+
+  FloatingPlayerImpl? getMessageThread(int nZone) {
+    if (_floatingPlayers != null) {
+      for (int i = 0; i < _floatingPlayers!.length; i++) {
+        if (_floatingPlayers![i].getZone() == nZone) {
+          return _floatingPlayers![i];
         }
       }
     }
+    return null;
+  }
 
-    if (bKilled && AHScheduleList().isAHMessage(nZone)) {
-      int nOutput = AHScheduleList().getOutput(nZone);
-      logI('''PlayerScreenProvider - DeleteMessageThread refresh window nOutput '$nOutput'''');
+  Future<void> createMessageThread(int nOutput) async {
+    int nZone = AHPlayList.getMessageId(nOutput);
+    deleteMessageThread(nZone);
+
+    final messageList = ScheduleList().messageList;
+    final ahPlayer = FloatingPlayerImpl()
+      ..setZone(nZone)
+      ..setPlayType(4)
+      ..setOutput(nOutput)
+      ..setCompany(ScheduleList().getCurrCompany());
+
+    if (AHPlayList.isAHMessage(nZone)) {
+      ProductData? pProductData = messageList.getProductData(nOutput);
+      if (pProductData != null) {
+        //pMessageThread->SetZoneData(PlayList.m_MessageList.GetZoneData());
+        ahPlayer.setProductData(pProductData);
+        playSkin.setMessageTransparency(messageList.isTransparency(nOutput));
+
+        ahPlayer.setWindowRect(_getAHMessageRect(nOutput));
+
+        reCalcPlayerRect(nOutput);
+        reCalcZoneRect();
+        changePlayerRgn();
+        //changeFrameRgn();
+
+        //todo replace zone
+        /*if (nLayout == AHMessagePos.eAHREPLACEZONE) {
+          CBaseUIThread *pZoneThread = GetZoneThread(nZone);
+          if (pZoneThread != NULL)
+          {
+            pZoneThread->WantStop();
+            ::SendMessageTimeout(pZoneThread->GetPlayerHWnd(), WM_INFORM_STOP, 1, 0, SMTO_BLOCK, 10000, 0);
+          }
+        }*/
+      }
+    } else {
+      ahPlayer.setWindowRect(playSkin.getZoneRect(nZone));
+    }
+
+    await addFloatingPlayer(ahPlayer);
+  }
+
+  Rect _getAHMessageRect(int output) {
+    final messageList = ScheduleList().messageList;
+    final rect = messageList.getMessageRect(output);
+    final product = ScheduleList().getProductData(
+      ScheduleList().getPlayProduct(),
+    );
+    if (product == null) {
+      return rect;
+    }
+
+    playSkin.setAHMessageRectFromProduct(
+      product,
+      messageList.getMessageLayout(output),
+      messageList.getMessageZone(output),
+      messageList.getMessageZoneType(output),
+      rect,
+      output,
+    );
+    return playSkin.getAHMessageRect(output);
+  }
+
+  void changeMessageRect([int nOutput = -1]) {
+    FloatingPlayerImpl? pMessageThread =
+        getMessageThread(AHPlayList.getMessageId(nOutput));
+    if (pMessageThread != null) {
+      logI(
+          'CPlayerScreenDlg::ChangeMessageRect pMessageThread != NULL nOutput \'$nOutput\'');
+      pMessageThread.setWindowRect(_getAHMessageRect(nOutput));
+    } else {
+      logI(
+          'CPlayerScreenDlg::ChangeMessageRect pMessageThread == NULL nOutput \'$nOutput\'');
+      //PlaySkin.SetAHMessageRect(CRect(0, 0, 0, 0), nOutput);
+      playSkin.removeAHMessageRect(nOutput);
+    }
+  }
+
+  void _stopReplacedZone(int output) {
+    if (ScheduleList().messageList.getMessageLayout(output) !=
+        AHMessagePos.eAHREPLACEZONE) {
+      return;
+    }
+
+    getPlayerZone(ScheduleList().messageList.getMessageZone(output))
+        ?.stopPlay();
+  }
+
+  void deleteMessageThreadByOutput([int nOutput = -1]) {
+    if (nOutput != cINTMIN) {
+      deleteMessageThread(AHPlayList.getMessageId(nOutput));
+      return;
+    }
+
+    final zones = (_floatingPlayers ?? const <FloatingPlayerImpl>[])
+        .where((player) => AHPlayList.isAHMessage(player.zone))
+        .map((player) => player.zone)
+        .toList();
+    for (final zone in zones) {
+      deleteMessageThread(zone);
+    }
+  }
+
+  void deleteMessageThreadByLayer(int nLayer) {
+    final zones = (_floatingPlayers ?? const <FloatingPlayerImpl>[])
+        .where((player) =>
+            AHPlayList.isAHMessage(player.zone) &&
+            AHPlayList.getLayer(player.zone) == nLayer)
+        .map((player) => player.zone)
+        .toList();
+    for (final zone in zones) {
+      deleteMessageThread(zone);
+    }
+  }
+
+  void deleteMessageThread(int nZone, [bool bGroup = false]) {
+    final players = _floatingPlayers;
+    if (players == null || players.isEmpty) {
+      return;
+    }
+
+    if (nZone < 0) {
+      for (final player in players) {
+        unawaited(player.release());
+      }
+      players.clear();
+      return;
+    }
+
+    final removed = <FloatingPlayerImpl>[];
+    players.removeWhere((player) {
+      final matches =
+          nZone < 0 || (bGroup ? player.zone >= nZone : player.zone == nZone);
+      if (matches) {
+        removed.add(player);
+      }
+      return matches;
+    });
+    for (final player in removed) {
+      unawaited(player.release());
+    }
+
+    if (removed.isNotEmpty && AHPlayList.isAHMessage(nZone)) {
+      int nOutput = AHPlayList.getOutput(nZone);
+      logI(
+          '''PlayerScreenProvider - DeleteMessageThread refresh window nOutput '$nOutput'.''');
       //PlaySkin.RemoveAHMessageRect(nOutput);
       changeMessageRect(nOutput);
-      changeMessageRgn(nOutput);
+      //changeMessageRgn(nOutput);
       reCalcPlayerRect(nOutput);
       reCalcZoneRect();
       changePlayerRgn();
-      changeFrameRgn();
-
-      for (int i=0; i<_playerZones.length; i++)
-      {
-        PlayerZone pThread = (PlayerZone )_playerZones[i];
-        if (pThread != null && pThread.GetZone() > -1) {
-          ::ShowWindow(pThread.GetPlayerHWnd(), SW_HIDE);
-          ::ShowWindow(pThread.GetPlayerHWnd(), SW_SHOW);
-        }
-      }
+      //changeFrameRgn();
+      _needNotifyListeners = true;
+    }
+    /*if (removed.isNotEmpty) {
+      notifyListeners();
     }*/
   }
 
@@ -2021,6 +2059,10 @@ class PlayerScreenProvider extends ChangeNotifier {
     resetMusicPlayer();
     deleteZoneThread(0);
     deleteMessageThreadByOutput(cINTMIN);
+    for (final player in _floatingPlayers ?? const <FloatingPlayerImpl>[]) {
+      unawaited(player.release());
+    }
+    _floatingPlayers?.clear();
   }
 
   bool isValidForPlay() => _bValidForPlay;
@@ -2068,7 +2110,7 @@ class PlayerScreenProvider extends ChangeNotifier {
           ScheduleList().setPlayTimes();
         }
       } catch (e, stackTrace) {
-        logE('PlayerScreenProvider - _readyForPlay error: $e', stackTrace);
+        logE('PlayerScreenProvider - _readyForPlay error: $e', e, stackTrace);
       }
     }
     _bValidForPlay = bCanPlay;
@@ -2320,10 +2362,6 @@ class PlayerScreenProvider extends ChangeNotifier {
     for (int nZone = 0; nZone < nTotalZone; nZone++) {
       Rect rect = scaleToVW(nZone);
       playSkin.updateZoneRectData(nZone, rect);
-
-      /*PlayerZoneImpl pThread = getZoneThread(nZone);
-      if (pThread != null)
-        ::MoveWindow(((PlayerZone )pThread).getPlayerHWnd(), rect.left, rect.top, rect.Width(), rect.Height(), false);*/
     }
   }
 
@@ -2608,8 +2646,10 @@ class PlayerScreenProvider extends ChangeNotifier {
     for (final playerZone in _playerZones) {
       playerZone.videoStatusControl(nVideoStatus);
     }
-    for (final playerZone in _floatingPlayerZones ?? const <PlayerZoneImpl>[]) {
-      playerZone.videoStatusControl(nVideoStatus);
+    for (final player in _floatingPlayers ?? const <FloatingPlayerImpl>[]) {
+      for (final playerZone in player.players) {
+        playerZone.videoStatusControl(nVideoStatus);
+      }
     }
   }
 
@@ -2619,8 +2659,8 @@ class PlayerScreenProvider extends ChangeNotifier {
       //PlayerZoneImpl pThread = _playerZones.elementAt(i);
       //::SendMessageTimeout((pThread).GetPlayerHWnd(), WM_INFORM_PAUSE, 2, nNewChannel, SMTO_BLOCK, 10000, 0);
     }
-    /*for (i=0; i<_floatingPlayerZones.length; i++) {
-      PlayerZoneImpl pThread = _floatingPlayerZones.elementAt(i);
+    /*for (i=0; i<_floatingPlayers.length; i++) {
+      PlayerZoneImpl pThread = _floatingPlayers.elementAt(i);
       if (pThread != null && AHPlayList.isAHMessage((pThread).getZone()))
       {
         ::SendMessageTimeout((pThread).GetPlayerHWnd(), WM_INFORM_PAUSE, 2, nNewChannel, SMTO_BLOCK, 10000, 0);

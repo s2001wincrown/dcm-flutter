@@ -858,7 +858,7 @@ class ContentListPlayerImpl {
           if (nZone + 1 > pLayout.iNoOfParition) {
             rcVW = Rect.zero;
           } else {
-            rcVW = DCMFileImpl.getZoneRect(pLayout, nZone, rcVW, rcVW) ??
+            rcVW = DCMFileImpl.getZoneRect(pLayout, nZone, rcVW) ??
                 Rect.fromLTWH(0, 0, _playerRect!.width, _playerRect!.height);
           }
         }

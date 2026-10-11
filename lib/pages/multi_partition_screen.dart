@@ -8,6 +8,7 @@ import 'package:dcm/backend/constants.dart';
 import 'package:dcm/backend/models/app_global.dart';
 import 'package:dcm/backend/net/netdef.dart';
 import 'package:dcm/backend/providers/player_screen_provider.dart';
+import 'package:dcm/backend/services/app_watchdog.dart';
 import 'package:dcm/backend/services/app_skin_impl.dart';
 import 'package:dcm/backend/utils/l10n_utils.dart';
 import 'package:dcm/backend/utils/log_utils.dart';
@@ -15,6 +16,7 @@ import 'package:dcm/backend/utils/utils.dart';
 import 'package:dcm/pages/home.dart';
 import 'package:dcm/pages/initial_setup_page.dart';
 import 'package:dcm/pages/settings/settings_page.dart';
+import 'package:dcm/widgets/floating_player.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -141,15 +143,29 @@ class _DigitalSignageScreenState extends State<DigitalSignageScreen> {
 
     _isExiting = true;
     _menuTimer?.cancel();
-    PlayerScreenProvider.instance?.release();
-    _notifyContentSyncIsolateCommand(PlayerNotice.ePLAYCLOSENOTICE.index, 0);
-    //sleep(const Duration(seconds: 1));
-    await Future.delayed(const Duration(seconds: 1)); // Non-blocking delay
+
+    // Notify the supervisor before cleanup, which can fail in release builds.
+    await AppWatchdog.markUserExit();
+    try {
+      PlayerScreenProvider.instance?.release();
+    } on Object catch (error, stackTrace) {
+      logE('multi_partition_screen player release failed: $error', error,
+          stackTrace);
+    }
+    try {
+      _notifyContentSyncIsolateCommand(PlayerNotice.ePLAYCLOSENOTICE.index, 0);
+    } on Object catch (error, stackTrace) {
+      logE('multi_partition_screen content sync shutdown failed: $error', error,
+          stackTrace);
+    }
+    await Future<void>.delayed(const Duration(seconds: 1));
 
     if (Platform.isAndroid || Platform.isIOS) {
       try {
-        SystemNavigator.pop();
-      } catch (_) {
+        await SystemNavigator.pop();
+      } on Object catch (error, stackTrace) {
+        logE('multi_partition_screen platform exit failed: $error', error,
+            stackTrace);
         exit(0);
       }
     } else {
@@ -298,18 +314,19 @@ class _DigitalSignageScreenState extends State<DigitalSignageScreen> {
                       height: double.infinity,
                       child: Stack(
                         children: <Widget>[
-                          Builder(
-                            builder: (context) {
-                              final currentLayout =
-                                  playerScreenProvider.getPlayingZones();
+                          Positioned.fill(
+                            child: Builder(
+                              builder: (context) {
+                                final currentLayout =
+                                    playerScreenProvider.getPlayingZones();
 
-                              return Stack(
-                                children: currentLayout.map((partition) {
-                                  final left = partition.getRect().left;
-                                  final top = partition.getRect().top;
-                                  final w = partition.getRect().width;
-                                  final h = partition.getRect().height;
-                                  /*var left = 0.00;
+                                return Stack(
+                                  children: currentLayout.map((partition) {
+                                    final left = partition.getRect().left;
+                                    final top = partition.getRect().top;
+                                    final w = partition.getRect().width;
+                                    final h = partition.getRect().height;
+                                    /*var left = 0.00;
                                   var top = 0.00;
                                   var w = mq.size.width / 2;
                                   var h = mq.size.height;
@@ -318,35 +335,61 @@ class _DigitalSignageScreenState extends State<DigitalSignageScreen> {
                                     top = 0;
                                     w = mq.size.width / 2;
                                     h = mq.size.height;
-                                  }*/
+                                    }*/
 
-                                  /*logD(
+                                    /*logD(
                                       'multi_partition_screen - Render partition ${partition.getZone()} at ($left, $top) with size ($w x $h)');*/
 
-                                  return Positioned(
-                                    left: left,
-                                    top: top,
-                                    width: w,
-                                    height: h,
-                                    child: Container(
+                                    return Positioned(
+                                      left: left,
+                                      top: top,
                                       width: w,
                                       height: h,
-                                      decoration: BoxDecoration(
-                                        color:
-                                            Utils.fromRGB(AppGlobal.clrBGColor),
-                                        border: null,
-                                        borderRadius: BorderRadius.zero,
-                                      ),
-                                      child: SizedBox(
+                                      child: Container(
                                         width: w,
                                         height: h,
-                                        child: partition.renderZone(),
+                                        decoration: BoxDecoration(
+                                          color: Utils.fromRGB(
+                                              AppGlobal.clrBGColor),
+                                          border: null,
+                                          borderRadius: BorderRadius.zero,
+                                        ),
+                                        child: SizedBox(
+                                          width: w,
+                                          height: h,
+                                          child: partition.renderZone(),
+                                        ),
                                       ),
-                                    ),
-                                  );
-                                }).toList(),
-                              );
-                            },
+                                    );
+                                  }).toList(),
+                                );
+                              },
+                            ),
+                          ),
+                          Positioned.fill(
+                            child: Builder(
+                              builder: (context) {
+                                final floatingPlayers =
+                                    playerScreenProvider.getFloatingPlayers();
+                                return Stack(
+                                  children: floatingPlayers.map((player) {
+                                    final rect = player.playerRect;
+                                    logD(
+                                        'multi_partition_screen - Render floating player ${player.getZone()} at (${rect.left}, ${rect.top}) with size (${rect.width} x ${rect.height})');
+                                    return Positioned.fromRect(
+                                      rect: rect,
+                                      child: SizedBox(
+                                        width: rect.width,
+                                        height: rect.height,
+                                        child: FloatingPlayer(
+                                          output: player.output,
+                                        ),
+                                      ),
+                                    );
+                                  }).toList(),
+                                );
+                              },
+                            ),
                           ),
                           if (_showMenu)
                             Positioned(

@@ -13,7 +13,6 @@ class AHMessageImpl {
       'dcCatalogue Version 4.00 - Ad hoc Message List';
 
   List<MessageData> lstMessage = [];
-  String messagePath = AppGlobal.messagePath;
 
   AHMessageImpl();
 
@@ -21,12 +20,12 @@ class AHMessageImpl {
     lstMessage.clear();
   }
 
-  void loadMessageList([String? strChannelFile]) {
+  Future<void> loadMessageList([String? strChannelFile]) async {
     destroyMessageList();
-    if (messagePath.isEmpty) return;
+    if (AppGlobal.messagePath.isEmpty) return;
 
-    final directory = Directory(messagePath);
-    if (!directory.existsSync()) return;
+    final directory = Directory(AppGlobal.messagePath);
+    if (!await directory.exists()) return;
 
     for (final entity in directory.listSync()) {
       if (entity is! File) continue;
@@ -47,12 +46,12 @@ class AHMessageImpl {
     }
   }
 
-  void loadMessageListFromFiles(List<FileInfoData> arrFiles) {
+  Future<void> loadMessageListFromFiles(List<FileInfoData> arrFiles) async {
     arrFiles.clear();
-    if (messagePath.isEmpty) return;
+    if (AppGlobal.messagePath.isEmpty) return;
 
-    final directory = Directory(messagePath);
-    if (!directory.existsSync()) return;
+    final directory = Directory(AppGlobal.messagePath);
+    if (!await directory.exists()) return;
 
     for (final entity in directory.listSync()) {
       if (entity is! File) continue;
@@ -77,9 +76,12 @@ class AHMessageImpl {
     }
   }
 
-  bool saveMessageData(MessageData messageData) {
-    if (messagePath.isEmpty || messageData.strAHName.isEmpty) return false;
-    final fileName = path.join(messagePath, '${messageData.strAHName}.xml');
+  static bool saveMessageData(MessageData messageData) {
+    if (AppGlobal.messagePath.isEmpty || messageData.strAHName.isEmpty) {
+      return false;
+    }
+    final fileName =
+        path.join(AppGlobal.messagePath, '${messageData.strAHName}.xml');
     return serialize(fileName, messageData, true);
   }
 
@@ -90,10 +92,13 @@ class AHMessageImpl {
     return serializeFrom(fileName);
   }
 
-  bool isExistedMessage(MessageData messageData) {
-    if (messagePath.isEmpty || messageData.strAHName.isEmpty) return false;
-    final fileName = path.join(messagePath, '${messageData.strAHName}.xml');
-    return File(fileName).existsSync();
+  Future<bool> isExistedMessage(MessageData messageData) async {
+    if (AppGlobal.messagePath.isEmpty || messageData.strAHName.isEmpty) {
+      return false;
+    }
+    final fileName =
+        path.join(AppGlobal.messagePath, '${messageData.strAHName}.xml');
+    return await File(fileName).exists();
   }
 
   MessageData? getMessage(String strMessage) {
@@ -123,7 +128,8 @@ class AHMessageImpl {
     return file.lengthSync() > lpszSignature.length;
   }
 
-  bool serialize(String strFilename, MessageData messageData, bool bStoring) {
+  static bool serialize(
+      String strFilename, MessageData messageData, bool bStoring) {
     if (bStoring) {
       XmlFilePro playerReg = XmlFilePro('AHMessage');
       XmlItem? xi = playerReg.addDataNode('MessageItem', null);

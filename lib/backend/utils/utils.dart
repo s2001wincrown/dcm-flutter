@@ -713,6 +713,61 @@ class Utils {
     return osVersion;
   }
 
+  /// 解析命令行参数为 Map
+  static Map<String, String> parseArgs(List<String> args) {
+    final Map<String, String> result = {};
+
+    for (String arg in args) {
+      if (arg.startsWith('--')) {
+        // 长参数: --key=value 或 --key value
+        String key = arg.substring(2);
+        int eqIndex = key.indexOf('=');
+        if (eqIndex != -1) {
+          result[key.substring(0, eqIndex)] = key.substring(eqIndex + 1);
+        } else {
+          // 可能是布尔标志或后面跟值的参数
+          result[key] = '';
+        }
+      } else if (arg.startsWith('-')) {
+        // 短参数: -k=value 或 -k value
+        String key = arg.substring(1);
+        int eqIndex = key.indexOf('=');
+        if (eqIndex != -1) {
+          result[key.substring(0, eqIndex)] = key.substring(eqIndex + 1);
+        } else {
+          result[key] = '';
+        }
+      } else {
+        // 位置参数（无键）
+        if (!result.containsKey('_')) {
+          result['_'] = arg;
+        } else {
+          result['_'] = '${result['_']} $arg';
+        }
+      }
+    }
+
+    return result;
+  }
+
+  /// 获取指定参数的值
+  static T? getArg<T>(Map<String, String> args, String key, T? defaultValue) {
+    String? value = args[key];
+    if (value == null || value.isEmpty) {
+      return defaultValue;
+    }
+
+    if (T == int) {
+      return int.tryParse(value) as T? ?? defaultValue;
+    } else if (T == double) {
+      return double.tryParse(value) as T? ?? defaultValue;
+    } else if (T == bool) {
+      return (value.toLowerCase() == 'true' || value == '1') as T? ??
+          defaultValue;
+    }
+    return value as T? ?? defaultValue;
+  }
+
   static Future<({String strVerInfo, String strPlaylistVersion})>
       uploadVersionInfo() async {
     PackageInfo packageInfo = await PackageInfo.fromPlatform();

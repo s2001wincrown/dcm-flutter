@@ -1,12 +1,17 @@
 // ah_playlist.dart
 import 'dart:io';
-import 'dart:math';
+import 'dart:ui';
 
 import 'package:dcm/backend/constants.dart';
 import 'package:dcm/backend/models/app_global.dart';
 import 'package:dcm/backend/models/layout_data.dart';
 import 'package:dcm/backend/models/message_data.dart';
 import 'package:dcm/backend/models/product_data.dart';
+import 'package:dcm/backend/models/zone_data.dart';
+import 'package:dcm/backend/services/ah_message_impl.dart';
+import 'package:dcm/backend/services/app_skin_impl.dart';
+import 'package:dcm/backend/utils/extensions.dart';
+import 'package:dcm/backend/utils/log_utils.dart';
 import 'package:dcm/backend/xmlfile/xmlprofile.dart';
 import 'package:path/path.dart' as path;
 
@@ -36,11 +41,11 @@ class AHMessageItem {
   });
 
   bool isEffective(DateTime currTime) {
-    return endManual || currTime.isBefore(endTime);
+    return endManual || currTime.isBefore(endTime!);
   }
 
   bool isTimeForPlay(DateTime currTime) {
-    return isEffective(currTime) && !currTime.isBefore(startTime);
+    return isEffective(currTime) && !currTime.isBefore(startTime!);
   }
 
   AHMessageItem copy() {
@@ -83,7 +88,7 @@ class AHMessageList {
   int endType = AhEndType.byTime;
   int delay = 20;
   int autoUpdate = 0;
-  Rectangle<int> rcMessageWnd = const Rectangle(0, 0, 0, 0);
+  Rect rcMessageWnd = Rect.zero;
   Map<String, ProductData> mapZoneData = {};
   Map<String, LayoutData> mapLayout = {};
 
@@ -97,8 +102,8 @@ class AHMessageList {
     return isPlayMessage;
   }
 
-  Rectangle<int> getMessageRect() {
-    Rectangle<int> rect = rcMessageWnd;
+  Rect getMessageRect() {
+    Rect rect = rcMessageWnd;
     if (layout == AHMessagePos.eAHBOTTOMMZ) {
       int nZone = 0;
       for (int i = 0; i < arrAHList.length; i++) {
@@ -106,7 +111,7 @@ class AHMessageList {
           nZone++;
         }
       }
-      rect = Rectangle(
+      rect = Rect.fromLTWH(
         rect.left,
         rect.top - (rect.height * (nZone - 1)),
         rect.width,
@@ -149,6 +154,8 @@ class AHMessageList {
     for (int i = 0; i < arrAHList.length; i++) {
       if (message.toLowerCase() == arrAHList[i].ahName.toLowerCase()) {
         arrAHList.removeAt(i);
+        logI(
+            'CAHMessageList::RemoveMessageItem: Remove message \'$message\' successfully');
         removeZoneData(message);
         removeLayoutData(message);
         AHPlayList.resetDefaultMessage();
@@ -208,22 +215,48 @@ class AHMessageList {
   }
 
   bool stopAHMessage(String message) {
-    removeAHMessage(message);
-    // 在实际应用中，这里应处理消息停止逻辑
-    return true;
+    logI('CAHMessageList::StopAHMessage: try to stop messge \'$message\'');
+    if (removeAHMessage(message)) {
+      logI(
+          'CAHMessageList::StopAHMessage: remove message \'$message\' successfully');
+      if (message.endsWithIgnoreCase('AHWait') ||
+          message.endsWithIgnoreCase('AHDirect')) {
+        return true;
+      }
+      MessageData? messageData = AHMessageImpl.loadMessageData(message);
+      if (messageData != null) {
+        messageData.nStatus = 2;
+        messageData.dtStopTime = DateTime.now();
+        AHMessageImpl.saveMessageData(messageData);
+      }
+
+      //COleDateTimeSpan dts = COleDateTime::GetCurrentTime() - COleDateTime(m_tmStartTime.GetTime());
+      //WritePlayLoger(m_tmStartTime.GetTime(), m_nLayout, DCM_AHMESSAGE_TYPE, m_strMsgLogName, dts.GetTotalSeconds());
+      return true;
+    }
+
+    return false;
   }
 
   bool stopAll() {
+    for (var ah in arrAHList) {
+      MessageData? messageData = AHMessageImpl.loadMessageData(ah.ahName);
+      if (messageData != null) {
+        messageData.nStatus = 2;
+        messageData.dtStopTime = DateTime.now();
+        AHMessageImpl.saveMessageData(messageData);
+      }
+    }
     arrAHList.clear();
     return true;
   }
 
-  bool isTimeForMessage(DateTime dateTime) {
+  Future<bool> isTimeForMessage(DateTime dateTime) async {
     if (!isPlayMessage) {
       int nItem = 0;
       if (highestLevelItem(nItem, dateTime)) {
         currMessage = arrAHList[nItem].ahName;
-        if (loadMessage(currMessage)) {
+        if (await loadMessage(currMessage)) {
           isPlayMessage = true;
           return true;
         }
@@ -304,7 +337,7 @@ class AHMessageList {
     return 1; // not playing
   }
 
-  bool isTimeForLoad(DateTime dateTime) {
+  Future<bool> isTimeForLoad(DateTime dateTime) async {
     if (isPlayMessage) {
       if (layout == AHMessagePos.eAHBOTTOMMZ) {
         return false;
@@ -328,7 +361,7 @@ class AHMessageList {
             if (compareLevel(
                 arrAHList[i], currentItem.level, currentItem.createTime)) {
               currMessage = arrAHList[i].ahName;
-              if (loadMessage(currMessage)) {
+              if (await loadMessage(currMessage)) {
                 isPlayMessage = true;
                 return true;
               }
@@ -451,13 +484,92 @@ class AHMessageList {
     return '';
   }
 
-  void saveDefaultMessage() {
-    // 实际应用中应保存到持久存储
+  Future<void> saveDefaultMessage() async {
+    String strDefaEvent =
+        path.join(AppGlobal.settingPath, 'DefaultMessage$output.xml');
+    XmlProfile xmlProfile = XmlProfile.fromFile(strDefaEvent);
+
+    //xmlProfile.loadProfile('TextXML');
+    xmlProfile.createProfile('DefaultMessage');
+    xmlProfile.writeProfileInt('DefaultMessage', 'Output', output);
+    xmlProfile.writeProfileString('DefaultMessage', 'Message', currMessage);
+    xmlProfile.saveProfile();
+    xmlProfile.close();
+    await File(strDefaEvent).copy('$strDefaEvent.bak');
   }
 
-  bool loadMessage(String message) {
-    // 实际应用中应加载消息数据
-    return true;
+  Future<bool> loadMessage(String message) async {
+    int nOutput = (fLOBYTE(output) == cBYTEMAX) ? -1 : fLOBYTE(output);
+    Rect rectMonitor = await playSkin.getMonitorRect(nOutput);
+    logI(
+        '''CAHMessageList::LoadMessage:'$message' Output:'$output'; rect:'${rectMonitor.toString()}'.''');
+    try {
+      MessageData? messageData = AHMessageImpl.loadMessageData(message);
+      if (messageData != null) {
+        int nPercent = messageData.nPercentScreen;
+        if (nPercent == 0) {
+          nPercent = AHPlayList.nPercent;
+        }
+
+        rcMessageWnd = Rect.zero;
+        if (AHPlayList.rcAHWnd.isEmpty) {
+          if (messageData.nLayout == 0) {
+            rcMessageWnd =
+                rectMonitor; //.SetRect(rectMonitor.left, rectMonitor.top, rectMonitor.Width(), rectMonitor.Height());
+          } else if (messageData.nLayout == 1) {
+            rcMessageWnd = Rect.fromLTRB(
+                rectMonitor.left,
+                rectMonitor.top,
+                rectMonitor.left + rectMonitor.width,
+                rectMonitor.top + rectMonitor.height * nPercent / 100);
+          } else if (messageData.nLayout == 2 ||
+              messageData.nLayout == AHMessagePos.eAHBOTTOMMZ.index) {
+            rcMessageWnd = Rect.fromLTRB(
+                rectMonitor.left,
+                rectMonitor.top + rectMonitor.height * (100 - nPercent) / 100,
+                rectMonitor.left + rectMonitor.width,
+                rectMonitor.top + rectMonitor.height);
+          }
+        } else {
+          rcMessageWnd = AHPlayList.rcAHWnd;
+        }
+        logI(
+            '''CAHMessageList::LoadMessage Output:'$output'; rect:'${rcMessageWnd.toString()}'.''');
+
+        alpha = messageData.bAlpha;
+        layout = AHMessagePos.fromInt(messageData.nLayout) ??
+            AHMessagePos.eAHFULLSCREEN;
+        overlay = messageData.nOverlay;
+        messageZone = messageData.nMessageZone;
+        endType = messageData.nEndType;
+        delay = messageData.nDelay;
+        autoUpdate = messageData.nAutoUpdate;
+
+        if (messageData.lstZone.isNotEmpty) {
+          contentType = messageData.lstZone.first.nZoneType;
+        }
+        if (messageData.nLayout != AHMessagePos.eAHBOTTOMMZ.index) {
+          removeZoneData(message);
+          removeLayoutData(message);
+          //messageData.GetZoneDataList(lstZoneData);
+          //CZoneData *pZoneData = new CZoneData((CZoneData *)messageData.lstZone.GetHead());
+          mapZoneData[message] = ProductData();
+          mapZoneData[message]!.copyZoneData(messageData.lstZone);
+          if (messageData.pLayoutDataObj != null) {
+            mapLayout[message] = messageData.pLayoutDataObj!;
+          }
+        }
+        saveDefaultMessage();
+
+        return true;
+      } else {
+        logI('CAHMessageList::LoadMessage data failed.');
+      }
+    } catch (error, stackTrace) {
+      logI('CAHMessageList::LoadMessage failed; $error\n$stackTrace');
+    }
+
+    return false;
   }
 
   void destroyZoneData() {
@@ -478,14 +590,36 @@ class AHMessageList {
 
   ProductData? getProductData() {
     if (layout == AHMessagePos.eAHBOTTOMMZ) {
-      ProductData? pProductData = ProductData();
+      ProductData pProductData = ProductData();
       destroyZoneData();
       for (int i = 0; i < arrAHList.length; i++) {
         if (arrAHList[i].isTimeForPlay(DateTime.now())) {
           String strMessage = arrAHList[i].ahName;
-          // 这里应加载消息数据并创建产品数据
+
+          MessageData? messageData = AHMessageImpl.loadMessageData(strMessage);
+          if (messageData != null) {
+            if (messageData.nLayout == AHMessagePos.eAHBOTTOMMZ.index) {
+              // && messageData.IsEffective(DateTime.now())
+              ProductData pMsgProductData = ProductData();
+              //CZoneData *pZoneData = new CZoneData((CZoneData *)messageData.lstZone.GetHead());
+              if (messageData.lstZone.isNotEmpty) {
+                pProductData.addZoneData(messageData.lstZone.first);
+                pMsgProductData.addZoneData(messageData.lstZone.first);
+              }
+              mapZoneData[strMessage] = pMsgProductData;
+              String strMessageName = messageData.strAHDesc1.isEmpty
+                  ? messageData.strAHName
+                  : messageData.strAHDesc1;
+              if (!strMessageName.equalsIgnoreCase(arrAHList[i].lastMsgName)) {
+                writeMessageLog(strMessage, strMessageName,
+                    pMsgProductData.getHeadZoneID());
+                arrAHList[i].lastMsgName = strMessageName;
+              }
+            }
+          }
         }
       }
+
       return pProductData;
     } else {
       if (mapZoneData.containsKey(currMessage)) {
@@ -495,11 +629,80 @@ class AHMessageList {
     return null;
   }
 
+  void writeMessageLog(
+      String strAHName, String strMessageName, int nMessageType) {
+    saveLastMessage(strAHName, strMessageName);
+    //tmStartTime = CTime::GetCurrentTime();
+    //WritePlayLoger(tmStartTime.GetTime(), nMessageType, DCM_AHMESSAGE_TYPE, strMessageName, 0);
+  }
+
   LayoutData? getLayoutData() {
     if (mapLayout.containsKey(currMessage)) {
       return mapLayout[currMessage]!.copy();
     }
     return null;
+  }
+
+  ({
+    int nChanged,
+    List<ZoneData>? lstZoneData,
+    List<ZoneData>? lstZoneDataChanged
+  }) getZoneDataList() {
+    int nChanged = 0;
+    List<ZoneData> lstZoneData = [];
+    List<ZoneData> lstZoneDataChanged = [];
+    if (layout == AHMessagePos.eAHBOTTOMMZ) {
+      Map<String, ProductData> mapZoneDataLocal = {};
+      for (int i = 0; i < arrAHList.length; i++) {
+        if (arrAHList[i].isTimeForPlay(DateTime.now())) {
+          String strMessage = arrAHList[i].ahName;
+          if (arrAHList[i].status != AHItemStatus.normal) {
+            MessageData? messageData =
+                AHMessageImpl.loadMessageData(strMessage);
+            if (messageData != null) {
+              if (messageData.nLayout == AHMessagePos.eAHBOTTOMMZ.index) {
+                // && messageData.IsEffective(DateTime.now()
+                nChanged = 1;
+                arrAHList[i].status = AHItemStatus.normal;
+                lstZoneDataChanged.add(messageData.lstZone.first);
+                mapZoneDataLocal[strMessage] = ProductData();
+                mapZoneDataLocal[strMessage]!
+                    .addZoneData(messageData.lstZone.first);
+                String strMessageName = messageData.strAHDesc1.isEmpty
+                    ? messageData.strAHName
+                    : messageData.strAHDesc1;
+                if (!strMessageName
+                    .equalsIgnoreCase(arrAHList[i].lastMsgName)) {
+                  writeMessageLog(strMessage, strMessageName,
+                      messageData.lstZone.first.nZoneID);
+                  arrAHList[i].lastMsgName = strMessageName;
+                }
+                //WriteMessage(MSG_INFO, 'CAHPlayList::GetZoneDataList Message: '%s'; ZoneData Changed:'%s'; Zone ID: '%d'!', strMessage, pZoneData->m_strZoneFile, pZoneData->m_nZoneID);
+              }
+            }
+          } else {
+            if (mapZoneData.containsKey(strMessage)) {
+              lstZoneData.add(mapZoneData[strMessage]!.getHeadZoneData()!);
+              mapZoneDataLocal[strMessage] = mapZoneData[strMessage]!.copy();
+            }
+          }
+        }
+      }
+
+      mapZoneData.clear();
+      if (mapZoneDataLocal.isNotEmpty) mapZoneData.addAll(mapZoneDataLocal);
+
+      /*if (bChanged)
+        WriteMessage(MSG_INFO, 'CAHPlayList::GetZoneDataList; arrAHList size:%d; m_mapZoneData size:%d', arrAHList.size(), m_mapZoneData.size());*/
+
+      return (
+        nChanged: nChanged,
+        lstZoneData: lstZoneData,
+        lstZoneDataChanged: lstZoneDataChanged
+      );
+    }
+
+    return (nChanged: -1, lstZoneData: null, lstZoneDataChanged: null);
   }
 
   int size() {
@@ -517,14 +720,86 @@ class AHMessageList {
 
 class AHPlayList {
   Map<int, AHMessageList> arrAHList = {};
-  final Object ahListLock = Object();
 
-  static Rectangle<int> rcAHWnd = const Rectangle(0, 0, 0, 0);
+  static Rect rcAHWnd = Rect.zero;
   static int nPercent = 10;
 
   static const int kAHBOTTOMMZ = 3;
   static const int kAHENDTIMEOUT = 1;
   static const int kAHENDBYTIME = 0;
+  static const int kAHENDPLAYONETIME = 3;
+
+  Future<void> loadAHList() async {
+    List<int> arrOutputs = playSkin.getOutputs();
+    AHMessageImpl messageImpl = AHMessageImpl();
+    await messageImpl.loadMessageList();
+    DateTime dtCurr = DateTime.now();
+    for (var pData in messageImpl.lstMessage) {
+      if (pData.nStatus == 0 && pData.isEffective(dtCurr)) {
+        //pData.nStatus != 2 &&
+        /*String strLastMessage = LoadLastMessage(pData.strAHName);
+        CAHMessageItem messageItem(pData.strAHName, pData.dtStartTime, pData.dtEndTime,
+          pData.dtCreateTime, pData.nLevel, pData.bEndManual, strLastMessage);*/
+        AHMessageItem messageItem = AHMessageItem(
+            ahName: pData.strAHName,
+            startTime: pData.dtStartTime!,
+            endTime: pData.dtEndTime!,
+            createTime: pData.dtCreateTime!,
+            level: pData.nLevel,
+            endManual: pData.bEndManual,
+            endType: pData.nEndType,
+            delay: pData.nDelay);
+        if (pData.uiOutput == -2) {
+          for (int i = 0; i < arrOutputs.length; i++) {
+            addMessageItem(
+                messageItem, MessageData.getOutput(arrOutputs[i], pData));
+          }
+        } else {
+          addMessageItem(
+              messageItem, MessageData.getOutput(pData.uiOutput, pData));
+        }
+      }
+    }
+
+    var result = await getDefaultMessages();
+    if (result.arrMessages.isNotEmpty) {
+      for (int i = 0; i < result.arrOutputs!.length; i++) {
+        int nOverlay = fHIBYTE(result.arrOutputs![i]);
+        if (nOverlay == 0 && result.arrMessages.length > i) {
+          MessageData? pData = messageImpl.getMessage(result.arrMessages[i]);
+          if (pData != null) {
+            AHMessageItem messageItem = AHMessageItem(
+                ahName: pData.strAHName,
+                startTime: DateTime.now(),
+                endTime: DateTime.now(),
+                createTime: DateTime.now(),
+                level: pData.nLevel,
+                endManual: true,
+                endType: pData.nEndType,
+                delay: pData.nDelay);
+
+            addMessageItem(messageItem, result.arrOutputs![i]);
+          }
+        }
+      }
+    }
+
+    List<int> arrLayer = getLayers();
+    List<int> removeKeys = [];
+    for (int i = 0; i < arrLayer.length; i++) {
+      if (find(fMAKEWORD(cBYTEMAX, arrLayer[i]))) {
+        for (var it in arrAHList.entries) {
+          int nOverlay = fHIBYTE(it.value.output);
+          int nRealOutput = fLOBYTE(it.value.output);
+          if (nOverlay == arrLayer[i] && nRealOutput < cBYTEMAX) {
+            it.value.stopAll();
+            removeKeys.add(it.key);
+          }
+        }
+        arrAHList.removeWhere((key, value) => removeKeys.contains(key));
+      }
+    }
+  }
 
   static bool isAHMessage(int nZone) {
     return nZone > cAHMESSAGETYPE - 1 && nZone < cTOUCHSCREENTYPE;
@@ -551,6 +826,25 @@ class AHPlayList {
     return nLayer;
   }
 
+  List<int> getLayers() {
+    List<int> arrLayer = [];
+    for (var it in arrAHList.entries) {
+      int nLayer = fHIBYTE(it.key);
+      bool bExists = false;
+      for (int i = 0; i < arrLayer.length; i++) {
+        if (arrLayer[i] == nLayer) {
+          bExists = true;
+          break;
+        }
+      }
+      if (!bExists) {
+        arrLayer.add(nLayer);
+      }
+    }
+
+    return arrLayer;
+  }
+
   static int getRealOutput(int nZone) {
     int nId = nZone - cAHMESSAGETYPE - 1;
     int nOutput = nId < 0 ? cBYTEMAX : nId;
@@ -568,6 +862,15 @@ class AHPlayList {
       nId = (nLayer * 10 + (nRealOutput == cBYTEMAX ? -1 : nRealOutput));
     }
     return (cAHMESSAGETYPE + nId + 1);
+  }
+
+  void addMessageItem(AHMessageItem messageItem, [int nOutput = -1]) {
+    arrAHList[nOutput] = AHMessageList(nOutput);
+    if (arrAHList[nOutput] != null) {
+      messageItem.lastMsgName =
+          arrAHList[nOutput]!.loadLastMessage(messageItem.ahName);
+      arrAHList[nOutput]?.addMessageItem(messageItem);
+    }
   }
 
   bool removeAHMessage(String message, [int nOutput = -1]) {
@@ -632,9 +935,9 @@ class AHPlayList {
     return false;
   }
 
-  int isTimeForMessage(DateTime dtDateTime) {
+  Future<int> isTimeForMessage(DateTime dtDateTime) async {
     for (int key in arrAHList.keys) {
-      if (arrAHList[key]!.isTimeForMessage(dtDateTime)) {
+      if (await arrAHList[key]!.isTimeForMessage(dtDateTime)) {
         return arrAHList[key]!.output;
       }
     }
@@ -652,9 +955,9 @@ class AHPlayList {
     return 1;
   }
 
-  int isTimeForLoad(DateTime dtDateTime) {
+  Future<int> isTimeForLoad(DateTime dtDateTime) async {
     for (int key in arrAHList.keys) {
-      if (arrAHList[key]!.isTimeForLoad(dtDateTime)) {
+      if (await arrAHList[key]!.isTimeForLoad(dtDateTime)) {
         return arrAHList[key]!.output;
       }
     }
@@ -689,6 +992,14 @@ class AHPlayList {
     return false;
   }
 
+  int getAlpha([int nOutput = -1]) {
+    if (arrAHList.containsKey(nOutput)) {
+      return arrAHList[nOutput]!.getAlpha();
+    }
+
+    return cBYTEMAX;
+  }
+
   int getEndType([int nOutput = -1]) {
     if (arrAHList.containsKey(nOutput)) {
       return arrAHList[nOutput]!.getEndType();
@@ -716,6 +1027,18 @@ class AHPlayList {
 
   bool find(int nOutput) {
     return arrAHList.containsKey(nOutput) && arrAHList[nOutput]!.size() > 0;
+  }
+
+  ({
+    int nChanged,
+    List<ZoneData>? lstZoneData,
+    List<ZoneData>? lstZoneDataChanged
+  }) getZoneDataList(int nOutput /* = -1*/) {
+    if (find(nOutput)) {
+      return arrAHList[nOutput]!.getZoneDataList();
+    }
+
+    return (nChanged: 0, lstZoneData: null, lstZoneDataChanged: null);
   }
 
   ProductData? getProductData([int nOutput = -1]) {
@@ -754,8 +1077,8 @@ class AHPlayList {
     return true;
   }
 
-  Rectangle<int> getMessageRect([int nOutput = -1]) {
-    Rectangle<int> rect = const Rectangle(0, 0, 0, 0);
+  Rect getMessageRect([int nOutput = -1]) {
+    Rect rect = Rect.zero;
     if (find(nOutput)) {
       rect = arrAHList[nOutput]!.getMessageRect();
     }
@@ -833,13 +1156,18 @@ class AHPlayList {
     return false;
   }
 
-  List<String> getDefaultMessages(List<int> arrOutputs) {
+  Future<({List<String> arrMessages, List<int>? arrOutputs})>
+      getDefaultMessages() async {
     final List<String> arrMessages = [];
     final settingsPath = AppGlobal.settingPath;
-    if (settingsPath.isEmpty) return arrMessages;
+    if (settingsPath.isEmpty) {
+      return (arrOutputs: null, arrMessages: arrMessages);
+    }
 
     final directory = Directory(settingsPath);
-    if (!directory.existsSync()) return arrMessages;
+    if (!await directory.exists()) {
+      return (arrOutputs: null, arrMessages: arrMessages);
+    }
 
     final regex = RegExp(r'^DefaultMessage.*\.xml\$', caseSensitive: false);
     final files = directory
@@ -849,6 +1177,7 @@ class AHPlayList {
         .toList()
       ..sort((a, b) => path.basename(a.path).compareTo(path.basename(b.path)));
 
+    List<int> arrOutputs = [];
     for (final file in files) {
       final xmlProfile = XmlProfile();
       if (loadDefaultMessage(xmlProfile, file.path)) {
@@ -862,7 +1191,7 @@ class AHPlayList {
       }
     }
 
-    return arrMessages;
+    return (arrOutputs: arrOutputs, arrMessages: arrMessages);
   }
 
   String getDefaultMessage(int nOutput) {

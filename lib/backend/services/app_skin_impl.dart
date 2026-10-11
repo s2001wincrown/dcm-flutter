@@ -200,16 +200,15 @@ class AppSkinSetting {
     }
   }
 
-  Rect getTouchScreenRect() => touchScreenRect;
-
   void setAHMessageRect(Rect rect, [int output = -1]) {
     ahMessageRects[output] = rect;
   }
 
-  void setAHMessageRectFromProduct(
-      ProductData productData, int layout, int zone, int ahType, Rect rect,
+  void setAHMessageRectFromProduct(ProductData productData, AHMessagePos layout,
+      int zone, int ahType, Rect rect,
       [int output = -1]) {
-    if (layout == 1 || layout == 2) {
+    if (layout == AHMessagePos.eAHINZONE ||
+        layout == AHMessagePos.eAHREPLACEZONE) {
       final zoneRect = getZoneRect(zone);
       ahMessageRects[output] = zoneRect;
       if (ahMessageRects[output]!.isEmpty) {
@@ -221,8 +220,14 @@ class AppSkinSetting {
     }
   }
 
+  Rect getTouchScreenRect() => touchScreenRect;
+
   void setTouchScreenRect(Rect rect) {
     touchScreenRect = rect;
+  }
+
+  void setMessageTransparency(bool bTransparency) {
+    transparencyMsg = bTransparency;
   }
 
   bool isPopTouchScreen() => isTouchScreen;
@@ -594,7 +599,7 @@ class AppSkinSetting {
     Rect rect = monitorRect;
     if (output > -1) {
       //final monitors = await screenRetriever.getAllDisplays();
-      final displayManager = DisplayManager.instance;
+      const displayManager = DisplayManager.instance;
       final monitors = displayManager.getAll();
       if (output < monitors.length) {
         for (int i = 0; i < monitors.length; i++) {
@@ -605,6 +610,11 @@ class AppSkinSetting {
         }
         rect = _normalizeRect(rect);
       }
+    }
+
+    if (rect.isEmpty) {
+      rect = Rect.fromLTWH(
+          0, 0, ScreenUtil().screenWidth, ScreenUtil().screenHeight);
     }
 
     return rect;

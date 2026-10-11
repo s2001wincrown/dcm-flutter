@@ -41,7 +41,7 @@ This project is a professional multi-screen playback system for digital signage,
 The application is implemented with Flutter and Dart, providing a unified codebase for cross-platform deployment while supporting both independent local playback and synchronization with the CMS demo system at http://121.40.137.228:8080/demo.
 
 [![build](https://img.shields.io/github/actions/workflow/status/s2001wincrown/dcm-flutter/build.yml?style=for-the-badge)](https://github.com/s2001wincrown/dcm-flutter/actions)
-[![release](https://img.shields.io/badge/beta-2025.4-gold?style=for-the-badge)](https://github.com/s2001wincrown/dcm-flutter/releases) ![downloads](https://img.shields.io/github/downloads/s2001wincrown/dcm-flutter/total?style=for-the-badge&color=blue) [![project](https://img.shields.io/badge/project-grey?style=for-the-badge)](https://github.com/orgs/s2001wincrown/projects/3)
+[![release](https://img.shields.io/badge/beta-2026.10-gold?style=for-the-badge)](https://github.com/s2001wincrown/dcm-flutter/releases) ![downloads](https://img.shields.io/github/downloads/s2001wincrown/dcm-flutter/total?style=for-the-badge&color=blue) [![project](https://img.shields.io/badge/project-grey?style=for-the-badge)](https://github.com/orgs/s2001wincrown/projects/3)
 
 ![](https://m3-markdown-badges.vercel.app/stars/7/2/s2001wincrown/dcm-flutter)
 ![](https://m3-markdown-badges.vercel.app/issues/1/2/s2001wincrown/dcm-flutter)

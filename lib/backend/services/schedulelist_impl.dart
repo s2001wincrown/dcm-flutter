@@ -1324,16 +1324,16 @@ class ScheduleList {
     return false;
   }
 
-  int isTimeForMessage(DateTime dtCurr) {
-    return messageList.isTimeForMessage(dtCurr);
+  Future<int> isTimeForMessage(DateTime dtCurr) async {
+    return await messageList.isTimeForMessage(dtCurr);
   }
 
   int isTimeForStopMessage(DateTime dtCurr, int nOutput) {
     return messageList.isTimeForStop(dtCurr, nOutput);
   }
 
-  int isTimeForLoadMessage(DateTime dtCurr) {
-    return messageList.isTimeForLoad(dtCurr);
+  Future<int> isTimeForLoadMessage(DateTime dtCurr) async {
+    return await messageList.isTimeForLoad(dtCurr);
   }
 
   ({bool status, int? nFlag}) isTimeForLoad(DateTime dtStart, int nFlag) {

@@ -190,4 +190,29 @@ class ProductData {
     }
     return false;
   }
+
+  void addZoneData(ZoneData pZoneData) {
+    lstZone.add(pZoneData);
+  }
+
+  void copyZoneData(List<ZoneData> lstZoneSrc) {
+    lstZone.clear();
+    for (var pos in lstZoneSrc) {
+      lstZone.add(pos.copy());
+    }
+  }
+
+  int getHeadZoneID() {
+    if (lstZone.isNotEmpty) {
+      return lstZone.first.nZoneID;
+    }
+
+    return -1;
+  }
+
+  ZoneData? getHeadZoneData() {
+    if (lstZone.isNotEmpty) return lstZone.first;
+
+    return null;
+  }
 }

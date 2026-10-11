@@ -139,6 +139,8 @@ final BigInt cULLONGMAX =
 
 const int cWORDMAX = 0xffff;
 
+final DateTime cDateTimeMin = DateTime(1899, 12, 30);
+
 const int cPLAYINGDURATION = 200;
 const double cPLAYINGINTERVAL = 0.05; //interval
 
@@ -574,7 +576,17 @@ enum AHMessagePos {
   eAHBOTTOM,
   eAHINZONE, //play ah in Specified zone but not stop zone play
   eAHBOTTOMMZ,
-  eAHREPLACEZONE, //play ah in Specified zone  and stop current zone play
+  eAHREPLACEZONE; //play ah in Specified zone  and stop current zone play
+
+  static AHMessagePos? fromInt(int index) {
+    for (var messagePos in AHMessagePos.values) {
+      if (messagePos.index == index) {
+        return messagePos;
+      }
+    }
+
+    return null;
+  }
 }
 
 const int cAHMSGOVERLAY = 0x0001; //AH Message overlay in playlist
