@@ -215,6 +215,10 @@ class PlayerZoneImpl {
         _stopFuture = null;
       }
     }));
+
+    _rtDuration = 0;
+    _rtAct = 0;
+    _rtPlaying = 0;
   }
 
   Future<void> _stopPlayers() async {
@@ -493,8 +497,12 @@ class PlayerZoneImpl {
     return _rtPlaying;
   }
 
-  void setPlayingDuration(double rtPosition) {
-    _rtPlaying += rtPosition;
+  void setPlayingDuration(double rtPosition, [bool bReset = false]) {
+    if (bReset) {
+      _rtPlaying = rtPosition;
+    } else {
+      _rtPlaying += rtPosition;
+    }
   }
 
   void setPlayingLine(double rtPosition, [bool bReset = true]) {
@@ -622,9 +630,11 @@ class PlayerZoneImpl {
 
   void setProductData(ProductData? pProductData) {
     _pProductData = pProductData;
+    _pZoneData = null;
   }
 
   void setZoneData(ZoneData? pZoneData) {
+    _pProductData = null;
     _pZoneData = pZoneData;
   }
 

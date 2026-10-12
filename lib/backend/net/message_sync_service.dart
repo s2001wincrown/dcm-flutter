@@ -5,6 +5,7 @@ import 'dart:io';
 import 'package:dcm/backend/constants.dart';
 import 'package:dcm/backend/models/app_global.dart';
 import 'package:dcm/backend/models/file_info_data.dart';
+import 'package:dcm/backend/net/content_sync_service.dart';
 import 'package:dcm/backend/net/file_replace_service.dart';
 import 'package:dcm/backend/net/player_log_file.dart';
 import 'package:dcm/backend/net/player_path_service.dart';
@@ -13,6 +14,7 @@ import 'package:dcm/backend/services/content_downloader.dart';
 import 'package:dcm/backend/utils/file_utils.dart';
 import 'package:dcm/backend/utils/log_utils.dart';
 import 'package:dcm/backend/utils/utils.dart';
+import 'package:dcm/backend/xmlfile/xmlfile.dart';
 import 'package:dcm/backend/xmlfile/xmlfilepro.dart';
 import 'package:dcm/backend/xmlfile/xmlitem.dart';
 import 'package:dcm/proto/websocket_def.pb.dart';
@@ -158,17 +160,19 @@ class MessageSyncService {
   }
 
   Future<MessageSyncResult> _syncMessage(MessageInfo message) async {
-    final messageName = message.messageName.trim();
-    if (messageName.isEmpty) {
+    final messageCmd = message.messageName.trim();
+    if (messageCmd.isEmpty) {
       return _failed(message, 'Message command is empty');
     }
 
-    var messageDetails = messageName.split(';');
+    var messageDetails = messageCmd.split(';');
     if (messageDetails.length < 3) {
-      return _failed(message, 'Invalid message command: $messageName');
+      return _failed(message, 'Invalid message command: $messageCmd');
     }
+
+    var messageName = messageDetails[3].split(':')[0];
     final request = PlayerTaskFile.genHTTPRequest(
-        [messageDetails[3]],
+        [messageName],
         cDCMAHMESSAGETYPE,
         PlayerTaskFile.nSyncPeriod,
         cSyncAHMESSAGE,
@@ -245,6 +249,35 @@ class MessageSyncService {
       copyFailedCount = await _copyMessageContent(fileInfos);
     }
     final totalFailed = failedCount + batchResult.failed;
+    if (totalFailed == 0 && copyFailedCount == 0) {
+      if (message.messageId != 99) {
+        String strFilename = path.join(
+            await PlayerPathService.getLocalPath(cDCMAHMESSAGETYPE),
+            '$messageName.xml');
+        XmlFile xmlMessage = XmlFile('AHMessage');
+        if (xmlMessage.open(strFilename, XfOpen.read)) {
+          if (xmlMessage.loadEx()) {
+            XmlItem? xiMsg = xmlMessage.getItem('MessageItem');
+            if (xiMsg != null) {
+              String strStart = DateFormat('dd/MM/yyyy HH:mm:ss')
+                  .format(xiMsg.getItemValueD('m_dtStartTime')!);
+              String strEnd = DateFormat('dd/MM/yyyy HH:mm:ss')
+                  .format(xiMsg.getItemValueD('m_dtEndTime')!);
+              String strCreate = DateFormat('dd/MM/yyyy HH:mm:ss')
+                  .format(xiMsg.getItemValueD('m_dtCreateTime')!);
+              String strLevel = xiMsg.getItemValue('m_nLevel');
+              String strStatus = xiMsg.getItemValue('m_nStatus');
+              String strEndManual = xiMsg.getItemValue('m_bEndManual');
+              notifyMainIsolatePlaylistRefresh(
+                  PlayerNotice.eAHMESSAGENOTICE.index,
+                  0,
+                  '$strEndManual;$strStatus;${messageDetails[3]};$strStart;$strEnd;$strCreate;$strLevel');
+            }
+          }
+          xmlMessage.close();
+        }
+      }
+    }
     final result = MessageSyncResult(
       messageName: messageName,
       fileCount: fileInfos.length,

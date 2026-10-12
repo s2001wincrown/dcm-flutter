@@ -260,7 +260,7 @@ class FloatingPlayerImpl {
     reCalcPlayerRect();
     int nTotalZone = getZoneNumber();
     for (int nZone = 0; nZone < nTotalZone; nZone++) {
-      createZoneImpl(nZone);
+      _createZoneImpl(nZone);
     }
 
     //playSkin.makeMessageHole(_nOutput, m_hWnd);
@@ -282,6 +282,10 @@ class FloatingPlayerImpl {
   }
 
   Future<void> start() async {
+    if (_bIsPlaying) {
+      await stopAll();
+    }
+
     if (!playImm()) {
       _startCheckTimer();
     }
@@ -296,8 +300,13 @@ class FloatingPlayerImpl {
     }
 
     if (bResult) {
-      _notifyChanged();
       _stopCheckTimer();
+      _bIsPlaying = true;
+      _notifyChanged();
+      for (var pThread0 in _players) {
+        pThread0.initZone();
+        pThread0.setStartPlayTime(DateTime.now());
+      }
       _startTimer();
     }
 
@@ -334,7 +343,7 @@ class FloatingPlayerImpl {
     }
     if (_bNeedPlayNextProduct) {
       _bNeedPlayNextProduct = false;
-      playNextProduct();
+      await _playNextProduct();
 
       return;
     }
@@ -436,31 +445,13 @@ class FloatingPlayerImpl {
               '''CPlayerScreen2Dlg::OnTimer; GetPlayingLine:'${pImpl0.getPlayingLine()}'; Zone:'$i'; GetPlayingDuration:'${pImpl0.getPlayingDuration()}'; _rtCurrPos1:'$_rtCurrPos1'; rtPos:'$rtPos'.''');
 
           _rtCurrPos1 = 0;
+          pImpl0.setZoneFinish(true);
           if (pImpl0.getPlayingLine() - pImpl0.getPlayingDuration() <
               cPLAYINGINTERVAL) {
-            if (uiPlayType == 6 || isPlayOneTimeAHMessage()) {
-              await stopAll();
-              //::PostMessage(_hWndParent, DCMM_BACKTO_SCHEDULE, 0, IsPlayOneTimeAHMessage() ? 1 : 0);
-              onBackToSchedule?.call(0, isPlayOneTimeAHMessage() ? 1 : 0);
-            } else if (uiPlayType != 5) {
-              pImpl0.setZoneFinish(true);
-              if (_bPlayConti) {
-                playNextProduct();
-                _needNotifyListeners = true;
-              } else {
-                await stopAll();
-              }
-            }
-            break;
-          } else {
-            pImpl0.rePlayZone();
-            _needNotifyListeners = true;
+            pImpl0.setFirstFinished();
           }
         } else {
-          if (nFinish == PlayFinish.eCONTENTFINISH) {
-            pImpl0.playNextContentListItem(nFinish);
-            _needNotifyListeners = true;
-          }
+          pImpl0.setContentFinished(nFinish == PlayFinish.eCONTENTFINISH);
         }
 
         /*if (!pImpl0.isValid()) {
@@ -468,6 +459,62 @@ class FloatingPlayerImpl {
         }*/
       }
     }
+
+    if (isProductFinished()) {
+      resetFirstFinished();
+      if (uiPlayType == 6 || isPlayOneTimeAHMessage()) {
+        await stopAll();
+        //::PostMessage(_hWndParent, DCMM_BACKTO_SCHEDULE, 0, IsPlayOneTimeAHMessage() ? 1 : 0);
+        onBackToSchedule?.call(0, isPlayOneTimeAHMessage() ? 1 : 0);
+        return;
+      } else if (uiPlayType != 5) {
+        if (!_bPlayConti) {
+          await stopAll();
+          return;
+        }
+      }
+      if (getProductNumber() > 1) {
+        await _playNextProduct();
+      } else {
+        for (var pThread0 in _players) {
+          pThread0.setPlayingDuration(0.0, true);
+          await pThread0.rePlay();
+        }
+      }
+    } else {
+      for (var pThread0 in _players) {
+        if (pThread0.isZoneFinish()) {
+          pThread0.setZoneFinish(false);
+          pThread0.setContentFinished(false);
+          await pThread0.rePlay();
+          _needNotifyListeners = true;
+        } else if (pThread0.isContentFinished()) {
+          pThread0.setContentFinished(false);
+          await pThread0.playNextContentListItem(PlayFinish.eCONTENTFINISH);
+          _needNotifyListeners = true;
+        }
+      }
+    }
+  }
+
+  void resetFirstFinished() {
+    for (var pThread0 in _players) {
+      pThread0.setZoneFinish(false);
+      pThread0.setFirstFinished(false);
+      pThread0.setContentFinished(false);
+    }
+  }
+
+  bool isProductFinished() {
+    for (var pThread0 in _players) {
+      if (pThread0.getZone() > -1) {
+        if (!pThread0.isFirstFinished()) {
+          return false;
+        }
+      }
+    }
+
+    return true;
   }
 
   BackToScheduleCallback? onBackToSchedule;
@@ -510,11 +557,10 @@ class FloatingPlayerImpl {
   Future<void> stopAll() async {
     _playingTimer?.cancel();
     _playingTimer = null;
-    release();
+    await release();
     _bIsPlaying = false;
     _bIsVisible = false;
     _stopRequested = false;
-    _notifyChanged();
   }
 
   Future<void> stopNotQuit() async {
@@ -522,7 +568,6 @@ class FloatingPlayerImpl {
     _playingTimer = null;
     stopPlay();
     _bIsPlaying = false;
-    _notifyChanged();
   }
 
   Future<void> resize(Rect rect) async {
@@ -535,7 +580,6 @@ class FloatingPlayerImpl {
         player.setWindowRect(scaleToVW(player.getZone()));
       }
     }
-    _notifyChanged();
   }
 
   void _notifyChanged() {
@@ -600,7 +644,7 @@ class FloatingPlayerImpl {
     }
   }
 
-  void createZoneImpl(int nZone) {
+  void _createZoneImpl(int nZone) {
     if (_players.length > nZone) {
       for (var pZoneImpl in _players) {
         if (pZoneImpl.getZone() == -1) {
@@ -610,7 +654,7 @@ class FloatingPlayerImpl {
           pZoneImpl.setCompany(_strCompany);
           pZoneImpl.setProductData(_pProductData);
           pZoneImpl.setWindowRect(_mapZoneRect![nZone]!);
-          pZoneImpl.initZone();
+          //pZoneImpl.initZone();
           break;
         }
       }
@@ -622,7 +666,7 @@ class FloatingPlayerImpl {
       pZoneImpl.setCompany(_strCompany);
       pZoneImpl.setProductData(_pProductData);
       pZoneImpl.setWindowRect(_mapZoneRect![nZone]!);
-      pZoneImpl.initZone();
+      //pZoneImpl.initZone();
 
       _players.add(pZoneImpl);
     }
@@ -696,15 +740,13 @@ class FloatingPlayerImpl {
   Future<void> playProduct(int nIndex, [bool bStart = false]) async {
     _bIsLoading = true;
     try {
-      _playProduct(nIndex, bStart);
+      await _playProduct(nIndex, bStart);
     } finally {
       _bIsLoading = false;
     }
   }
 
-  void _playProduct(int nIndex, bool bStart) {
-    _playingTimer?.cancel();
-
+  Future<void> _playProduct(int nIndex, bool bStart) async {
     int nTotalZone = 0;
     bool bMatched = false;
     if (uiPlayType == 4) {
@@ -755,6 +797,7 @@ class FloatingPlayerImpl {
       _bNeedPlayNextProduct = true;
       return;
     }
+
     if (!_pProductData!.isValidForPlay()) {
       _bNeedPlayNextProduct = true;
       return;
@@ -771,12 +814,10 @@ class FloatingPlayerImpl {
 
       pZoneImpl.setZone(nZone);
       pZoneImpl.setProductData(_pProductData);
-      /*CZoneData *pData = _pProductData.getZoneData(nZone);
-      if (pData == null)
-        continue;*/
 
       pZoneImpl.setStartPlayTime(dwFirstTime0);
       pZoneImpl.setWindowRect(_mapZoneRect![nZone]!);
+      await pZoneImpl.initZone();
       if (bStart) {
         //pZoneImpl.renderZone();
       } else {
@@ -785,7 +826,7 @@ class FloatingPlayerImpl {
         } else {
           if (pZoneImpl.isZoneFinish()) {
             pZoneImpl.setZoneFinish(false);
-            pZoneImpl.rePlayZone();
+            await pZoneImpl.rePlay();
           }
         }
       }
@@ -803,11 +844,9 @@ class FloatingPlayerImpl {
           '''CPlayerScreen2Dlg::PlayProduct; ZoneFile: '${pData.strZoneFile}'; Zone size: '${_pProductData!.lstZone.length}'; _players size: '${_players.length}', _rtDuration:'$_rtDuration'.''');
     }
     _needNotifyListeners = true;
-
-    _startTimer();
   }
 
-  void playNextProduct() {
+  Future<void> _playNextProduct() async {
     _bIsPlayNextFile = false;
     if (getProductNumber() <= _nCurrProduct + 1) {
       _nCurrProduct = 0;
@@ -857,7 +896,7 @@ class FloatingPlayerImpl {
     }
 
     if (!_bIsPlayNextFile) {
-      playProduct(_nCurrProduct);
+      await playProduct(_nCurrProduct);
     }
   }
 
@@ -973,7 +1012,7 @@ class FloatingPlayerImpl {
     }
 
     for (int i = 0; i < nTotalZone; i++) {
-      createZoneImpl(i);
+      _createZoneImpl(i);
     }
   }
 
@@ -1047,7 +1086,7 @@ class FloatingPlayerImpl {
         pZoneImpl.setZoneData(it);
       }
       pZoneImpl.setStartPlayTime(DateTime.now());
-      pZoneImpl.initZone();
+      //pZoneImpl.initZone();
 
       //pZoneImpl.renderZone();
     }

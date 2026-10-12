@@ -28,6 +28,17 @@ import 'package:path/path.dart' as path;
 const String kContentSyncPlayerRefreshPortName =
     'content_sync_player_refresh_port';
 
+void notifyMainIsolatePlaylistRefresh(int nCmd, int ntype, [String? content]) {
+  final SendPort? sendPort =
+      IsolateNameServer.lookupPortByName(kContentSyncPlayerRefreshPortName);
+  var messageInfo = MessageInfo();
+  messageInfo.messageID = nCmd;
+  messageInfo.status = ntype;
+  messageInfo.messageName = content ?? '';
+  String msgInfo = jsonEncode(messageInfo.toJson());
+  sendPort?.send(msgInfo);
+}
+
 class ContentSyncService {
   static final ContentSyncService _instance = ContentSyncService._internal();
   factory ContentSyncService() => _instance;
@@ -68,18 +79,6 @@ class ContentSyncService {
 
   ContentDownloader get workQueue => _workQueue;
   DateTime get dtStartup => _dtStartup;
-
-  void _notifyMainIsolatePlaylistRefresh(int nCmd, int ntype,
-      [String? content]) {
-    final SendPort? sendPort =
-        IsolateNameServer.lookupPortByName(kContentSyncPlayerRefreshPortName);
-    var messageInfo = MessageInfo();
-    messageInfo.messageID = nCmd;
-    messageInfo.status = ntype;
-    messageInfo.messageName = content ?? '';
-    String msgInfo = jsonEncode(messageInfo.toJson());
-    sendPort?.send(msgInfo);
-  }
 
   Future<void> init() async {
     await initPlayerRegisterInformation();
@@ -488,7 +487,7 @@ class ContentSyncService {
           PlayerPathService().nCopyCount = 0;
           stopTempFileCopyTimer();
           try {
-            _notifyMainIsolatePlaylistRefresh(
+            notifyMainIsolatePlaylistRefresh(
                 PlayerNotice.eSyncFINISHEDNOTICE.index, 0);
           } catch (e) {
             logE('Failed to notify player after room event sync finished: $e',
@@ -526,7 +525,7 @@ class ContentSyncService {
         //if (strSyncContent.CmpNoCase(dtCurr.Format(_T("%Y%m%d')) == 0 || strSyncContent.CmpNoCase(_T("DefaultXML') == 0)
         if (nEventDisplay != 1) {
           try {
-            _notifyMainIsolatePlaylistRefresh(
+            notifyMainIsolatePlaylistRefresh(
                 PlayerNotice.eSyncFINISHEDNOTICE.index, 0);
           } catch (e) {
             logE('Failed to notify player after room event sync finished: $e',
@@ -560,7 +559,7 @@ class ContentSyncService {
         try {
           await Utils.savePlaylistVersion(strLatestPlaylistVersion);
           await PlayerLogFile.genPlaylistContent(nEventDisplay);
-          _notifyMainIsolatePlaylistRefresh(
+          notifyMainIsolatePlaylistRefresh(
               PlayerNotice.eSyncFINISHEDNOTICE.index, dwSyncContent);
           logI('Send playlist sync finished notify to player successfully\n',
               syncTag);

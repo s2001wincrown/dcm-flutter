@@ -23,9 +23,9 @@ const int cSTATRESTARTTIMER = 0x0040;
 // 模拟任务信息结构体
 class TaskInfo {
   String strTask;
-  DateTime dtValidity;
+  DateTime receivedAt;
 
-  TaskInfo(this.strTask, this.dtValidity);
+  TaskInfo(this.strTask, this.receivedAt);
 }
 
 // --------------------------------------------------------------------------
@@ -48,6 +48,21 @@ class PlayerLogImpl {
 
   static const int cTASKMAXVALIDITYDAYS = 7;
 
+  static DateTime _taskValidityFrom(DateTime receivedAt) =>
+      receivedAt.add(const Duration(days: cTASKMAXVALIDITYDAYS));
+
+  /*static DateTime _taskReceivedAt(DateTime validity) =>
+      validity.subtract(const Duration(days: cTASKMAXVALIDITYDAYS));*/
+
+  static void _removeExpiredTasks(DateTime now) {
+    final taskCount = lstTaskInfo.length;
+    lstTaskInfo.removeWhere(
+        (task) => !_taskValidityFrom(task.receivedAt).isAfter(now));
+    if (lstTaskInfo.length != taskCount) {
+      bIsDirty = true;
+    }
+  }
+
   // 移除所有任务信息
   static void removeAllTaskInfo() {
     lstTaskInfo.clear();
@@ -61,21 +76,31 @@ class PlayerLogImpl {
     if (file.load(strFileName)) {
       XmlItem? pItem = file.getItem('TaskList');
       if (pItem != null) {
+        final now = DateTime.now();
+        final loadedTasks = <String, TaskInfo>{};
+
         XmlItem? pTask = pItem.getItem('TaskItem');
         while (pTask != null) {
-          DateTime? dtValidity = pTask.getItemValueD(
-              'dtValidity'); //.add(Duration(days: cTASKMAXVALIDITYDAYS));
-          if (dtValidity != null) {
-            dtValidity =
-                dtValidity.add(const Duration(days: cTASKMAXVALIDITYDAYS));
-            if (dtValidity.isAfter(DateTime.now())) {
-              TaskInfo pInfo =
-                  TaskInfo(pTask.getItemValue('strTask'), dtValidity);
-              lstTaskInfo.add(pInfo);
+          final taskName = pTask.getItemValue('strTask');
+          final receivedAt = pTask.getItemValueD('receivedAt');
+          if (receivedAt != null && taskName.isNotEmpty) {
+            final validity = _taskValidityFrom(receivedAt);
+            if (validity.isAfter(now)) {
+              final info = TaskInfo(taskName, receivedAt);
+              final key = taskName.toLowerCase();
+              final previous = loadedTasks[key];
+              if (previous == null ||
+                  validity.isAfter(_taskValidityFrom(previous.receivedAt))) {
+                loadedTasks[key] = info;
+              }
             }
           }
           pTask = pTask.getSibling();
         }
+        lstTaskInfo
+          ..clear()
+          ..addAll(loadedTasks.values);
+        bIsDirty = false;
       }
     }
 
@@ -97,7 +122,7 @@ class PlayerLogImpl {
       for (var task in lstTaskInfo) {
         XmlItem? xi = pXmlItem.addItem('TaskItem');
         if (xi != null) {
-          xi.addItem('dtValidity', task.dtValidity);
+          xi.addItem('receivedAt', task.receivedAt);
           xi.addItem('strTask', task.strTask);
         }
       }
@@ -116,16 +141,19 @@ class PlayerLogImpl {
     for (var it in lstTaskInfo) {
       if (it.strTask.equalsIgnoreCase(strTask)) {
         logW(
-            '''Task '$strTask' has been done; Recieved Date: '${DateFormat('yyyy-MM-dd HH:mm:ss').format(it.dtValidity)}'!''');
+            '''Task '$strTask' has been done; Recieved Date: '${DateFormat('yyyy-MM-dd HH:mm:ss').format(it.receivedAt)}'!''');
 
         return false;
       }
     }
 
+    _removeExpiredTasks(DateTime.now());
     TaskInfo pInfo = TaskInfo(strTask, DateTime.now());
     lstTaskInfo.add(pInfo);
     bIsDirty = true;
-    saveTaskLog();
+    if (!await saveTaskLog()) {
+      logE('Failed to save task "$strTask" to tasklog.xml');
+    }
 
     return true;
   }
@@ -135,11 +163,12 @@ class PlayerLogImpl {
     for (var it in lstTaskInfo) {
       if (it.strTask.equalsIgnoreCase(strTask)) {
         logW(
-            '''Task: '$strTask' has been processed; Recieved Date: '${DateFormat('yyyy-MM-dd HH:mm:ss').format(it.dtValidity)}'; ignore it!''');
+            '''Task: '$strTask' has been processed; Recieved Date: '${DateFormat('yyyy-MM-dd HH:mm:ss').format(it.receivedAt)}'; ignore it!''');
         return false;
       }
     }
 
+    _removeExpiredTasks(DateTime.now());
     TaskInfo pInfo = TaskInfo(strTask, DateTime.now());
     lstTaskInfo.add(pInfo);
     bIsDirty = true;
@@ -181,6 +210,8 @@ class PlayerLogImpl {
         await _rebootMacOS();
       } else if (Platform.isLinux) {
         await _rebootLinux();
+      } else {
+        throw UnsupportedError('Restart is not supported on this platform.');
       }
       success = true;
     } catch (e) {
@@ -197,7 +228,7 @@ class PlayerLogImpl {
 
       // 方案 2: 尝试通过 Runtime.exec (需要 Root 权限)
       // 这在普通应用中会失败
-      await Process.run('su', ['-c', 'reboot']);
+      await _runSystemCommand('su', ['-c', 'reboot']);
     } catch (e) {
       throw Exception('Android 重启失败: 需要 Root 或系统签名权限。错误: $e');
     }
@@ -210,7 +241,7 @@ class PlayerLogImpl {
 
   static Future<void> _rebootWindows() async {
     try {
-      await Process.run('shutdown', ['/r', '/t', '0']);
+      await _runSystemCommand('shutdown', ['/r', '/t', '0']);
     } catch (e) {
       throw Exception('Windows 重启失败: $e');
     }
@@ -219,7 +250,7 @@ class PlayerLogImpl {
   static Future<void> _rebootMacOS() async {
     try {
       // macOS 重启通常需要 sudo 权限，这里假设应用有权限或通过其他方式授权
-      await Process.run('sudo', ['shutdown', '-r', 'now']);
+      await _runSystemCommand('sudo', ['shutdown', '-r', 'now']);
     } catch (e) {
       throw Exception('macOS 重启失败: $e');
     }
@@ -227,7 +258,7 @@ class PlayerLogImpl {
 
   static Future<void> _rebootLinux() async {
     try {
-      await Process.run('sudo', ['reboot']);
+      await _runSystemCommand('sudo', ['reboot']);
     } catch (e) {
       throw Exception('Linux 重启失败: $e');
     }
@@ -275,6 +306,8 @@ class PlayerLogImpl {
         await _shutdownMacOS();
       } else if (Platform.isLinux) {
         await _shutdownLinux();
+      } else {
+        throw UnsupportedError('Shutdown is not supported on this platform.');
       }
       return true;
     } catch (e) {
@@ -287,7 +320,7 @@ class PlayerLogImpl {
     try {
       // 尝试使用 Root 权限关机
       // 注意：普通应用没有权限执行此操作，会抛出异常
-      await Process.run('su', ['-c', 'reboot -p']);
+      await _runSystemCommand('su', ['-c', 'reboot -p']);
     } catch (e) {
       throw Exception('Android 关机失败: 需要 Root 权限或系统签名。错误: $e');
     }
@@ -299,7 +332,7 @@ class PlayerLogImpl {
 
   static Future<void> _shutdownWindows() async {
     try {
-      await Process.run('shutdown', ['/s', '/t', '0']);
+      await _runSystemCommand('shutdown', ['/s', '/t', '0']);
     } catch (e) {
       throw Exception('Windows 关机失败: $e');
     }
@@ -308,7 +341,7 @@ class PlayerLogImpl {
   static Future<void> _shutdownMacOS() async {
     try {
       // macOS 关机通常需要管理员密码，这里假设环境已授权或使用 sudo
-      await Process.run('sudo', ['shutdown', '-h', 'now']);
+      await _runSystemCommand('sudo', ['shutdown', '-h', 'now']);
     } catch (e) {
       throw Exception('macOS 关机失败: $e');
     }
@@ -316,9 +349,23 @@ class PlayerLogImpl {
 
   static Future<void> _shutdownLinux() async {
     try {
-      await Process.run('sudo', ['poweroff']);
+      await _runSystemCommand('sudo', ['poweroff']);
     } catch (e) {
       throw Exception('Linux 关机失败: $e');
+    }
+  }
+
+  static Future<void> _runSystemCommand(
+      String executable, List<String> arguments) async {
+    final result = await Process.run(executable, arguments);
+    if (result.exitCode != 0) {
+      final stderr = result.stderr.toString().trim();
+      throw ProcessException(
+        executable,
+        arguments,
+        stderr.isEmpty ? 'Command exited with ${result.exitCode}' : stderr,
+        result.exitCode,
+      );
     }
   }
 }

@@ -1820,6 +1820,7 @@ class PlayerScreenProvider extends ChangeNotifier {
 
     AHMessagePos nLayout = messageList.getMessageLayout(output);
     if (nLayout != AHMessagePos.eAHBOTTOMMZ) {
+      await player.stopAll();
       player.setCompany(ScheduleList().getCurrCompany());
       //player.setZoneData(PlayList.m_MessageList.GetZoneData());
       player.setProductData(messageList.getProductData(output));
@@ -1831,8 +1832,9 @@ class PlayerScreenProvider extends ChangeNotifier {
     reCalcZoneRect();
     changePlayerRgn();
     //changeFrameRgn();
-
-    player.start();
+    if (nLayout != AHMessagePos.eAHBOTTOMMZ) {
+      player.start();
+    }
   }
 
   FloatingPlayerImpl? getMessageThread(int nZone) {

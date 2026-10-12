@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math';
 import 'dart:typed_data';
 
+import 'package:dcm/backend/constants.dart' hide PlayerStatus;
 import 'package:dcm/backend/models/app_global.dart';
 import 'package:dcm/backend/models/player_global.dart';
 import 'package:dcm/backend/net/message_sync_service.dart';
@@ -11,6 +12,7 @@ import 'package:dcm/backend/net/player_task_file.dart';
 import 'package:dcm/backend/utils/log_utils.dart';
 import 'package:dcm/proto/websocket_def.pb.dart';
 import 'package:fixnum/fixnum.dart';
+import 'package:intl/intl.dart';
 import 'package:protobuf/protobuf.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 
@@ -271,17 +273,52 @@ class CmsWebSocketService {
 
   Future<void> _enqueueAhMessage(MessageInfo messageInfo) async {
     try {
-      final result = await _messageSyncService.enqueue(messageInfo);
-      if (result.succeeded) {
-        logI(
-          'AHMessage sync completed: ${result.messageName}; downloaded: ${result.downloadedCount}; skipped: ${result.skippedCount}.',
-          syncTag,
-        );
-      } else if (!result.cancelled) {
-        logW(
-          'AHMessage sync completed with failures: ${result.messageName}; failed: ${result.failedCount}; ${result.error ?? ''}',
-          syncTag,
-        );
+      if (await PlayerLogImpl.isNewTaskSave(messageInfo.task)) {
+        if (messageInfo.messageId == 98 || messageInfo.messageId == 99) {
+          if (messageInfo.status == 2) {
+            var messageDetails = messageInfo.messageName.split(';');
+            var messageName = messageDetails[3].split(':');
+            if (messageDetails.length > 2) {
+              logI('Stop Message \'${messageName[0]}\' \n');
+              String strTime =
+                  DateFormat('dd/MM/yyyy HH:mm:ss').format(DateTime.now());
+              //String strEnd = dtCurr.Format('%d/%m/%Y %H:%M:%S');
+              //String strCreate = dtCurr.Format('%d/%m/%Y %H:%M:%S');
+              String strLevel = '0';
+              String strStatus = '2';
+              String strEndManual = '1';
+              notifyMainIsolatePlaylistRefresh(
+                  PlayerNotice.eAHMESSAGENOTICE.index,
+                  0,
+                  '$strEndManual;$strStatus;${messageDetails[3]};$strTime;$strTime;$strTime;$strLevel');
+            } else {
+              logE(
+                  '_enqueueAhMessage - Invalid message command: ${messageInfo.messageName}');
+            }
+
+            return;
+          }
+        } else {
+          notifyMainIsolatePlaylistRefresh(
+              PlayerNotice.eAHDIRECTNOTICE.index,
+              0,
+              messageInfo.messageName
+                  .substring(messageInfo.messageName.indexOf(';') + 1));
+          return;
+        }
+
+        final result = await _messageSyncService.enqueue(messageInfo);
+        if (result.succeeded) {
+          logI(
+            'AHMessage sync completed: ${result.messageName}; downloaded: ${result.downloadedCount}; skipped: ${result.skippedCount}.',
+            syncTag,
+          );
+        } else if (!result.cancelled) {
+          logW(
+            'AHMessage sync completed with failures: ${result.messageName}; failed: ${result.failedCount}; ${result.error ?? ''}',
+            syncTag,
+          );
+        }
       }
     } catch (error, stackTrace) {
       logW('AHMessage enqueue failed: $error', syncTag);

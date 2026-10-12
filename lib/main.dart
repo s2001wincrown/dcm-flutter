@@ -54,7 +54,8 @@ void _registerContentSyncPlayerRefreshPort() {
       logE('''ContentSyncPlayerRefreshPort receive: '$message', error: $e''');
     }
     if (messageInfo != null) {
-      if (messageInfo.messageID == PlayerNotice.eSyncFINISHEDNOTICE.index) {
+      if (messageInfo.messageID == PlayerNotice.eSyncFINISHEDNOTICE.index ||
+          messageInfo.messageID == PlayerNotice.eAHMESSAGENOTICE.index) {
         final playerScreenProvider = PlayerScreenProvider.instance;
         if (playerScreenProvider != null) {
           playerScreenProvider.onMessageAH(messageInfo.messageID,

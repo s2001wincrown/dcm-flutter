@@ -1038,7 +1038,7 @@ class AHPlayList {
       return arrAHList[nOutput]!.getZoneDataList();
     }
 
-    return (nChanged: 0, lstZoneData: null, lstZoneDataChanged: null);
+    return (nChanged: -1, lstZoneData: null, lstZoneDataChanged: null);
   }
 
   ProductData? getProductData([int nOutput = -1]) {

@@ -709,13 +709,17 @@ class AppGlobal {
     return validGlobalSetting(appDataPath);
   }
 
-  static Future<void> genConfigFile(String configPath) async {
+  static Future<void> genConfigFile(String configPath,
+      [bool cloudPlayer = true]) async {
     var iniFile = IniFile(path.join(configPath, configFILENAME));
     for (var entry in _getters.entries) {
       if ('Global Setting.CombSettings' == entry.key) {
         writeCombSettings(iniFile);
       } else if ('Global Setting.PlaybackSettings' == entry.key) {
         writePlaybackSettings(iniFile);
+      } else if ('ContentSync.AutoContentUpdate' == entry.key) {
+        iniFile.writeBool(
+            entry.key.split('.').first, entry.key.split('.').last, cloudPlayer);
       } else {
         String entryValue = entry.value.call();
         if (entryValue.isNotEmpty) {

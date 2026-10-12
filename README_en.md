@@ -97,13 +97,18 @@ Supported platforms: Windows, macOS, Linux, Android, iOS, and Web.
 
 When the application has no local configuration, it opens the player initialization page on the first launch. Complete the setup as follows:
 
-1. Optional: enter the player name in **播放器名称** (Player Name).
-2. Optional: enter the player location in **地点** (Location).
-3. Enter the CMS address in **内容管理系统网址** (CMS URL), for example `http://121.40.137.228:8080/demo`.
-4. Click **保存并继续** (Save and Continue). The application saves the configuration, loads the player settings, starts the content synchronization service, and then opens the playback screen.
-5. To leave setup without saving, click **取消并退出** (Cancel and Exit). The desktop application exits, while Android/iOS closes the current application page.
+1. If removable storage is already connected, the app automatically looks for a valid `Server.txt`. When found, it copies the file to the app data directory, reads and applies the server and player information, saves the setup, and opens the playback screen.
+2. If no valid `Server.txt` is found, the existing setup form remains available and the app continues checking for removable storage while the page is open. If storage containing a valid `Server.txt` is connected later, the app imports the configuration and proceeds to playback automatically. If no valid file is found, continue with manual setup.
+3. For manual setup, optionally enter the player name in **播放器名称** (Player Name).
+4. Optionally enter the player location in **地点** (Location).
+5. Enter the CMS address in **内容管理系统网址** (CMS URL), for example `http://121.40.137.228:8080/demo`.
+6. Click **保存并继续** (Save and Continue). The application saves the configuration, loads the player settings, starts the content synchronization service, and then opens the playback screen.
+7. For standalone local playback, click **Local Player**. The app generates `dcm.dat` with CMS content auto-sync disabled and opens the playback screen.
+8. To leave setup without saving, click **取消并退出** (Cancel and Exit). The desktop application exits, while Android/iOS closes the current application page.
 
 **组织代码** (Organization), **频道** (Channel), and **设置分组** (Settings Group) retain their built-in default values and are saved to the player configuration, but they are hidden from the setup page.
+
+`Server.txt` must contain a valid HTTP or HTTPS CMS server address. After automatic import, the app follows the regular setup flow to save the player information and load CMS playback settings.
 
 ## Floating Menu
 

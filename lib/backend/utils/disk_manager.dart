@@ -32,18 +32,23 @@ class DriveInfo {
 
 /// 统一的磁盘管理工具类
 class DiskManager {
+  /// Returns mount paths for removable storage without querying disk capacity.
+  static Future<List<String>> getRemovableStoragePaths() async {
+    if (Platform.isAndroid) {
+      return _getAndroidRemovablePaths();
+    }
+    if (Platform.isWindows) {
+      return _getWindowsRemovablePaths();
+    }
+    if (Platform.isMacOS || Platform.isLinux) {
+      return _getUnixRemovablePaths();
+    }
+    return [];
+  }
+
   /// 获取所有可移除的存储驱动器及其空间信息
   static Future<List<DriveInfo>> getRemovableDrivesWithSpace() async {
-    List<String> paths = [];
-
-    // 1. 根据平台扫描可移除驱动器路径
-    if (Platform.isAndroid) {
-      paths = await _getAndroidRemovablePaths();
-    } else if (Platform.isWindows) {
-      paths = await _getWindowsRemovablePaths();
-    } else if (Platform.isMacOS || Platform.isLinux) {
-      paths = await _getUnixRemovablePaths();
-    }
+    final paths = await getRemovableStoragePaths();
 
     // 2. 获取每个路径的磁盘空间信息
     List<DriveInfo> drives = [];
@@ -69,7 +74,14 @@ class DiskManager {
       List<Directory>? externalDirs = await getExternalStorageDirectories();
       if (externalDirs != null) {
         for (var dir in externalDirs) {
-          String rootPath = dir.path.split('/Android')[0];
+          final androidIndex = dir.path.indexOf('/Android');
+          if (androidIndex < 0) continue;
+          final rootPath = dir.path.substring(0, androidIndex);
+          if (rootPath == '/storage/emulated/0' ||
+              rootPath.startsWith('/storage/emulated/') ||
+              rootPath == '/storage/self/primary') {
+            continue;
+          }
           if (!paths.contains(rootPath)) paths.add(rootPath);
         }
       }
@@ -93,7 +105,30 @@ class DiskManager {
         }
       }
     } catch (e) {
-      logE('Windows 扫描失败: $e');
+      logW('WMIC removable drive scan failed, trying PowerShell: $e');
+    }
+
+    if (drives.isEmpty) {
+      try {
+        final result = await Process.run('powershell', [
+          '-NoProfile',
+          '-Command',
+          "Get-CimInstance Win32_LogicalDisk -Filter 'DriveType=2' | "
+              'Select-Object -ExpandProperty DeviceID',
+        ]);
+        if (result.exitCode == 0) {
+          drives = result.stdout
+              .toString()
+              .split(RegExp(r'\r?\n'))
+              .map((line) => line.trim())
+              .where((drive) => drive.endsWith(':'))
+              .toList();
+        } else {
+          logE('PowerShell removable drive scan failed: ${result.stderr}');
+        }
+      } on Object catch (error, stackTrace) {
+        logE('Windows removable drive scan failed: $error', error, stackTrace);
+      }
     }
     return drives;
   }
