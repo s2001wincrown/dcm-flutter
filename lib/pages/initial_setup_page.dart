@@ -262,7 +262,7 @@ class _InitialSetupPageState extends State<InitialSetupPage> {
       AppGlobal.appDataPath = appDataPath;
       AppGlobal.configFile = path.join(appDataPath, configFILENAME);
       AppGlobal.autoContentUpdate = false;
-      await AppGlobal.genConfigFile(AppGlobal.appDataPath, false);
+      await AppGlobal.genConfigFile(AppGlobal.appDataPath);
       await _completeSetup();
     } on Object catch (error, stackTrace) {
       logE('Failed to create local player configuration: $error', error,

@@ -286,9 +286,13 @@ class MessageSyncService {
       failedCount: totalFailed,
       copyFailedCount: copyFailedCount,
     );
-    _logInfo(
-      'AHMessage sync finished: $messageName; files: ${result.fileCount}; downloaded: ${result.downloadedCount}; skipped: ${result.skippedCount}; failed: ${result.failedCount}; copy file failed: ${result.copyFailedCount}; total failed: ${result.failedCount}.',
-    );
+
+    final resultInfo =
+        'AHMessage sync finished: $messageName; files: ${result.fileCount}; downloaded: ${result.downloadedCount}; skipped: ${result.skippedCount}; failed: ${result.failedCount}; copy file failed: ${result.copyFailedCount}; total failed: ${result.failedCount}.';
+    PlayerLogFile.postMessageActionStatus(messageDetails[1],
+        (totalFailed == 0 && copyFailedCount == 0) ? 1 : 0, resultInfo);
+    _logInfo(resultInfo);
+
     return result;
   }
 

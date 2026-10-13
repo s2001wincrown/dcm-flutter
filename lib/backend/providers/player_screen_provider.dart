@@ -2673,7 +2673,6 @@ class PlayerScreenProvider extends ChangeNotifier {
   void processAHDirectNotice(int nMessageType, String? strPlayerList) {
     logI(
         '''CPlayerScreenDlg::ProcessAHDirectNotice Recieve Ad-hoc message Directly:'$nMessageType'; Current Output:'${AppGlobal.output}'.''');
-
     if (nMessageType < 0 || nMessageType > 31) {
       nMessageType = 0;
     }
@@ -2686,8 +2685,8 @@ class PlayerScreenProvider extends ChangeNotifier {
       String strStatus = '0';
       bool bHasNext = false;
 
-      List<String> messageParams = [];
-      if (strPlayerList.contains(';')) {
+      List<String> messageParams = strPlayerList.split(';');
+      if (messageParams.isNotEmpty) {
         messageParams = strPlayerList.split(';');
         strMessage = messageParams.isNotEmpty ? messageParams[0] : '';
         bHasNext = messageParams.length > 2;

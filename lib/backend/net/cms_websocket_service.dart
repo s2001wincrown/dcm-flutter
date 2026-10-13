@@ -279,7 +279,7 @@ class CmsWebSocketService {
             var messageDetails = messageInfo.messageName.split(';');
             var messageName = messageDetails[3].split(':');
             if (messageDetails.length > 2) {
-              logI('Stop Message \'${messageName[0]}\' \n');
+              logI('_enqueueAhMessage - Stop Message \'${messageName[0]}\' \n');
               String strTime =
                   DateFormat('dd/MM/yyyy HH:mm:ss').format(DateTime.now());
               //String strEnd = dtCurr.Format('%d/%m/%Y %H:%M:%S');
@@ -299,11 +299,14 @@ class CmsWebSocketService {
             return;
           }
         } else {
-          notifyMainIsolatePlaylistRefresh(
-              PlayerNotice.eAHDIRECTNOTICE.index,
-              0,
-              messageInfo.messageName
-                  .substring(messageInfo.messageName.indexOf(';') + 1));
+          var messageDetails = messageInfo.messageName.split(';');
+          if (messageDetails.length > 2) {
+            notifyMainIsolatePlaylistRefresh(PlayerNotice.eAHDIRECTNOTICE.index,
+                0, messageDetails.sublist(3).join(';'));
+          } else {
+            logE(
+                '_enqueueAhMessage - Invalid message command: ${messageInfo.messageName}');
+          }
           return;
         }
 

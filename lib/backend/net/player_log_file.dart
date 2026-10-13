@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:dcm/backend/constants.dart';
@@ -328,6 +329,28 @@ class PlayerLogFile {
     return false;
   }
 
+  static Future<void> postMessageActionStatus(
+      String task, int actionStatus, String actionDetails) async {
+    var msgActionStatusUrl = AppGlobal.cmsUrl;
+    msgActionStatusUrl = fADDSLASH(msgActionStatusUrl);
+    msgActionStatusUrl += cmsMSGActionStatusURL;
+    msgActionStatusUrl += '?$cHTTPUNIQUEKEY=${globalPlayer.strUniqueName}';
+
+    //update message action status to CMS
+    final strCMSRequest = jsonEncode({
+      'task': task,
+      'actionStatus': actionStatus,
+      'actionDetails': actionDetails
+    });
+    String strCMSLink = msgActionStatusUrl;
+    strCMSLink = Utils.addCMSParam(strCMSLink);
+    var result = await httpPostAction(
+        strCMSLink, strCMSRequest, 'application/json; charset=utf-8');
+    if (!result.status) {
+      logE('Message action status post failure\n', syncTag);
+    }
+  }
+
   //content type: "Content-Type: application/xml; charset=utf-8"
   //Content-Type: application/json; charset=utf-8
   //application/x-www-form-urlencoded; charset=UTF-8
@@ -408,13 +431,5 @@ class PlayerLogFile {
       return '';
     }
     return '${uri.scheme}://${uri.host}${uri.hasPort ? ':${uri.port}' : ''}';
-  }
-
-  static String _path(String url) {
-    final uri = Uri.tryParse(url);
-    if (uri == null || !uri.hasScheme) {
-      return '';
-    }
-    return uri.path.isEmpty ? '/' : uri.path;
   }
 }

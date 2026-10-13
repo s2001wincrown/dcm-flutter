@@ -281,6 +281,7 @@ const String cmsGETFILELISTURL = 'api/pm/players/filelist';
 const String cmsGETSETTINGSURL = 'api/pm/settings';
 const String cmsAPPUPDATEURL = 'api/pm/appupdate';
 const String cmsCONTENTLOGURL = 'api/log/contentLogs/create';
+const String cmsMSGActionStatusURL = 'api/msg/ahMessages/messageAction/status';
 
 //volume for MediaKit
 const double cVOLUMEFULL = 100.0;
