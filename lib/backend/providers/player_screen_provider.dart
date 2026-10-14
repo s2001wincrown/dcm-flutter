@@ -1916,11 +1916,11 @@ class PlayerScreenProvider extends ChangeNotifier {
         getMessageThread(AHPlayList.getMessageId(nOutput));
     if (pMessageThread != null) {
       logI(
-          'CPlayerScreenDlg::ChangeMessageRect pMessageThread != NULL nOutput \'$nOutput\'');
+          'PlayerScreenProvider - ChangeMessageRect pMessageThread != NULL nOutput \'$nOutput\'');
       pMessageThread.setWindowRect(_getAHMessageRect(nOutput));
     } else {
       logI(
-          'CPlayerScreenDlg::ChangeMessageRect pMessageThread == NULL nOutput \'$nOutput\'');
+          'PlayerScreenProvider - ChangeMessageRect pMessageThread == NULL nOutput \'$nOutput\'');
       //PlaySkin.SetAHMessageRect(CRect(0, 0, 0, 0), nOutput);
       playSkin.removeAHMessageRect(nOutput);
     }
@@ -2411,7 +2411,7 @@ class PlayerScreenProvider extends ChangeNotifier {
   }
 
   void onMessageAH(int nType, int lParam, [String? content]) {
-    logI('''CPlayerScreenDlg::OnMessageAH; Type: '$nType'.''');
+    logI('''PlayerScreenProvider - OnMessageAH; Type: '$nType'.''');
 
     var playerNotice = PlayerNotice.fromInt(nType);
     if (playerNotice == null) {
@@ -2439,7 +2439,7 @@ class PlayerScreenProvider extends ChangeNotifier {
         break;
       case PlayerNotice.eBLACKSCRNNOTICE:
         //_bIsPause = true;
-        logI('CPlayerScreenDlg::OnMessageAH black screen notice.');
+        logI('PlayerScreenProvider - OnMessageAH black screen notice.');
         _bNeedPause = true;
         //StopNotQuit();
         break;
@@ -2448,7 +2448,7 @@ class PlayerScreenProvider extends ChangeNotifier {
         break;
 
       case PlayerNotice.eUSBIMPFINISHEDNOTICE:
-      //logI('CPlayerScreenDlg::OnMessageAH USB Import finished notice; SendSerialFile!!!');
+      //logI('PlayerScreenProvider - OnMessageAH USB Import finished notice; SendSerialFile!!!');
       //SendSerialFile();
       case PlayerNotice.eDCMEDITORNOTICE:
       case PlayerNotice.eSyncFINISHEDNOTICE:
@@ -2457,10 +2457,10 @@ class PlayerScreenProvider extends ChangeNotifier {
           _msgNeedRefresh = cINTMAX;
           int nMessageType = lParam;
           logI(
-              '''CPlayerScreenDlg::OnMessageAH - Notice has Recieved; Content has been updated:'$nMessageType'.''');
+              '''PlayerScreenProvider - OnMessageAH - Notice has Recieved; Content has been updated:'$nMessageType'.''');
           if (nMessageType == cSyncDDEDATA) {
             logI(
-                '''CPlayerScreenDlg::OnMessageAH DDE or Contentlist Updated finishing:'$nMessageType'.''');
+                '''PlayerScreenProvider - OnMessageAH DDE or Contentlist Updated finishing:'$nMessageType'.''');
             processContentUpdateNotice(nMessageType);
           } else {
             if (nMessageType > 0 &&
@@ -2470,7 +2470,7 @@ class PlayerScreenProvider extends ChangeNotifier {
             }
 
             if (isTimeToCut() && _bIsPlaying) {
-              //logI('CPlayerScreenDlg::OnMessageAH USB Import finished notice; scheduled playlist change!!!');
+              //logI('PlayerScreenProvider - OnMessageAH USB Import finished notice; scheduled playlist change!!!');
               _bReloadSchedule = true;
               break;
             }
@@ -2514,7 +2514,7 @@ class PlayerScreenProvider extends ChangeNotifier {
           String strPlayerList = content;
 
           logI(
-              '''CPlayerScreenDlg::OnMessageAH Recieve Ad-hoc message:'$strPlayerList'; Current Output:'${AppGlobal.output}'!''');
+              '''PlayerScreenProvider - OnMessageAH Recieve Ad-hoc message:'$strPlayerList'; Current Output:'${AppGlobal.output}'!''');
           var messageParams = strPlayerList.split(';');
           String strEndManual =
               messageParams.isNotEmpty ? messageParams[0] : '';
@@ -2602,7 +2602,7 @@ class PlayerScreenProvider extends ChangeNotifier {
 
   void processDirectNotice(int nMessageType) {
     logI(
-        '''CPlayerScreenDlg::ProcessDirectNotice Recieve Notice Directly:'$nMessageType'; Current Output:'${AppGlobal.output}'.''');
+        '''PlayerScreenProvider - ProcessDirectNotice Recieve Notice Directly:'$nMessageType'; Current Output:'${AppGlobal.output}'.''');
     if (nMessageType > 0 && nMessageType < 100) {
       if (AppGlobal.output == 80) {
         if (80 == nMessageType) {
@@ -2632,7 +2632,7 @@ class PlayerScreenProvider extends ChangeNotifier {
             //todo refresh zone notify
             /*HWND hwnd = (pThread).GetPlayerHWnd();
             if (hwnd != null) {
-              logI('CPlayerScreenDlg::ProcessAHDirectNotice Recieve play Zone:'%d'!', pThread.GetZone());
+              logI('PlayerScreenProvider - ProcessAHDirectNotice Recieve play Zone:'%d'!', pThread.GetZone());
               ::SendMessageTimeout(hwnd, WM_INFORM_REFRESH, (WPARAM)DDE_TYPE, (LPARAM)nMessageType, SMTO_BLOCK, 10000, 0);
             }*/
             break;
@@ -2672,22 +2672,21 @@ class PlayerScreenProvider extends ChangeNotifier {
 
   void processAHDirectNotice(int nMessageType, String? strPlayerList) {
     logI(
-        '''CPlayerScreenDlg::ProcessAHDirectNotice Recieve Ad-hoc message Directly:'$nMessageType'; Current Output:'${AppGlobal.output}'.''');
+        '''PlayerScreenProvider - ProcessAHDirectNotice Recieve Ad-hoc message Directly:'$nMessageType'; Current Output:'${AppGlobal.output}'.''');
     if (nMessageType < 0 || nMessageType > 31) {
       nMessageType = 0;
     }
 
-    //logI('CPlayerScreenDlg::ProcessAHDirectNotice Recieve Data:'%s'.', strPlayerListFull);
+    //logI('PlayerScreenProvider - ProcessAHDirectNotice Recieve Data:'%s'.', strPlayerListFull);
     if (strPlayerList != null && strPlayerList.isNotEmpty) {
       logI(
-          '''CPlayerScreenDlg::ProcessAHDirectNotice Recieve Ad-hoc message:'$strPlayerList'; Current Output:'${AppGlobal.output}'.''');
+          '''PlayerScreenProvider - ProcessAHDirectNotice Recieve Ad-hoc message:'$strPlayerList'; Current Output:'${AppGlobal.output}'.''');
       String strMessage = strPlayerList;
       String strStatus = '0';
       bool bHasNext = false;
 
       List<String> messageParams = strPlayerList.split(';');
       if (messageParams.isNotEmpty) {
-        messageParams = strPlayerList.split(';');
         strMessage = messageParams.isNotEmpty ? messageParams[0] : '';
         bHasNext = messageParams.length > 2;
         strStatus = messageParams.length > 1 ? messageParams[1] : '0';
@@ -2712,7 +2711,7 @@ class PlayerScreenProvider extends ChangeNotifier {
       int nAction = int.tryParse(strStatus) ?? 0;
       if (!AHMessageImpl.isValidMessage(strMessage, nAction)) {
         logI(
-            '''CPlayerScreenDlg::ProcessAHDirectNotice - invalid ad-hoc message:'$strMessage'; need to resend from server; Current Output:'${AppGlobal.output}'.''');
+            '''PlayerScreenProvider - ProcessAHDirectNotice - invalid ad-hoc message:'$strMessage'; need to resend from server; Current Output:'${AppGlobal.output}'.''');
         return;
       }
 
@@ -2780,7 +2779,7 @@ class PlayerScreenProvider extends ChangeNotifier {
                 delay: nDelay);
 
             logI(
-                '''CPlayerScreenDlg::ProcessAHDirectNotice Status: '$strStatus';  Add Ad-hoc message:'$strMessage' to message queue; 
+                '''PlayerScreenProvider - ProcessAHDirectNotice Status: '$strStatus';  Add Ad-hoc message:'$strMessage' to message queue; 
           Current Output:'${AppGlobal.output}', End By: '$nEndType', Delay: '$nDelay'.''');
           }
           break;

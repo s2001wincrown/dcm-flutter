@@ -121,6 +121,8 @@ class AppGlobal {
   static bool autoSyncTime = false;
   static bool getEventDisplay = false;
 
+  static String timeServerUrl = '';
+
   static String?
       availableACUStart; //available start time for auto content update
   static String? availableACUEnd; //available end time for auto content update
@@ -254,6 +256,7 @@ class AppGlobal {
         autoSyncTime = (v == '1' || v.equalsIgnoreCase('true')),
     'ContentSync.GetEventDisplay': (v) =>
         getEventDisplay = (v == '1' || v.equalsIgnoreCase('true')),
+    'ContentSync.timeServerUrl': (v) => timeServerUrl = v,
   };
 
   static final Map<String, String Function()> _getters = {
@@ -364,6 +367,7 @@ class AppGlobal {
     'ContentSync.TaskRetryInterval': () => retryInterval.toString(),
     'ContentSync.AutoSyncTime': () => autoSyncTime.toString(),
     'ContentSync.GetEventDisplay': () => getEventDisplay.toString(),
+    'ContentSync.timeServerUrl': () => timeServerUrl,
   };
 
   static Map<String, dynamic> snapshot() {
@@ -430,6 +434,7 @@ class AppGlobal {
       'retryInterval': retryInterval,
       'autoSyncTime': autoSyncTime,
       'getEventDisplay': getEventDisplay,
+      'timeServerUrl': timeServerUrl
     };
   }
 
@@ -441,66 +446,66 @@ class AppGlobal {
     }
   }
 
-  static void applyWorkerConfig({
-    String? cscPath,
-    String? appDataPath,
-    String? ddServerPath,
-    String? openPath,
-    String? imagePath,
-    String? vcdPath,
-    String? ppPath,
-    String? flashPath,
-    String? webPath,
-    String? textPath,
-    String? imageSettingPath,
-    String? clockPath,
-    String? weatherPath,
-    String? siteContentPath,
-    String? layoutImagePath,
-    String? skinsPath,
-    String? rltContentPath,
-    String? dynamicDataPath,
-    String? skinFile,
-    String? graphicsPath,
-    String? dayPath,
-    String? ahPlaylistPath,
-    String? monthPath,
-    String? calendarPath,
-    String? settingPath,
-    String? ftpSettingPath,
-    String? tempPath,
-    String? logPath,
-    String? contentListPath,
-    String? linkagePath,
-    String? ddeOthersPath,
-    String? ddeDataPath,
-    String? ddeXmlPath,
-    String? messagePath,
-    String? roomEventPath,
-    String? roomPath,
-    String? lobbyPath,
-    String? preDataPath,
-    String? updateFilePath,
-    String? availableACUStart,
-    String? availableACUEnd,
-    String? cmsUrl,
-    String? cmsToken,
-    String? organization,
-    bool? enableTaskCheck,
-    bool? autoContentUpdate,
-    int? fileTransferRetries,
-    int? taskTransferRetries,
-    int? tempFileCopyRetries,
-    int? logUploadInterval,
-    int? logUploadPeriod,
-    int? statusCheckInterval,
-    int? httpRetryTimes,
-    bool? fileIntegrityCheck,
-    bool? deleteContentIfFTPFail,
-    int? retryInterval,
-    bool? autoSyncTime,
-    bool? getEventDisplay,
-  }) {
+  static void applyWorkerConfig(
+      {String? cscPath,
+      String? appDataPath,
+      String? ddServerPath,
+      String? openPath,
+      String? imagePath,
+      String? vcdPath,
+      String? ppPath,
+      String? flashPath,
+      String? webPath,
+      String? textPath,
+      String? imageSettingPath,
+      String? clockPath,
+      String? weatherPath,
+      String? siteContentPath,
+      String? layoutImagePath,
+      String? skinsPath,
+      String? rltContentPath,
+      String? dynamicDataPath,
+      String? skinFile,
+      String? graphicsPath,
+      String? dayPath,
+      String? ahPlaylistPath,
+      String? monthPath,
+      String? calendarPath,
+      String? settingPath,
+      String? ftpSettingPath,
+      String? tempPath,
+      String? logPath,
+      String? contentListPath,
+      String? linkagePath,
+      String? ddeOthersPath,
+      String? ddeDataPath,
+      String? ddeXmlPath,
+      String? messagePath,
+      String? roomEventPath,
+      String? roomPath,
+      String? lobbyPath,
+      String? preDataPath,
+      String? updateFilePath,
+      String? availableACUStart,
+      String? availableACUEnd,
+      String? cmsUrl,
+      String? cmsToken,
+      String? organization,
+      bool? enableTaskCheck,
+      bool? autoContentUpdate,
+      int? fileTransferRetries,
+      int? taskTransferRetries,
+      int? tempFileCopyRetries,
+      int? logUploadInterval,
+      int? logUploadPeriod,
+      int? statusCheckInterval,
+      int? httpRetryTimes,
+      bool? fileIntegrityCheck,
+      bool? deleteContentIfFTPFail,
+      int? retryInterval,
+      bool? autoSyncTime,
+      bool? getEventDisplay,
+      String? timeServerUrl}) {
     if (cscPath != null) {
       AppGlobal.cscPath = cscPath;
     }
@@ -662,6 +667,9 @@ class AppGlobal {
     }
     if (getEventDisplay != null) {
       AppGlobal.getEventDisplay = getEventDisplay;
+    }
+    if (timeServerUrl != null) {
+      AppGlobal.timeServerUrl = timeServerUrl;
     }
   }
 

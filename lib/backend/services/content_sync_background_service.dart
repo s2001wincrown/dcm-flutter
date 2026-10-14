@@ -123,6 +123,7 @@ class ContentSyncBackgroundService {
               workerConfig['deleteContentIfFTPFail'] as bool?,
           retryInterval: workerConfig['retryInterval'] as int?,
           autoSyncTime: workerConfig['autoSyncTime'] as bool?,
+          timeServerUrl: workerConfig['timeServerUrl']?.toString(),
         );
         initFileLogger(AppGlobal.appDataPath);
         syncHttpClientFactory.dispose();

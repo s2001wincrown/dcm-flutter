@@ -6,6 +6,7 @@ import 'package:dcm/backend/models/player_global.dart';
 import 'package:dcm/backend/net/player_log_file.dart';
 import 'package:dcm/backend/net/player_log_impl.dart';
 import 'package:dcm/backend/net/play_log_post.dart';
+import 'package:dcm/backend/net/player_time_sync.dart';
 import 'package:dcm/backend/utils/extensions.dart';
 import 'package:dcm/backend/utils/log_utils.dart';
 import 'package:dcm/backend/utils/string_utils.dart';
@@ -843,11 +844,34 @@ class PlayerTaskFile {
   }
 
   static Future<void> synLocalTime() async {
-    if (PlayLogPostService.isEnabled(PlayLogPostFlag.playerLog2) &&
+    if (AppGlobal.timeServerUrl.trim().isNotEmpty) {
+      try {
+        final serverTime =
+            await PlayerTimeSync.getServerTime(AppGlobal.timeServerUrl);
+        await PlayerTimeSync.setSystemTime(serverTime);
+        bSyncTime = true;
+        dtSyncTime = DateTime.now();
+        logI(
+            'System time synchronized from ${AppGlobal.timeServerUrl}: $serverTime',
+            syncTag);
+      } catch (error, stackTrace) {
+        logE(
+            'Failed to synchronize system time from ${AppGlobal.timeServerUrl}',
+            error,
+            stackTrace,
+            syncTag);
+      }
+    } else {
+      logW('Time synchronization requested, but timeServerUrl is empty.',
+          syncTag);
+    }
+
+    if (bSyncTime &&
+        PlayLogPostService.isEnabled(PlayLogPostFlag.playerLog2) &&
         AppGlobal.cmsUrl.isNotEmpty) {
       final request = PlayLogPostService.buildPlayerLogRequest(
           '$cHTTPUNIQUEKEY=${globalPlayer.strUniqueName}',
-          DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now()),
+          DateFormat('yyyy-MM-dd HH:mm:ss').format(dtSyncTime),
           PlayLogPostFlag.playerLog2,
           globalPlayer.strUniqueName,
           globalPlayer.strName);

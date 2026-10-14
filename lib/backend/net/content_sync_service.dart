@@ -288,12 +288,13 @@ class ContentSyncService {
     //todo wifi check
     //FTPMisc::NetworkCheck();
 
-    //todo sync time check
-    /*if (!PlayerTaskFile.bSyncTime && PlayerPathService.bAutoSyncTime) {
-			PlayerLogFile.Message(MSG_INFO, 'Try to Sync Time.');
+    //sync time check
+    if (AppGlobal.timeServerUrl.isNotEmpty && !PlayerTaskFile.bSyncTime) {
+      logI('Try to Sync Time from time server: ${AppGlobal.timeServerUrl}.',
+          syncTag);
 
-			PlayerTaskFile.SynLocalTime();
-		}*/
+      PlayerTaskFile.synLocalTime();
+    }
 
     if (PlayerTaskFile.bReset) {
       logW('Try to reset all tasks', syncTag);

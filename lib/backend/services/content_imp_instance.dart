@@ -132,7 +132,7 @@ class ContentImpInstance {
   static Future<void> _processTask(USBImportTask task) async {
     logI(
         'Start importing: Driver=${task.driver}; batch=${task.batch}; status=${task.status}; retries=${task.retries}');
-    final importFolder = _getImportFolder(task.driver);
+    final importFolder = await _getImportFolder(task.driver);
     if (importFolder == null) {
       logI('Import folder not found for ${task.driver}');
       return;
@@ -257,7 +257,7 @@ class ContentImpInstance {
     }
   }
 
-  static bool reimportTaskCheck() {
+  static Future<bool> reimportTaskCheck() async {
     if (!folderCheckForImport()) {
       return false;
     }
@@ -267,7 +267,7 @@ class ContentImpInstance {
       AppGlobal.settingPath,
       index == 0 ? 'DCMtask.xml' : 'DCMtask$index.xml',
     );
-    if (!File(taskFile).existsSync()) {
+    if (!await File(taskFile).exists()) {
       return false;
     }
 
@@ -291,34 +291,34 @@ class ContentImpInstance {
     }
 
     final sourceVersionFile = path.join('$driver:', batch, 'Version.txt');
-    if (!File(sourceVersionFile).existsSync()) {
+    if (!await File(sourceVersionFile).exists()) {
       return false;
     }
 
-    final version = File(sourceVersionFile).readAsStringSync().trim();
-    if (version.isEmpty) {
+    final version = await File(sourceVersionFile).readAsString();
+    if (version.trim().isEmpty) {
       return false;
     }
 
     final importedVersionFile = path.join(AppGlobal.settingPath, 'Version.txt');
-    final importedVersion = File(importedVersionFile).existsSync()
-        ? File(importedVersionFile).readAsStringSync().trim()
+    final importedVersion = await File(importedVersionFile).exists()
+        ? await File(importedVersionFile).readAsString()
         : '';
-    if (version == importedVersion) {
+    if (version == importedVersion.trim()) {
       try {
-        if (File(importedVersionFile).existsSync()) {
-          File(importedVersionFile).deleteSync();
+        if (await File(importedVersionFile).exists()) {
+          File(importedVersionFile).delete();
         }
-        File(taskFile).deleteSync();
+        File(taskFile).delete();
       } catch (_) {}
       return true;
     }
     return false;
   }
 
-  static int getLatestTaskFile() {
+  static Future<int> getLatestTaskFile() async {
     final dir = Directory(AppGlobal.settingPath);
-    if (!dir.existsSync()) return 0;
+    if (!await dir.exists()) return 0;
 
     final regex = RegExp(r'^DCMtask(\d+)\.xml\$', caseSensitive: false);
     int maxIndex = 0;
@@ -340,11 +340,11 @@ class ContentImpInstance {
     return maxIndex;
   }
 
-  static USBImportDriver? getImportDriver() {
+  static Future<USBImportDriver?> getImportDriver() async {
     for (var i = 0; i < 26; i++) {
       final driveLetter = String.fromCharCode('A'.codeUnitAt(0) + i);
       final desktopIni = path.join('$driveLetter:\\', 'desktop.ini');
-      if (!File(desktopIni).existsSync()) {
+      if (!await File(desktopIni).exists()) {
         continue;
       }
       final ini = IniFile(desktopIni);
@@ -354,16 +354,16 @@ class ContentImpInstance {
         continue;
       }
       final importFolder = path.join('$driveLetter:\\', platformFolder);
-      if (Directory(importFolder).existsSync()) {
+      if (await Directory(importFolder).exists()) {
         return USBImportDriver(driveLetter, platformFolder);
       }
     }
     return null;
   }
 
-  static String? _getImportFolder(String driveLetter) {
+  static Future<String?> _getImportFolder(String driveLetter) async {
     final desktopIni = path.join('$driveLetter:\\', 'desktop.ini');
-    if (!File(desktopIni).existsSync()) {
+    if (!await File(desktopIni).exists()) {
       return null;
     }
     final ini = IniFile(desktopIni);
@@ -373,13 +373,13 @@ class ContentImpInstance {
       return null;
     }
     final importFolder = path.join('$driveLetter:\\', platformFolder);
-    return Directory(importFolder).existsSync() ? importFolder : null;
+    return await Directory(importFolder).exists() ? importFolder : null;
   }
 
-  static bool _removeFolder(String folderPath) {
+  static Future<bool> _removeFolder(String folderPath) async {
     try {
       final directory = Directory(folderPath);
-      if (directory.existsSync()) {
+      if (await directory.exists()) {
         directory.deleteSync(recursive: true);
       }
       return true;
@@ -388,12 +388,12 @@ class ContentImpInstance {
     }
   }
 
-  static bool _writeTaskFile(USBImportTask task) {
+  static Future<bool> _writeTaskFile(USBImportTask task) async {
     if (task.taskFile.isEmpty) {
       return false;
     }
     final xmlFile = XmlFilePro('DCMTask');
-    if (File(task.taskFile).existsSync()) {
+    if (await File(task.taskFile).exists()) {
       xmlFile.load(task.taskFile, null, false);
     }
     XmlItem? xmlItem = xmlFile.getItem('USBImport');
@@ -410,9 +410,9 @@ class ContentImpInstance {
     return xmlFile.save(task.taskFile);
   }
 
-  static bool _clearTempFolder(String currentBatch) {
+  static Future<bool> _clearTempFolder(String currentBatch) async {
     final tempDir = Directory(AppGlobal.tempPath);
-    if (!tempDir.existsSync()) {
+    if (!await tempDir.exists()) {
       return true;
     }
     final guidRegex = RegExp(
@@ -433,26 +433,26 @@ class ContentImpInstance {
     return true;
   }
 
-  static bool _deleteUpdateLog(String updateLog) {
+  static Future<bool> _deleteUpdateLog(String updateLog) async {
     final tmpPath = '$updateLog.tmp';
     try {
-      File(updateLog).deleteSync();
+      File(updateLog).delete();
     } catch (_) {
       try {
-        if (File(updateLog).existsSync()) {
+        if (await File(updateLog).exists()) {
           File(updateLog).renameSync(tmpPath);
         }
       } catch (_) {}
     }
     try {
-      File(tmpPath).deleteSync();
+      File(tmpPath).delete();
     } catch (_) {}
     return true;
   }
 
-  static bool _writeVersionFile(String sourceVersionFile) {
+  static Future<bool> _writeVersionFile(String sourceVersionFile) async {
     try {
-      if (!File(sourceVersionFile).existsSync()) {
+      if (!await File(sourceVersionFile).exists()) {
         return false;
       }
       final targetVersionFile = path.join(AppGlobal.settingPath, 'Version.txt');
@@ -465,20 +465,21 @@ class ContentImpInstance {
     }
   }
 
-  static void _copyFileIfExists(String source, String destination) {
+  static Future<void> _copyFileIfExists(
+      String source, String destination) async {
     try {
-      if (File(source).existsSync()) {
+      if (await File(source).exists()) {
         Directory(path.dirname(destination)).createSync(recursive: true);
         File(source).copySync(destination);
       }
     } catch (_) {}
   }
 
-  static bool _deleteFile(String filePath) {
+  static Future<bool> _deleteFile(String filePath) async {
     try {
       final file = File(filePath);
-      if (file.existsSync()) {
-        file.deleteSync();
+      if (await file.exists()) {
+        file.delete();
       }
       return true;
     } catch (_) {
