@@ -64,6 +64,7 @@ class AppSettings {
 
   String model;
   bool useMirrorLink;
+  String httpManagementToken;
 
   AppSettings({
     // Display Settings,
@@ -119,6 +120,7 @@ class AppSettings {
     this.libmpvPath = '',
     this.model = '',
     this.useMirrorLink = true,
+    this.httpManagementToken = '',
   });
 
   factory AppSettings.fromJson(Map<String, dynamic> json) =>

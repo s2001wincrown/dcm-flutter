@@ -234,6 +234,8 @@ class MessageSyncService {
     }
 
     if (tasks.isEmpty || failedCount > 0) {
+      _postMessageActionStatus(messageDetails[1], false,
+          'Invalid message content. Found $failedCount errors.');
       return MessageSyncResult(
         messageName: messageName,
         fileCount: fileInfos.length,
@@ -288,12 +290,16 @@ class MessageSyncService {
     );
 
     final resultInfo =
-        'AHMessage sync finished: $messageName; files: ${result.fileCount}; downloaded: ${result.downloadedCount}; skipped: ${result.skippedCount}; failed: ${result.failedCount}; copy file failed: ${result.copyFailedCount}; total failed: ${result.failedCount}.';
-    PlayerLogFile.postMessageActionStatus(messageDetails[1],
-        (totalFailed == 0 && copyFailedCount == 0) ? 1 : 0, resultInfo);
+        'Message sync finished: $messageName; files: ${result.fileCount}; downloaded: ${result.downloadedCount}; skipped: ${result.skippedCount}; failed: ${result.failedCount}; copy file failed: ${result.copyFailedCount}; total failed: ${result.failedCount}.';
+    _postMessageActionStatus(messageDetails[1],
+        (totalFailed == 0 && copyFailedCount == 0), resultInfo);
     _logInfo(resultInfo);
 
     return result;
+  }
+
+  void _postMessageActionStatus(String task, bool status, String resultInfo) {
+    PlayerLogFile.postMessageActionStatus(task, status ? 1 : 0, resultInfo);
   }
 
   List<FileInfoData>? _parseManifest(String xml) {
@@ -369,6 +375,7 @@ class MessageSyncService {
         break;
       }
       //Doze(1000);
+      sleep(const Duration(seconds: 2));
     }
     if (lstSuccess.isNotEmpty) {
       //Load File List

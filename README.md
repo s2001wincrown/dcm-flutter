@@ -110,6 +110,24 @@ DMC Digital Signage Player
 
 `Server.txt` 需要包含有效的 HTTP 或 HTTPS CMS 服务器地址。自动导入成功后，应用会按常规初始化流程保存播放器信息并加载 CMS 播放设置。
 
+## 局域网 HTTP 管理
+
+原生应用启动时会在 `0.0.0.0:8765` 启动 HTTP 管理服务（Flutter Web 不支持 `dart:io` Server），并提供设备托管的中文管理页面。打开应用 **设置 → HTTP 管理**，查看播放机的局域网地址和 Bearer 令牌；令牌可在该页面重新生成。浏览器页面只在当前浏览器本地保存令牌。
+
+所有管理 API（除 `/` 和 `/health` 外）均要求 `Authorization: Bearer <token>`。管理接口包括：
+
+- `GET /api/status`、`GET /api/capabilities`：在线状态、当前节目、网络地址、存储空间与平台能力。
+- `GET /api/settings`、`PATCH /api/settings`：播放器音量、自动播放，以及白名单内的 `dcm.dat` 全局设置。`dcm` 可修改的键为 `Global Setting.Auto Reload Idle Duration`、`Global Setting.MultiMonitor`、`Global Setting.VideoSetting`、`Global Setting.Video_Render`、`Global Setting.MaxContentDuration`、`Global Setting.MaxDefaultEvent`、`Global Setting.EventMultiGroup`、`Global Setting.PlaybackSettings`、`Global Setting.PlayMode`、`Global Setting.EventTimeout`、`Global Setting.ZoneThread`、`Global Setting.Background Color`。
+- `GET /api/playlists`、`PUT /api/playlists/current`、`POST /api/playback/reload`、`POST /api/playback/insert`、`POST /api/playback/restore`：播放列表、切换节目、刷新、插播 Catalogue 和恢复默认播放。
+- `POST /api/catalogues`、`POST /api/playlists`、`POST /api/schedules/month`：以 JSON 创建 Catalogue、播放列表和月日历。Catalogue 请求包含 `name`、`layout`（`width`、`height`、`zones`，每个分区含 `left`、`top`、`width`、`height`）和 `products`；各产品含 `zones`，每个 zone 含 DCM 内容类型编号 `type` 和素材文件名 `file`，其数量必须等于 layout 分区数。播放列表请求包含 `name` 和 `items`（每项为 Catalogue 名称 `catalogue`）；月日历请求包含 `month`（`YYYYMM`）、可选 `channel` 和 `days`（包含 `day`、`event`、可选 `events`）。
+- `POST /api/content/upload?category=...&name=...`：以原始二进制请求体上传素材；支持的 category 为 `images`、`video`、`web`、`text`、`catalogues`、`playlists`。上传不会覆盖已有文件。
+- `POST /api/content/validate`：用 `{"kind":"playlist|catalogue","name":"..."}` 校验内容；`DELETE /api/content/expired` 清理过期月日历文件。
+- `GET /api/diagnostics/screenshot`、`GET /api/diagnostics/logs`、`POST /api/diagnostics/restart`：截屏、下载应用日志、请求重启设备。
+
+不要将该 HTTP 服务直接暴露到互联网或不可信网络：当前服务使用明文 HTTP，Bearer 令牌和上传内容可能被同一网络上的监听者截获。请限制在可信局域网/VPN 内访问；如需跨不可信网络管理，应在可信 TLS 反向代理之后使用。
+
+硬件温度、网络接口配置、系统时间修改、硬件亮度/方向/输出分辨率、播放事件日志和固件升级目前没有可用的平台适配器；相应功能会在 `/api/capabilities` 中标记，并通过 HTTP 501 明确返回不可用原因。手动 CMS 同步通过正在运行的 CMS 后台 worker 排队；worker 未运行时返回 HTTP 503。Catalogue 布局支持设置分屏区域。
+
 ## 浮动菜单
 
 在播放画面快速连续点击两次，可打开底部浮动菜单。菜单包含以下功能：

@@ -20,6 +20,7 @@ import 'package:path/path.dart' as path;
 import 'package:worker_manager/worker_manager.dart';
 
 const String kContentSyncCommandPortName = 'content_sync_command_port';
+const int kHttpManagementSyncCommandId = 0x7ffffffe;
 
 class ContentSyncBackgroundService {
   ContentSyncBackgroundService._();
@@ -28,6 +29,18 @@ class ContentSyncBackgroundService {
       ContentSyncBackgroundService._();
 
   bool _started = false;
+
+  bool requestImmediateSync() {
+    final sendPort =
+        IsolateNameServer.lookupPortByName(kContentSyncCommandPortName);
+    if (sendPort == null) return false;
+    final message = MessageInfo()
+      ..messageID = kHttpManagementSyncCommandId
+      ..status = 0
+      ..messageName = '';
+    sendPort.send(jsonEncode(message.toJson()));
+    return true;
+  }
 
   Future<void> init() async {
     if (_started) {
@@ -62,6 +75,20 @@ class ContentSyncBackgroundService {
         // 3. 【核心】使用 Completer 保持后台任务存活
         final completer = Completer<String>();
         final cmsWebSocket = CmsWebSocketService();
+        var syncReady = false;
+        var syncRequestedBeforeReady = false;
+
+        void triggerManualSync() {
+          unawaited(() async {
+            try {
+              await ContentSyncService().startSyncAction();
+            } catch (error, stack) {
+              logE('Manual CMS sync request failed: $error', error, stack,
+                  syncTag);
+            }
+          }());
+        }
+
         //WidgetsFlutterBinding.ensureInitialized();
         // Apply AppGlobal config inside worker
         AppGlobal.applyWorkerConfig(
@@ -152,6 +179,12 @@ class ContentSyncBackgroundService {
               workerReceivePort.close();
               unawaited(cmsWebSocket.dispose());
               completer.complete(messageInfo.messageName);
+            } else if (messageInfo.messageID == kHttpManagementSyncCommandId) {
+              if (syncReady) {
+                triggerManualSync();
+              } else {
+                syncRequestedBeforeReady = true;
+              }
             }
           }
         });
@@ -176,6 +209,8 @@ class ContentSyncBackgroundService {
 
           await ContentSyncService().init();
           await ContentSyncService().startPolling();
+          syncReady = true;
+          if (syncRequestedBeforeReady) triggerManualSync();
           await cmsWebSocket.connect();
         } catch (e) {
           logE('Failed to apply player snapshot in worker: $e', syncTag);

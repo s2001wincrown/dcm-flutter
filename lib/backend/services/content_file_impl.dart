@@ -97,11 +97,11 @@ class ContentFileImpl {
     return true;
   }
 
-  bool loadFileList({bool generated = false}) {
+  Future<bool> loadFileList({bool generated = false}) async {
     bool bFileList = true;
     if (!generated) {
       final usbDir = Directory(usbPath);
-      if (usbDir.existsSync()) {
+      if (await usbDir.exists()) {
         final datFiles = usbDir
             .listSync(followLinks: false)
             .whereType<File>()
@@ -121,7 +121,7 @@ class ContentFileImpl {
       if (bFileList) {
         final fileName =
             path.join(AppGlobal.settingPath, 'Filelog', '$batch.xml');
-        Directory(path.dirname(fileName)).createSync(recursive: true);
+        await Directory(path.dirname(fileName)).create(recursive: true);
         bFileList = serialize(fileName, true);
       }
     } else {
@@ -134,9 +134,9 @@ class ContentFileImpl {
     return bFileList;
   }
 
-  bool findContents() {
+  Future<bool> findContents() async {
     final usbDir = Directory(usbPath);
-    if (!usbDir.existsSync()) {
+    if (!await usbDir.exists()) {
       return false;
     }
 
@@ -161,16 +161,16 @@ class ContentFileImpl {
     }
 
     for (final date in dates) {
-      genFileListByContents(date);
+      await genFileListByContents(date);
     }
 
     return lstFileInfo.isNotEmpty;
   }
 
-  bool genFileListByContents(String strDate) {
+  Future<bool> genFileListByContents(String strDate) async {
     final strPath = path.join(usbPath, strDate);
     final fileList = path.join(strPath, 'FileList.ini');
-    if (!File(fileList).existsSync()) {
+    if (!await File(fileList).exists()) {
       return false;
     }
 
@@ -194,7 +194,7 @@ class ContentFileImpl {
         _getRelativeExportPath(contentType),
         fileName,
       );
-      if (_copyFileOrDirectory(source, dest)) {
+      if (await _copyFileOrDirectory(source, dest)) {
         final fileInfo = FileInfoUtils.loadFileInfo(dest, contentType);
         if (fileInfo != null) {
           fileInfo.fileStatus = FileItemStatus.temporary;
@@ -222,14 +222,14 @@ class ContentFileImpl {
     return true;
   }
 
-  void filterDownloadedFile() {
+  Future<void> filterDownloadedFile() async {
     for (final fileInfo in lstFileInfo) {
       if (fileInfo.fileStatus == FileItemStatus.download) {
         final exportPath = getExportPath(sourcePath, fileInfo.nContentType);
         final dest = path.join(exportPath, fileInfo.strDestFile);
         final file = File(dest);
-        if (file.existsSync()) {
-          final stat = file.statSync();
+        if (await file.exists()) {
+          final stat = await file.stat();
           if (fileInfo.dwFileSize == BigInt.from(stat.size)) {
             fileInfo.fileStatus = FileItemStatus.temporary;
           }
@@ -238,21 +238,21 @@ class ContentFileImpl {
     }
   }
 
-  bool copyToTempFolder() {
+  Future<bool> copyToTempFolder() async {
     bool success = true;
     final priorities = [0, 1, 2, 3, 4];
     for (final priority in priorities) {
-      success = _copyTempFile(priority) && success;
+      success = await _copyTempFile(priority) && success;
     }
 
     final fileName = path.join(AppGlobal.settingPath, 'Filelog', '$batch.xml');
-    Directory(path.dirname(fileName)).createSync(recursive: true);
+    await Directory(path.dirname(fileName)).create(recursive: true);
     bool saved = serialize(fileName, true);
     success = success && saved;
 
     final updateLogPath = path.join(AppGlobal.tempPath, 'updatelog.xml');
     final xmlProfile = XmlProfile.fromFile(updateLogPath);
-    if (!File(updateLogPath).existsSync()) {
+    if (!await File(updateLogPath).exists()) {
       xmlProfile.createProfile('FileList');
     } else {
       xmlProfile.loadProfile(
@@ -265,13 +265,13 @@ class ContentFileImpl {
     return success;
   }
 
-  bool _copyTempFile(int priorityFlag) {
+  Future<bool> _copyTempFile(int priorityFlag) async {
     bool allSuccess = true;
     for (var i = _arrTempFile.length - 1; i >= 0; i--) {
       final entry = _arrTempFile[i];
       if (entry.priorityFlag == priorityFlag) {
-        Directory(path.dirname(entry.destPath)).createSync(recursive: true);
-        if (_copyFileOrDirectory(entry.sourcePath, entry.destPath)) {
+        await Directory(path.dirname(entry.destPath)).create(recursive: true);
+        if (await _copyFileOrDirectory(entry.sourcePath, entry.destPath)) {
           _arrTempFile.removeAt(i);
         } else {
           allSuccess = false;
@@ -281,16 +281,16 @@ class ContentFileImpl {
     return allSuccess;
   }
 
-  bool _copyFileOrDirectory(String source, String dest) {
+  Future<bool> _copyFileOrDirectory(String source, String dest) async {
     final sourceFile = File(source);
-    if (sourceFile.existsSync()) {
+    if (await sourceFile.exists()) {
       try {
         final targetFile = File(dest);
-        Directory(path.dirname(dest)).createSync(recursive: true);
-        if (targetFile.existsSync()) {
-          targetFile.deleteSync();
+        await Directory(path.dirname(dest)).create(recursive: true);
+        if (await targetFile.exists()) {
+          await targetFile.delete();
         }
-        sourceFile.copySync(dest);
+        await sourceFile.copy(dest);
         return true;
       } catch (_) {
         return false;
@@ -298,7 +298,7 @@ class ContentFileImpl {
     }
 
     final sourceDir = Directory(source);
-    if (!sourceDir.existsSync()) {
+    if (!await sourceDir.exists()) {
       return false;
     }
 
@@ -310,14 +310,14 @@ class ContentFileImpl {
             continue;
           }
           final destination = path.join(dest, relative);
-          Directory(path.dirname(destination)).createSync(recursive: true);
-          if (File(destination).existsSync()) {
-            File(destination).deleteSync();
+          await Directory(path.dirname(destination)).create(recursive: true);
+          if (await File(destination).exists()) {
+            await File(destination).delete();
           }
-          entity.copySync(destination);
+          await entity.copy(destination);
         } else if (entity is Directory) {
           final childDest = path.join(dest, relative);
-          _copyFileOrDirectory(entity.path, childDest);
+          await _copyFileOrDirectory(entity.path, childDest);
         }
       }
       return true;
@@ -326,15 +326,15 @@ class ContentFileImpl {
     }
   }
 
-  bool getContentListAndChecksum(String folder) {
+  Future<bool> getContentListAndChecksum(String folder) async {
     var ok = true;
     for (final fileInfo in lstFileInfo) {
       if (fileInfo.fileStatus == FileItemStatus.temporary) {
         final exportPath = getExportPath(folder, fileInfo.nContentType);
         final filePath = path.join(exportPath, fileInfo.strDestFile);
-        if (!checksum(filePath, fileInfo)) {
+        if (!await checksum(filePath, fileInfo)) {
           try {
-            File(filePath).deleteSync();
+            await File(filePath).delete();
           } catch (_) {}
           ok = false;
         }
@@ -425,8 +425,9 @@ class ContentFileImpl {
     contentPaths.add(normalized);
   }
 
-  void deleteContentNotInFileList(String source, List<FileInfoData> fileList,
-      {Set<String>? tempPath, Set<String>? ignoreList}) {
+  Future<void> deleteContentNotInFileList(
+      String source, List<FileInfoData> fileList,
+      {Set<String>? tempPath, Set<String>? ignoreList}) async {
     final normalizedSource = path.normalize(source);
     if (tempPath != null && tempPath.isNotEmpty) {
       for (final temp in tempPath) {
@@ -437,7 +438,7 @@ class ContentFileImpl {
     }
 
     final directory = Directory(normalizedSource);
-    if (!directory.existsSync()) {
+    if (!await directory.exists()) {
       return;
     }
 
@@ -446,7 +447,7 @@ class ContentFileImpl {
         final fileName = path.basename(entity.path);
         if (path.extension(entity.path).toLowerCase() == '.md5') {
           try {
-            entity.deleteSync();
+            await entity.delete();
           } catch (_) {}
           continue;
         }
@@ -467,7 +468,7 @@ class ContentFileImpl {
 
         if (!existed) {
           try {
-            entity.deleteSync();
+            await entity.delete();
           } catch (_) {}
         }
       }
@@ -479,18 +480,18 @@ class ContentFileImpl {
         if (ignoreList != null && ignoreList.contains(dirName.toLowerCase())) {
           continue;
         }
-        deleteContentNotInFileList(entity.path, fileList,
+        await deleteContentNotInFileList(entity.path, fileList,
             tempPath: tempPath, ignoreList: ignoreList);
       }
     }
   }
 
-  bool deleteMonthContents(String folder,
+  Future<bool> deleteMonthContents(String folder,
       {bool includeSubFolders = true,
       String fileMask = '',
-      bool processMsgLoop = false}) {
+      bool processMsgLoop = false}) async {
     final directory = Directory(folder);
-    if (!directory.existsSync()) {
+    if (!await directory.exists()) {
       return true;
     }
 
@@ -503,14 +504,14 @@ class ContentFileImpl {
         final fileName = path.basenameWithoutExtension(entity.path);
         if (fileName.compareTo(currentMonth) < 0) {
           try {
-            entity.deleteSync();
+            await entity.delete();
           } catch (_) {
             result = false;
           }
         }
       } else if (entity is Directory) {
         if (includeSubFolders) {
-          final subResult = deleteMonthContents(entity.path,
+          final subResult = await deleteMonthContents(entity.path,
               includeSubFolders: includeSubFolders,
               fileMask: fileMask,
               processMsgLoop: processMsgLoop);
@@ -552,30 +553,30 @@ class ContentFileImpl {
     ));
   }
 
-  bool checksum(String filePath, FileInfoData fileInfo) {
+  Future<bool> checksum(String filePath, FileInfoData fileInfo) async {
     if ((AppGlobal.globalSetting & settingCHECKSUM) == 0) {
       return true;
     }
 
     if (path.extension(filePath).toLowerCase() == '.xml') {
       final md5File = '$filePath.MD5';
-      if (!File(md5File).existsSync()) {
-        _writeLogFile(filePath, fileInfo.strDestFile, 2,
+      if (!await File(md5File).exists()) {
+        await _writeLogFile(filePath, fileInfo.strDestFile, 2,
             "Checksum file '$md5File' does not exist");
         return false;
       }
 
-      final hash = File(md5File).readAsStringSync();
+      final hash = await File(md5File).readAsString();
       final md5 = hash.split('||').first.trim();
       if (fileInfo.strMD5 != null && fileInfo.strMD5!.isNotEmpty) {
         if (md5.toLowerCase() == fileInfo.strMD5!.toLowerCase()) {
           return true;
         }
-        _writeLogFile(filePath, fileInfo.strDestFile, 2,
+        await _writeLogFile(filePath, fileInfo.strDestFile, 2,
             "MD5 '$md5' not match source MD5 '${fileInfo.strMD5}'!");
         return false;
       }
-      _writeLogFile(filePath, fileInfo.strDestFile, 2,
+      await _writeLogFile(filePath, fileInfo.strDestFile, 2,
           "Missing source hash for '${fileInfo.strDestFile}'");
       return false;
     }
@@ -583,31 +584,31 @@ class ContentFileImpl {
     return true;
   }
 
-  bool saveDownloadFileList() {
-    if (!loadFileList(generated: true)) {
+  Future<bool> saveDownloadFileList() async {
+    if (!await loadFileList(generated: true)) {
       return false;
     }
 
     final fileName = path.join(AppGlobal.settingPath, 'Filelog', '$batch.xml');
-    Directory(path.dirname(fileName)).createSync(recursive: true);
+    await Directory(path.dirname(fileName)).create(recursive: true);
     return serialize(fileName, true);
   }
 
-  bool copyTempFile([int? priorityFlag]) {
+  Future<bool> copyTempFile([int? priorityFlag]) async {
     if (priorityFlag == null) {
       var success = true;
       for (final priority in [0, 1, 2, 3, 4]) {
-        success = _copyTempFile(priority) && success;
+        success = await _copyTempFile(priority) && success;
       }
 
       final fileName =
           path.join(AppGlobal.settingPath, 'Filelog', '$batch.xml');
-      Directory(path.dirname(fileName)).createSync(recursive: true);
+      await Directory(path.dirname(fileName)).create(recursive: true);
       final saved = serialize(fileName, true);
       return success && saved;
     }
 
-    return _copyTempFile(priorityFlag);
+    return await _copyTempFile(priorityFlag);
   }
 
   bool loadPlayerChannels() {
@@ -615,7 +616,7 @@ class ContentFileImpl {
     return true;
   }
 
-  bool copyMonthFile(String folder, List<String> companies) {
+  Future<bool> copyMonthFile(String folder, List<String> companies) async {
     if (!loadPlayerChannels()) {
       return false;
     }
@@ -626,16 +627,17 @@ class ContentFileImpl {
     final calendarTarget = path.join(folder, 'calendar');
     final monthTarget = path.join(folder, 'month');
 
-    if (Directory(calendarSource).existsSync()) {
-      success = _copyFileOrDirectory(calendarSource, calendarTarget) && success;
+    if (await Directory(calendarSource).exists()) {
+      success =
+          await _copyFileOrDirectory(calendarSource, calendarTarget) && success;
     }
-    if (Directory(monthSource).existsSync()) {
-      success = _copyFileOrDirectory(monthSource, monthTarget) && success;
+    if (await Directory(monthSource).exists()) {
+      success = await _copyFileOrDirectory(monthSource, monthTarget) && success;
     }
 
     if (companies.isEmpty) {
       final usbDir = Directory(usbPath);
-      if (usbDir.existsSync()) {
+      if (await usbDir.exists()) {
         for (final entity in usbDir.listSync(followLinks: false)) {
           if (entity is Directory) {
             final name = path.basename(entity.path);
@@ -662,7 +664,7 @@ class ContentFileImpl {
     return success;
   }
 
-  bool copyDCMUpdateFile(String drive, String batch) {
+  Future<bool> copyDCMUpdateFile(String drive, String batch) async {
     if (batch.isEmpty) {
       return false;
     }
@@ -671,17 +673,17 @@ class ContentFileImpl {
     final source = path.join(usbPath, 'APUpdate');
     final target = path.join(AppGlobal.tempPath, 'APUpdate');
 
-    if (!Directory(source).existsSync()) {
+    if (!await Directory(source).exists()) {
       return false;
     }
 
-    Directory(target).createSync(recursive: true);
-    return _copyFileOrDirectory(source, target);
+    await Directory(target).create(recursive: true);
+    return await _copyFileOrDirectory(source, target);
   }
 
-  bool checkDCMUpdate(String updateFolder) {
+  Future<bool> checkDCMUpdate(String updateFolder) async {
     final directory = Directory(updateFolder);
-    if (!directory.existsSync()) {
+    if (!await directory.exists()) {
       return false;
     }
 
@@ -798,10 +800,11 @@ class ContentFileImpl {
     }
   }
 
-  void _writeLogFile(String source, String dest, int result, String message) {
+  Future<void> _writeLogFile(
+      String source, String dest, int result, String message) async {
     final logPath = path.join(AppGlobal.tempPath, 'updatelog.xml');
     final xmlProfile = XmlProfile.fromFile(logPath);
-    if (!File(logPath).existsSync()) {
+    if (!await File(logPath).exists()) {
       xmlProfile.createProfile('FileList');
     } else {
       xmlProfile.loadProfile(lpszFileName: logPath, szRootItemName: 'FileList');

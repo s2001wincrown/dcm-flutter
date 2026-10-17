@@ -129,6 +129,29 @@ class ContentImpInstance {
     return _taskQueue.removeAt(0);
   }
 
+  static Future<void> processTask(
+    String driver,
+    String batch,
+    String taskFile,
+    USBImportStatus status,
+    int retries, {
+    int contentImpl = 0,
+  }) async {
+    _isProcessing = true;
+    try {
+      await _processTask(USBImportTask(
+        driver: driver,
+        batch: batch,
+        taskFile: taskFile,
+        status: status,
+        retries: retries,
+        contentImpl: contentImpl,
+      ));
+    } finally {
+      _isProcessing = false;
+    }
+  }
+
   static Future<void> _processTask(USBImportTask task) async {
     logI(
         'Start importing: Driver=${task.driver}; batch=${task.batch}; status=${task.status}; retries=${task.retries}');
@@ -149,12 +172,12 @@ class ContentImpInstance {
     if (task.status.index < USBImportStatus.generatedFileList.index) {
       bool success = false;
       if (task.status == USBImportStatus.generatedFileList) {
-        success = fileImpl.loadFileList(generated: true);
+        success = await fileImpl.loadFileList(generated: true);
       } else {
-        success = fileImpl.loadFileList(generated: false);
+        success = await fileImpl.loadFileList(generated: false);
         if (success) {
           task.status = USBImportStatus.generatedFileList;
-          _writeTaskFile(task);
+          await _writeTaskFile(task);
         }
       }
       if (!success) {
@@ -164,7 +187,7 @@ class ContentImpInstance {
       if (task.status.index < USBImportStatus.filteredFileList.index) {
         if (fileImpl.filterFileList()) {
           task.status = USBImportStatus.filteredFileList;
-          _writeTaskFile(task);
+          await _writeTaskFile(task);
         }
       }
     }
@@ -174,37 +197,37 @@ class ContentImpInstance {
       while (task.retries < AppGlobal.copyFileRetries) {
         if (task.status.index > USBImportStatus.filteredFileList.index &&
             task.status.index < USBImportStatus.copiedTempFile.index) {
-          copySuccess = fileImpl.loadFileList(generated: true);
+          copySuccess = await fileImpl.loadFileList(generated: true);
           fileImpl.filterDownloadedFile();
         }
 
         if (task.status.index < USBImportStatus.copiedTempFile.index) {
           task.status = USBImportStatus.copyingTempFile;
-          _writeTaskFile(task);
+          await _writeTaskFile(task);
 
-          copySuccess = fileImpl.copyToTempFolder();
+          copySuccess = await fileImpl.copyToTempFolder();
           if (copySuccess) {
-            copySuccess = fileImpl.getContentListAndChecksum(companyPath);
+            copySuccess = await fileImpl.getContentListAndChecksum(companyPath);
             if (copySuccess) {
               task.status = USBImportStatus.copiedTempFile;
-              _writeTaskFile(task);
+              await _writeTaskFile(task);
             }
           }
         }
 
         if (copySuccess) {
           final companies = <String>[];
-          copySuccess =
-              fileImpl.copyMonthFile(companyPath, companies) && copySuccess;
+          copySuccess = await fileImpl.copyMonthFile(companyPath, companies) &&
+              copySuccess;
           if (copySuccess) {
-            copySuccess = fileImpl.loadFileList(generated: true);
+            copySuccess = await fileImpl.loadFileList(generated: true);
             if (copySuccess) {
               fileImpl.getEventList();
-              copySuccess = fileImpl.copyTempFile();
+              copySuccess = await fileImpl.copyTempFile();
               fileImpl.saveDownloadFileList();
               if (copySuccess) {
                 task.status = USBImportStatus.updatedPlaylist;
-                _writeTaskFile(task);
+                await _writeTaskFile(task);
               }
             }
           }
@@ -215,7 +238,7 @@ class ContentImpInstance {
         }
 
         task.retries++;
-        _writeTaskFile(task);
+        await _writeTaskFile(task);
       }
 
       if (!copySuccess) {
@@ -225,31 +248,33 @@ class ContentImpInstance {
     }
 
     final updateLog = path.join(AppGlobal.tempPath, 'updatelog.xml');
-    _copyFileIfExists(updateLog, path.join(AppGlobal.logPath, 'updatelog.xml'));
+    await _copyFileIfExists(
+        updateLog, path.join(AppGlobal.logPath, 'updatelog.xml'));
     final usbLogPath = path.join(AppGlobal.logPath, 'PlayLog');
     final timestamp = DateFormat('yyyyMMddHHmmss').format(DateTime.now());
-    _copyFileIfExists(updateLog, path.join(usbLogPath, 'USB$timestamp.xml'));
+    await _copyFileIfExists(
+        updateLog, path.join(usbLogPath, 'USB$timestamp.xml'));
 
-    _removeFolder(companyPath);
-    _deleteUpdateLog(updateLog);
-    _deleteFile(
+    await _removeFolder(companyPath);
+    await _deleteUpdateLog(updateLog);
+    await _deleteFile(
         path.join(AppGlobal.settingPath, 'Filelog', '${task.batch}.xml'));
-    _clearTempFolder(task.batch);
+    await _clearTempFolder(task.batch);
     ContentFileImpl.empty().copyDCMUpdateFile(task.driver, task.batch);
 
     if (task.status == USBImportStatus.updatedPlaylist) {
       final sourceVersionFile =
           path.join('${task.driver}:', task.batch, 'Version.txt');
-      _writeVersionFile(sourceVersionFile);
+      await _writeVersionFile(sourceVersionFile);
       task.status = USBImportStatus.importSuccess;
-      _writeTaskFile(task);
+      await _writeTaskFile(task);
       logI('Import successful for batch ${task.batch}');
     }
   }
 
-  static bool folderCheckForImport() {
+  static Future<bool> folderCheckForImport() async {
     try {
-      Directory(AppGlobal.settingPath).createSync(recursive: true);
+      await Directory(AppGlobal.settingPath).create(recursive: true);
       return true;
     } catch (e) {
       logE('Access folder ${AppGlobal.settingPath} failure: $e');
@@ -258,11 +283,11 @@ class ContentImpInstance {
   }
 
   static Future<bool> reimportTaskCheck() async {
-    if (!folderCheckForImport()) {
+    if (!await folderCheckForImport()) {
       return false;
     }
 
-    final index = getLatestTaskFile();
+    final index = await getLatestTaskFile();
     final taskFile = path.join(
       AppGlobal.settingPath,
       index == 0 ? 'DCMtask.xml' : 'DCMtask$index.xml',
@@ -307,9 +332,9 @@ class ContentImpInstance {
     if (version == importedVersion.trim()) {
       try {
         if (await File(importedVersionFile).exists()) {
-          File(importedVersionFile).delete();
+          await File(importedVersionFile).delete();
         }
-        File(taskFile).delete();
+        await File(taskFile).delete();
       } catch (_) {}
       return true;
     }
@@ -322,7 +347,8 @@ class ContentImpInstance {
 
     final regex = RegExp(r'^DCMtask(\d+)\.xml\$', caseSensitive: false);
     int maxIndex = 0;
-    for (final entity in dir.listSync(followLinks: false)) {
+    var taskFiles = await dir.list(followLinks: false).toList();
+    for (final entity in taskFiles) {
       if (entity is File) {
         final name = path.basename(entity.path);
         if (name.toLowerCase() == 'dcmtask.xml') {
@@ -380,7 +406,7 @@ class ContentImpInstance {
     try {
       final directory = Directory(folderPath);
       if (await directory.exists()) {
-        directory.deleteSync(recursive: true);
+        await directory.delete(recursive: true);
       }
       return true;
     } catch (_) {
@@ -397,7 +423,7 @@ class ContentImpInstance {
       xmlFile.load(task.taskFile, null, false);
     }
     XmlItem? xmlItem = xmlFile.getItem('USBImport');
-    xmlItem ??= xmlFile.root()?.addItem('USBImport');
+    xmlItem ??= xmlFile.root().addItem('USBImport');
     if (xmlItem == null) {
       return false;
     }
@@ -425,7 +451,7 @@ class ContentImpInstance {
         }
         if (guidRegex.hasMatch(name)) {
           try {
-            entry.deleteSync(recursive: true);
+            await entry.delete(recursive: true);
           } catch (_) {}
         }
       }
@@ -436,16 +462,16 @@ class ContentImpInstance {
   static Future<bool> _deleteUpdateLog(String updateLog) async {
     final tmpPath = '$updateLog.tmp';
     try {
-      File(updateLog).delete();
+      await File(updateLog).delete();
     } catch (_) {
       try {
         if (await File(updateLog).exists()) {
-          File(updateLog).renameSync(tmpPath);
+          await File(updateLog).rename(tmpPath);
         }
       } catch (_) {}
     }
     try {
-      File(tmpPath).delete();
+      await File(tmpPath).delete();
     } catch (_) {}
     return true;
   }
@@ -456,8 +482,8 @@ class ContentImpInstance {
         return false;
       }
       final targetVersionFile = path.join(AppGlobal.settingPath, 'Version.txt');
-      Directory(path.dirname(targetVersionFile)).createSync(recursive: true);
-      File(sourceVersionFile).copySync(targetVersionFile);
+      await Directory(path.dirname(targetVersionFile)).create(recursive: true);
+      await File(sourceVersionFile).copy(targetVersionFile);
       return true;
     } catch (e) {
       logE('WriteVersionFile failed: $e');
@@ -469,8 +495,8 @@ class ContentImpInstance {
       String source, String destination) async {
     try {
       if (await File(source).exists()) {
-        Directory(path.dirname(destination)).createSync(recursive: true);
-        File(source).copySync(destination);
+        await Directory(path.dirname(destination)).create(recursive: true);
+        await File(source).copy(destination);
       }
     } catch (_) {}
   }
@@ -479,7 +505,7 @@ class ContentImpInstance {
     try {
       final file = File(filePath);
       if (await file.exists()) {
-        file.delete();
+        await file.delete();
       }
       return true;
     } catch (_) {

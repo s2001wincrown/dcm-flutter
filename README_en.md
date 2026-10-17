@@ -110,6 +110,18 @@ When the application has no local configuration, it opens the player initializat
 
 `Server.txt` must contain a valid HTTP or HTTPS CMS server address. After automatic import, the app follows the regular setup flow to save the player information and load CMS playback settings.
 
+## LAN HTTP Management
+
+Native app builds start an embedded HTTP management server on `0.0.0.0:8765` and serve a management page from the device. Flutter Web does not support a `dart:io` server. Open **Settings → HTTP Management** in the app to find the player's LAN address and Bearer token; the token can be regenerated there. The hosted page stores the token only in the current browser.
+
+All management APIs require `Authorization: Bearer <token>` except `/` and `/health`. The API provides status/capabilities, player volume and an allowlist of `dcm.dat` settings, playlist switching/reload/insertion/restore, Catalogue/playlist/month-schedule authoring, material uploads, content validation/expired-calendar cleanup, CMS sync queueing, screenshots, app-log downloads, and device-restart requests.
+
+The hosted page includes JSON editors/examples for Catalogue, playlist, schedule, and settings operations. Uploads use `POST /api/content/upload?category=...&name=...` with raw file bytes; supported categories are `images`, `video`, `web`, `text`, `catalogues`, and `playlists`. Monthly schedules use `POST /api/schedules/month` with `month` in `YYYYMM` format. Catalogue layouts specify their screen size and rectangular zones, and each product must define one content zone per layout zone.
+
+Do not expose this server directly to the internet or an untrusted network: it uses plain HTTP, so Bearer credentials and uploads can be intercepted by other network users. Restrict access to a trusted LAN/VPN; use a trusted TLS reverse proxy for access across untrusted networks.
+
+Thermal sensors, network-interface configuration, system clock changes, hardware brightness/orientation/output resolution, playback-event log downloads, and firmware upgrades do not currently have platform adapters. These are listed as unsupported in `/api/capabilities` and return HTTP 501. Manual CMS sync is queued through the CMS background worker and returns HTTP 503 if that worker is unavailable. Catalogue layouts can define split-screen partitions.
+
 ## Floating Menu
 
 Quickly tap the playback screen twice to open the floating menu at the bottom. It provides these actions:

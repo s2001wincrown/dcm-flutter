@@ -69,6 +69,7 @@ AppSettings _$AppSettingsFromJson(Map<String, dynamic> json) => AppSettings(
       libmpvPath: json['libmpvPath'] as String? ?? '',
       model: json['model'] as String? ?? '',
       useMirrorLink: json['useMirrorLink'] as bool? ?? true,
+      httpManagementToken: json['httpManagementToken'] as String? ?? '',
     );
 
 Map<String, dynamic> _$AppSettingsToJson(AppSettings instance) =>
@@ -116,6 +117,7 @@ Map<String, dynamic> _$AppSettingsToJson(AppSettings instance) =>
       'libmpvPath': instance.libmpvPath,
       'model': instance.model,
       'useMirrorLink': instance.useMirrorLink,
+      'httpManagementToken': instance.httpManagementToken,
     };
 
 const _$ThemeModeEnumMap = {

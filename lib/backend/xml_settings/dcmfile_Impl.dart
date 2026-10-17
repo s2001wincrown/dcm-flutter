@@ -42,26 +42,15 @@ class DCMFileImpl {
   }
 
   static bool addCatalogue(DCMFileData pData) {
-    if (serializeDataBase(pData, pData.strCatalogueName, bUpdate: true)) {
-      //Load Database
-      String strEdit = Utils.getFilePath(pData.strCatalogueName, cDCMFILETYPE);
+    String strEdit = Utils.getFilePath(pData.strCatalogueName, cDCMFILETYPE);
 
-      return serializeTo(pData, strEdit); // save me
-    }
-
-    return false; // success
+    return serializeTo(pData, strEdit); // save me
   }
 
   static bool updateCatalogue(DCMFileData pData) {
-    if (serializeDataBase(pData, pData.strCatalogueName,
-        bUpdate: true, bNew: false)) {
-      //Load Database
-      String strEdit = Utils.getFilePath(pData.strCatalogueName, cDCMFILETYPE);
+    String strEdit = Utils.getFilePath(pData.strCatalogueName, cDCMFILETYPE);
 
-      return serializeTo(pData, strEdit); // save me
-    }
-
-    return false; // success
+    return serializeTo(pData, strEdit); // save me
   }
 
   static bool serializeTo(DCMFileData pDCMFile, String strFilename) {
@@ -255,16 +244,6 @@ class DCMFileImpl {
 
   static void getLayoutData(DCMFileData pDCMFile) {}
 
-  static bool serializeDataBase(DCMFileData pDCMFile, String strCatalogueName,
-      {bool bUpdate = true, bool bNew = true}) {
-    if (strCatalogueName.isEmpty) {
-      return true;
-    }
-
-    bool bSuccess = true;
-    return bSuccess;
-  }
-
   static Rect? getVideoWindowRect(LayoutData? pLayoutDataObj, Rect rectVW) {
     if (pLayoutDataObj == null) {
       return null;
@@ -400,30 +379,18 @@ class DCMFileImpl {
         return serializeFromFile(strDCMFile);
       }
     } else {
-      String strEdit = szEdit!;
-      String strCatalogueName = catalogueName!;
-      if (serializeDataBase(pDCMFile, strCatalogueName, bUpdate: false)) {
-        //Load DataBase
-        return serializeFromFile(strEdit); // load me
-      } else {
-        return serializeFromFile(strEdit); // load me
-      }
+      final strEdit = szEdit!;
+
+      return serializeFromFile(strEdit); // load me
     }
 
     return null;
   }
 
   static bool saveCatalogue(DCMFileData pDCMFile, String szTitle) {
-    bool bSuccess = false;
-    String strTitle = szTitle;
-    if (serializeDataBase(pDCMFile, strTitle)) {
-      //Load Database
-      String strEdit = Utils.getFilePath(szTitle, cDCMFILETYPE);
+    String strEdit = Utils.getFilePath(szTitle, cDCMFILETYPE);
 
-      bSuccess = serializeTo(pDCMFile, strEdit); // save me
-    }
-
-    return bSuccess; // success
+    return serializeTo(pDCMFile, strEdit); // save me
   }
 
   static bool serializeLayout(DCMFileData pDCMFile, XmlItem pItem,

@@ -6,13 +6,18 @@ import 'dart:ui';
 import 'package:dcm/backend/app.dart';
 import 'package:dcm/backend/constants.dart';
 import 'package:dcm/backend/models/app_global.dart';
+import 'package:dcm/backend/models/player_global.dart';
 import 'package:dcm/backend/net/netdef.dart';
 import 'package:dcm/backend/providers/player_screen_provider.dart';
 import 'package:dcm/backend/services/app_watchdog.dart';
 import 'package:dcm/backend/services/app_skin_impl.dart';
+import 'package:dcm/backend/services/content_imp_instance.dart';
+import 'package:dcm/backend/services/player_register_impl.dart';
+import 'package:dcm/backend/utils/disk_manager.dart';
 import 'package:dcm/backend/utils/l10n_utils.dart';
 import 'package:dcm/backend/utils/log_utils.dart';
 import 'package:dcm/backend/utils/utils.dart';
+import 'package:dcm/backend/xmlfile/inifile.dart';
 import 'package:dcm/pages/home.dart';
 import 'package:dcm/pages/initial_setup_page.dart';
 import 'package:dcm/pages/settings/settings_page.dart';
@@ -20,6 +25,7 @@ import 'package:dcm/widgets/floating_player.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:path/path.dart' as path;
 import 'package:provider/provider.dart';
 import 'package:worker_manager/worker_manager.dart';
 
@@ -105,16 +111,20 @@ class _DigitalSignageScreenState extends State<DigitalSignageScreen> {
   static const Duration _menuTimeout = Duration(seconds: 5);
   final _focusNode = FocusNode();
   Timer? _menuTimer;
+  Timer? _removableStorageTimer;
   DateTime? _lastTap;
   bool _showMenu = false;
   bool _isExiting = false;
   bool _forceRebuild = false;
+  bool _isCheckingRemovableStorage = false;
+  Set<String> _knownRemovableStoragePaths = {};
 
   @override
   void initState() {
     super.initState();
     _hideSystemUI();
     DigitalSignageScreen.refresh = () => setState(() => _forceRebuild = true);
+    _startRemovableStorageMonitoring();
     // Preload uses `context` (e.g. `precacheImage`), so run it after
     // the first frame to avoid accessing InheritedWidgets during initState.
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -135,6 +145,174 @@ class _DigitalSignageScreenState extends State<DigitalSignageScreen> {
     ]);
   }
 
+  String _normalizeStoragePath(String storagePath) {
+    final normalized = path.normalize(storagePath);
+    return Platform.isWindows ? normalized.toLowerCase() : normalized;
+  }
+
+  Future<void> _startRemovableStorageMonitoring() async {
+    try {
+      final storagePaths = await DiskManager.getRemovableStoragePaths();
+      if (!mounted) return;
+      _knownRemovableStoragePaths =
+          storagePaths.map(_normalizeStoragePath).toSet();
+      _removableStorageTimer = Timer.periodic(
+        const Duration(seconds: 2),
+        (_) => _checkForNewRemovableStorage(),
+      );
+    } on Object catch (error, stackTrace) {
+      logE('Failed to start removable storage monitoring: $error', error,
+          stackTrace);
+    }
+  }
+
+  Future<void> _checkForNewRemovableStorage() async {
+    if (!mounted || _isExiting || _isCheckingRemovableStorage) return;
+
+    _isCheckingRemovableStorage = true;
+    try {
+      final storagePaths = await DiskManager.getRemovableStoragePaths();
+      if (!mounted) return;
+
+      final currentPaths = storagePaths.map(_normalizeStoragePath).toSet();
+      final insertedPaths = storagePaths
+          .where((storagePath) => !_knownRemovableStoragePaths
+              .contains(_normalizeStoragePath(storagePath)))
+          .toList();
+      _knownRemovableStoragePaths = currentPaths;
+
+      for (final storagePath in insertedPaths) {
+        await _handleInsertedStorage(storagePath);
+        if (!mounted || _isExiting) return;
+      }
+    } on Object catch (error, stackTrace) {
+      logE('Failed to check removable storage: $error', error, stackTrace);
+    } finally {
+      _isCheckingRemovableStorage = false;
+    }
+  }
+
+  Future<void> _handleInsertedStorage(String storagePath) async {
+    final importedServer = await _importServerSettings(storagePath);
+    if (importedServer) {
+      try {
+        await _reinitializePlayerSettings();
+      } on Object catch (error, stackTrace) {
+        logE('Failed to reinitialize player from removable Server.txt: $error',
+            error, stackTrace);
+      }
+    }
+    await _startUsbContentImport(storagePath);
+  }
+
+  Future<bool> _importServerSettings(String storagePath) async {
+    final sourcePath =
+        path.join(storagePath, PlayerRegisterImpl.serverConfigFileName);
+    final source = File(sourcePath);
+    if (!await source.exists()) return false;
+
+    try {
+      final serverFile = IniFile();
+      await serverFile.loadFile(sourcePath);
+      if (serverFile.sections.isEmpty) return false;
+
+      final settings =
+          await PlayerRegisterImpl.getPlayerInformation(storagePath);
+      final serverUri = Uri.tryParse(settings.pHttpLink.trim());
+      if (serverUri == null ||
+          !serverUri.isAbsolute ||
+          serverUri.host.isEmpty ||
+          (serverUri.scheme != 'http' && serverUri.scheme != 'https')) {
+        return false;
+      }
+
+      final targetPath = path.join(
+          AppGlobal.appDataPath, PlayerRegisterImpl.serverConfigFileName);
+      await Directory(path.dirname(targetPath)).create(recursive: true);
+      await source.copy(targetPath);
+      logI('Imported Server.txt from removable storage: $sourcePath');
+      return true;
+    } on Object catch (error, stackTrace) {
+      logE('Failed to import Server.txt from $sourcePath: $error', error,
+          stackTrace);
+      return false;
+    }
+  }
+
+  Future<void> _reinitializePlayerSettings() async {
+    await resetPlayerSettings();
+    if (!await checkAppSetting()) {
+      throw StateError(
+          'Failed to initialize settings from removable Server.txt');
+    }
+    if (!await loadAppSetting(App().uniqueKey)) {
+      throw StateError('Failed to load settings from removable Server.txt');
+    }
+    PlayerScreenProvider.instance?.reloadSchedule();
+  }
+
+  Future<void> _startUsbContentImport(String storagePath) async {
+    final desktopIniPath = path.join(storagePath, 'desktop.ini');
+    final desktopIniFile = File(desktopIniPath);
+    if (!await desktopIniFile.exists()) return;
+
+    try {
+      final iniFile = IniFile(desktopIniPath);
+      final platformFolder =
+          iniFile.readString('.ShellClassInfo', 'DCMPlatformFolder');
+      if (platformFolder.trim().isEmpty) return;
+
+      final strTaskFile = path.join(AppGlobal.settingPath, 'DCMtask.xml');
+      final config = AppGlobal.snapshot();
+      unawaited(workerManager.executeGentle((_) async {
+        try {
+          AppGlobal.applyWorkerConfig(
+            appDataPath: config['appDataPath'] as String?,
+            openPath: config['openPath'] as String?,
+            imagePath: config['imagePath'] as String?,
+            vcdPath: config['vcdPath'] as String?,
+            ppPath: config['ppPath'] as String?,
+            flashPath: config['flashPath'] as String?,
+            webPath: config['webPath'] as String?,
+            textPath: config['textPath'] as String?,
+            imageSettingPath: config['imageSettingPath'] as String?,
+            clockPath: config['clockPath'] as String?,
+            weatherPath: config['weatherPath'] as String?,
+            siteContentPath: config['siteContentPath'] as String?,
+            dayPath: config['dayPath'] as String?,
+            settingPath: config['settingPath'] as String?,
+            tempPath: config['tempPath'] as String?,
+            logPath: config['logPath'] as String?,
+            contentListPath: config['contentListPath'] as String?,
+            linkagePath: config['linkagePath'] as String?,
+            ddeDataPath: config['ddeDataPath'] as String?,
+            ddeXmlPath: config['ddeXmlPath'] as String?,
+            roomEventPath: config['roomEventPath'] as String?,
+            lobbyPath: config['lobbyPath'] as String?,
+            globalSetting: config['globalSetting'] as int?,
+            copyFileRetries: config['copyFileRetries'] as int?,
+          );
+          initFileLogger(AppGlobal.appDataPath);
+          App().contentTypeManager.loadContentTypes();
+          await ContentImpInstance.processTask(
+            storagePath,
+            '',
+            strTaskFile,
+            USBImportStatus.notImport,
+            0,
+          );
+        } on Object catch (error, stackTrace) {
+          logE('USB content import failed from $storagePath: $error', error,
+              stackTrace);
+        }
+      }));
+      logI('Started USB content import from $storagePath');
+    } on Object catch (error, stackTrace) {
+      logE('Failed to start USB content import from $storagePath: $error',
+          error, stackTrace);
+    }
+  }
+
   Future<void> _exitApplication() async {
     logI('multi_partition_screen _exitApplication: _isExiting $_isExiting');
     if (!mounted || _isExiting) {
@@ -143,6 +321,7 @@ class _DigitalSignageScreenState extends State<DigitalSignageScreen> {
 
     _isExiting = true;
     _menuTimer?.cancel();
+    _removableStorageTimer?.cancel();
 
     // Notify the supervisor before cleanup, which can fail in release builds.
     await AppWatchdog.markUserExit();
@@ -255,6 +434,7 @@ class _DigitalSignageScreenState extends State<DigitalSignageScreen> {
     logI('multi_partition_screen dispose');
     _isExiting = true;
     _menuTimer?.cancel();
+    _removableStorageTimer?.cancel();
     _focusNode.dispose();
     workerManager.dispose();
     super.dispose();
@@ -303,8 +483,11 @@ class _DigitalSignageScreenState extends State<DigitalSignageScreen> {
               builder:
                   (BuildContext context, playerScreenProvider, Widget? child) {
                 if (!playerScreenProvider.isValidForPlay()) {
-                  return Container(
-                    color: Utils.fromRGB(AppGlobal.clrBGColor),
+                  return Stack(
+                    children: [
+                      Container(color: Utils.fromRGB(AppGlobal.clrBGColor)),
+                      _floatingMenuOverlay(),
+                    ],
                   );
                 }
                 return LayoutBuilder(
@@ -391,42 +574,40 @@ class _DigitalSignageScreenState extends State<DigitalSignageScreen> {
                               },
                             ),
                           ),
-                          if (_showMenu)
-                            Positioned(
-                              left: 0,
-                              right: 0,
-                              bottom: 32,
-                              child: Center(
-                                child: Card(
-                                  margin: EdgeInsets.zero,
-                                  child: Padding(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 8,
-                                      vertical: 6,
-                                    ),
-                                    child: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        _menuButton(Icons.settings_outlined,
-                                            '设置'.l10n, _openSettings),
-                                        _menuButton(Icons.refresh, '重新初始化'.l10n,
-                                            _reinitialize),
-                                        _menuButton(Icons.exit_to_app,
-                                            '退出'.l10n, _exitApplication),
-                                        _menuButton(Icons.arrow_back, '返回'.l10n,
-                                            _hideFloatingMenu),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
+                          _floatingMenuOverlay(),
                         ],
                       ),
                     );
                   },
                 );
               },
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _floatingMenuOverlay() {
+    if (!_showMenu) return const SizedBox.shrink();
+
+    return Positioned(
+      left: 0,
+      right: 0,
+      bottom: 32,
+      child: Center(
+        child: Card(
+          margin: EdgeInsets.zero,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _menuButton(Icons.settings_outlined, '设置'.l10n, _openSettings),
+                _menuButton(Icons.refresh, '重新初始化'.l10n, _reinitialize),
+                _menuButton(Icons.exit_to_app, '退出'.l10n, _exitApplication),
+                _menuButton(Icons.arrow_back, '返回'.l10n, _hideFloatingMenu),
+              ],
             ),
           ),
         ),

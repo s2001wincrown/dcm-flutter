@@ -17,10 +17,15 @@ class ChannelScheduleImpl {
   bool saveSchedule(List<DayInfoData> lstDayInfo, String channelName,
       {String? strSchedule, DateTime? dtSchedule}) {
     ChannelScheduleFile file = ChannelScheduleFile();
-    if (file.loadFile(filePath: strSchedule, dtSchedule: dtSchedule)) {
+    final schedulePath = strSchedule ??
+        path.join(
+          AppGlobal.calendarPath,
+          '${DateFormat('yyyyMM').format(dtSchedule ?? DateTime.now())}.xml',
+        );
+    if (file.loadFile(filePath: schedulePath)) {
       XmlItem? hScheduleItem = file.getChannelScheduleItem(channelName);
       if (hScheduleItem == null) {
-        file.deleteChannelDayItem(hScheduleItem!);
+        return false;
       }
 
       for (var pData in lstDayInfo) {
@@ -35,7 +40,7 @@ class ChannelScheduleImpl {
       file.setFileVersion(1);
       file.setNextUniqueID(file.getNextUniqueID());
 
-      return file.saveEx();
+      return file.saveSchedule(filePath: schedulePath);
     }
 
     return false;

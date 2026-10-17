@@ -11,6 +11,7 @@ import 'package:dcm/pages/settings/categories/language_settings.dart';
 import 'package:dcm/pages/settings/categories/player_settings.dart';
 import 'package:dcm/pages/settings/categories/storage_settings.dart';
 import 'package:dcm/pages/settings/categories/developer_settings.dart';
+import 'package:dcm/pages/settings/categories/http_management_settings.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
@@ -64,6 +65,11 @@ class SettingsPageState extends State<SettingsPage> {
       Icons.bug_report_outlined,
       '调试'.l10n,
       const DeveloperSettings(),
+    ),
+    (
+      Icons.language,
+      'HTTP 管理'.l10n,
+      const HttpManagementSettingsPage(),
     ),
   ];
 

@@ -10,6 +10,7 @@ import 'package:dcm/backend/net/netdef.dart';
 import 'package:dcm/backend/providers/player_screen_provider.dart';
 import 'package:dcm/backend/services/app_watchdog.dart';
 import 'package:dcm/backend/services/content_sync_background_service.dart';
+import 'package:dcm/backend/services/http_management_server.dart';
 import 'package:dcm/backend/services/schedulelist_impl.dart';
 import 'package:dcm/backend/utils/l10n_utils.dart';
 import 'package:dcm/backend/utils/log_utils.dart';
@@ -77,6 +78,11 @@ void main(List<String> arguments) async {
   await WakelockPlus.enable();
 
   await App().init();
+  try {
+    await HttpManagementServer().start();
+  } catch (error, stack) {
+    logE('Failed to start HTTP management server: $error', error, stack);
+  }
   _registerContentSyncPlayerRefreshPort();
   workerManager.log = true;
   await workerManager.init(dynamicSpawning: true);

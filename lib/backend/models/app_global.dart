@@ -425,6 +425,8 @@ class AppGlobal {
       'fileTransferRetries': fileTransferRetries,
       'taskTransferRetries': taskTransferRetries,
       'tempFileCopyRetries': tempFileCopyRetries,
+      'globalSetting': globalSetting,
+      'copyFileRetries': copyFileRetries,
       'logUploadInterval': logUploadInterval,
       'logUploadPeriod': logUploadPeriod,
       'statusCheckInterval': statusCheckInterval,
@@ -496,6 +498,8 @@ class AppGlobal {
       int? fileTransferRetries,
       int? taskTransferRetries,
       int? tempFileCopyRetries,
+      int? globalSetting,
+      int? copyFileRetries,
       int? logUploadInterval,
       int? logUploadPeriod,
       int? statusCheckInterval,
@@ -652,6 +656,12 @@ class AppGlobal {
     }
     if (tempFileCopyRetries != null) {
       AppGlobal.tempFileCopyRetries = tempFileCopyRetries;
+    }
+    if (globalSetting != null) {
+      AppGlobal.globalSetting = globalSetting;
+    }
+    if (copyFileRetries != null) {
+      AppGlobal.copyFileRetries = copyFileRetries;
     }
     if (logUploadInterval != null) {
       AppGlobal.logUploadInterval = logUploadInterval;

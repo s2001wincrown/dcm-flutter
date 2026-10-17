@@ -2789,20 +2789,21 @@ class PlayerScreenProvider extends ChangeNotifier {
           break;
         case 82:
           logI(
-              '''Try to pause video, current video status: '$_lVideoStatus'.''');
+              '''PlayerScreenProvider - Try to pause video, current video status: '$_lVideoStatus'.''');
           if (_lVideoStatus == 0) {
             _lVideoStatus = 1; //pause video
           }
           break;
         case 83:
           logI(
-              '''Try to resume video, current video status: '$_lVideoStatus'.''');
+              '''PlayerScreenProvider - Try to resume video, current video status: '$_lVideoStatus'.''');
           if (_lVideoStatus == 1) {
             _lVideoStatus = 2; //resume video
           }
           break;
         case 84:
-          logI('''Try to change TV channel to: '$strMessage'.''');
+          logI(
+              '''PlayerScreenProvider - Try to change TV channel to: '$strMessage'.''');
           _lTVChannel = int.tryParse(strMessage) ?? 0;
           break;
 
@@ -2815,7 +2816,7 @@ class PlayerScreenProvider extends ChangeNotifier {
           //ResumePlaylist();
           break;
         case 999:
-          logI('return to schedule.');
+          logI('PlayerScreenProvider - return to schedule.');
           ScheduleList().messageList.stopAll();
           //PlaySkin.RemoveAHMessageRect();
           _msgNeedRefresh = cINTMAX;
