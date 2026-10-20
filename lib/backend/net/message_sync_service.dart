@@ -32,6 +32,12 @@ typedef MessageSyncBatchDownload = Future<MessageSyncBatchResult> Function(
   List<ContentDownloadTask> tasks,
 );
 
+typedef MessageSyncStatusAction = Future<void> Function(
+  String task,
+  int actionStatus,
+  String actionDetails,
+);
+
 class MessageSyncBatchResult {
   const MessageSyncBatchResult(
       {required this.downloaded, required this.failed});
@@ -75,15 +81,18 @@ class MessageSyncService {
   MessageSyncService({
     MessageSyncPostAction? postAction,
     MessageSyncBatchDownload? batchDownload,
+    MessageSyncStatusAction? statusAction,
     DateTime Function()? clock,
   })  : _postAction = postAction ?? _defaultPostAction,
         _batchDownloadOverride = batchDownload,
+        _statusAction = statusAction ?? PlayerLogFile.postMessageActionStatus,
         _clock = clock ?? DateTime.now;
 
   static const _contentType = 'application/xml; charset=utf-8';
 
   final MessageSyncPostAction _postAction;
   final MessageSyncBatchDownload? _batchDownloadOverride;
+  final MessageSyncStatusAction _statusAction;
   final DateTime Function() _clock;
   final Queue<_QueuedMessage> _queue = Queue<_QueuedMessage>();
   Completer<void> _idle = Completer<void>()..complete();
@@ -165,19 +174,26 @@ class MessageSyncService {
       return _failed(message, 'Message command is empty');
     }
 
-    var messageDetails = messageCmd.split(';');
-    if (messageDetails.length < 3) {
-      return _failed(message, 'Invalid message command: $messageCmd');
+    final messageDetails = messageCmd.split(';');
+    final hasStructuredCommand = messageDetails.length > 3;
+    final messageName = hasStructuredCommand
+        ? messageDetails[3].split(':')[0].trim()
+        : messageCmd;
+    if (messageName.isEmpty) {
+      return _failed(message, 'Message name is empty');
     }
-
-    var messageName = messageDetails[3].split(':')[0];
+    final task = hasStructuredCommand
+        ? messageDetails[1]
+        : message.task.isNotEmpty
+            ? message.task
+            : DateFormat('yyyyMMddHHmmss').format(_clock());
     final request = PlayerTaskFile.genHTTPRequest(
-        [messageName],
-        cDCMAHMESSAGETYPE,
-        PlayerTaskFile.nSyncPeriod,
-        cSyncAHMESSAGE,
-        messageDetails[1] //DateFormat('yyyyMMddHHmmss').format(_clock()),
-        );
+      [messageName],
+      cDCMAHMESSAGETYPE,
+      PlayerTaskFile.nSyncPeriod,
+      cSyncAHMESSAGE,
+      task,
+    );
     if (request.isEmpty) {
       return _failed(message, 'Message manifest request is empty');
     }
@@ -195,10 +211,11 @@ class MessageSyncService {
     if (fileInfos == null) {
       return _failed(message, 'Message manifest XML or signature is invalid');
     }
+    final manifestFileCount = fileInfos.length;
     await _filterMessageContent(fileInfos);
 
     final tasks = <ContentDownloadTask>[];
-    var skippedCount = 0;
+    var skippedCount = manifestFileCount - fileInfos.length;
     var failedCount = 0;
     for (final fileInfo in fileInfos) {
       if (fileInfo.strShortPath.trim().isEmpty ||
@@ -233,21 +250,23 @@ class MessageSyncService {
       }
     }
 
-    if (tasks.isEmpty || failedCount > 0) {
-      _postMessageActionStatus(messageDetails[1], false,
-          'Invalid message content. Found $failedCount errors.');
+    if (tasks.isEmpty && failedCount > 0) {
+      await _postMessageActionStatus(
+          task, false, 'Invalid message content. Found $failedCount errors.');
       return MessageSyncResult(
         messageName: messageName,
-        fileCount: fileInfos.length,
+        fileCount: manifestFileCount,
         downloadedCount: 0,
         skippedCount: skippedCount,
         failedCount: failedCount,
       );
     }
 
-    final batchResult = await (_batchDownloadOverride ?? _downloadBatch)(tasks);
+    final batchResult = tasks.isEmpty
+        ? const MessageSyncBatchResult(downloaded: 0, failed: 0)
+        : await (_batchDownloadOverride ?? _downloadBatch)(tasks);
     int copyFailedCount = 0;
-    if (batchResult.failed == 0) {
+    if (batchResult.failed == 0 && tasks.isNotEmpty) {
       copyFailedCount = await _copyMessageContent(fileInfos);
     }
     final totalFailed = failedCount + batchResult.failed;
@@ -282,7 +301,7 @@ class MessageSyncService {
     }
     final result = MessageSyncResult(
       messageName: messageName,
-      fileCount: fileInfos.length,
+      fileCount: manifestFileCount,
       downloadedCount: batchResult.downloaded,
       skippedCount: skippedCount,
       failedCount: totalFailed,
@@ -291,16 +310,16 @@ class MessageSyncService {
 
     final resultInfo =
         'Message sync finished: $messageName; files: ${result.fileCount}; downloaded: ${result.downloadedCount}; skipped: ${result.skippedCount}; failed: ${result.failedCount}; copy file failed: ${result.copyFailedCount}; total failed: ${result.failedCount}.';
-    _postMessageActionStatus(messageDetails[1],
-        (totalFailed == 0 && copyFailedCount == 0), resultInfo);
+    await _postMessageActionStatus(
+        task, (totalFailed == 0 && copyFailedCount == 0), resultInfo);
     _logInfo(resultInfo);
 
     return result;
   }
 
-  void _postMessageActionStatus(String task, bool status, String resultInfo) {
-    PlayerLogFile.postMessageActionStatus(task, status ? 1 : 0, resultInfo);
-  }
+  Future<void> _postMessageActionStatus(
+          String task, bool status, String resultInfo) =>
+      _statusAction(task, status ? 1 : 0, resultInfo);
 
   List<FileInfoData>? _parseManifest(String xml) {
     final file = XmlFilePro('PublishFileInformation');
@@ -324,7 +343,7 @@ class MessageSyncService {
 
     for (int i = lstFileInfo.length - 1; i >= 0; i--) {
       FileInfoData pFileInfo = lstFileInfo[i];
-      logD('Found message content; \'${pFileInfo.strDestFile}\'\n');
+      logD('Found message content; \'${pFileInfo.strDestFile}\'.');
       if (!fileReplaceImpl.isReplace(pFileInfo, false)) {
         if (pFileInfo.fileStatus == FileItemStatus.normal) {
           bool bSkip = true;
@@ -337,7 +356,7 @@ class MessageSyncService {
 
           if (bSkip) {
             logD(
-                'Downloading Message Contents - FilterMessageFile; \'${pFileInfo.strDestFile}\' has been updated\n');
+                'Downloading Message Contents - FilterMessageFile; \'${pFileInfo.strDestFile}\' has been updated.');
             lstFileInfo.removeAt(i);
           }
         }
@@ -388,6 +407,7 @@ class MessageSyncService {
         fileReplaceImpl.addDownloadFile(iter);
       }
       fileReplaceImpl.saveFileInfo();
+      logI('Message content copy success; Total: ${lstSuccess.length}.');
     }
 
     return lstFileInfo.length;

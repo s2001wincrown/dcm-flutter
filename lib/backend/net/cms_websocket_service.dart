@@ -37,9 +37,13 @@ class CmsWebSocketService {
     this.initialReconnectDelay = const Duration(seconds: 1),
     this.maxReconnectAttempts,
     this.reconnectJitter = const Duration(seconds: 1),
+    this.connectionTimeout = const Duration(seconds: 15),
   })  : _channelFactory = channelFactory ?? WebSocketChannel.connect,
         _handlers = Map.unmodifiable(handlers),
-        _messageSyncService = messageSyncService ?? MessageSyncService();
+        _messageSyncService = messageSyncService ?? MessageSyncService() {
+    _taskMessageEnqueuer = _enqueueTaskMessage;
+    PlayerTaskFile.messageSyncEnqueuer = _taskMessageEnqueuer;
+  }
 
   static const heartbeatInterval = Duration(seconds: 30);
   static const heartbeatResponseTimeout = Duration(seconds: 90);
@@ -51,9 +55,11 @@ class CmsWebSocketService {
   final Duration initialReconnectDelay;
   final int? maxReconnectAttempts;
   final Duration reconnectJitter;
+  final Duration connectionTimeout;
   final _messages = StreamController<MessageWrapper>.broadcast();
   final _connectionStates = StreamController<CmsConnectionState>.broadcast();
   final _random = Random();
+  late final void Function(MessageInfo message) _taskMessageEnqueuer;
 
   WebSocketChannel? _channel;
   StreamSubscription<dynamic>? _subscription;
@@ -104,14 +110,13 @@ class CmsWebSocketService {
       logD('CMS WebSocket connecting: ${_displayUri(uri)}', syncTag);
       channel = _channelFactory(uri);
       _channel = channel;
-      await channel.ready;
+      await channel.ready.timeout(connectionTimeout);
       if (_disposed || _stopped || generation != _generation) {
-        await channel.sink.close();
+        unawaited(_cleanupConnection(null, channel));
         return;
       }
 
       _lastHeartbeatAt = DateTime.now();
-      _reconnectAttempt = 0;
       _publishState(CmsConnectionState.connected);
       _subscription = channel.stream.listen(
         (event) => _handleEvent(event, generation),
@@ -127,9 +132,6 @@ class CmsWebSocketService {
     } catch (error, stackTrace) {
       if (generation == _generation) {
         _channel = null;
-        try {
-          await channel?.sink.close();
-        } catch (_) {}
         logW('CMS WebSocket connection failed: ${_describeError(error)}',
             syncTag);
         logD('CMS WebSocket connection stack: $stackTrace', syncTag);
@@ -137,6 +139,9 @@ class CmsWebSocketService {
         if (!_stopped && !_disposed) {
           _scheduleReconnect();
         }
+        unawaited(_cleanupConnection(null, channel));
+      } else {
+        unawaited(_cleanupConnection(null, channel));
       }
     }
   }
@@ -195,6 +200,7 @@ class CmsWebSocketService {
       case CommandType.CMD_HEARTBEAT:
         _notify(message, Heartbeat.fromBuffer(message.payload));
         _lastHeartbeatAt = DateTime.now();
+        _reconnectAttempt = 0;
         break;
       case CommandType.CMD_DCM_CONTENT:
         final content = DcmContent.fromBuffer(message.payload);
@@ -295,7 +301,6 @@ class CmsWebSocketService {
               logE(
                   '_enqueueAhMessage - Invalid message command: ${messageInfo.messageName}');
             }
-
             return;
           }
         } else {
@@ -327,6 +332,28 @@ class CmsWebSocketService {
       logW('AHMessage enqueue failed: $error', syncTag);
       logD('AHMessage enqueue stack: $stackTrace', syncTag);
     }
+  }
+
+  void _enqueueTaskMessage(MessageInfo messageInfo) {
+    unawaited(() async {
+      try {
+        final result = await _messageSyncService.enqueue(messageInfo);
+        if (result.succeeded) {
+          logI(
+            'Queued AHMessage task completed: ${result.messageName}; downloaded: ${result.downloadedCount}; skipped: ${result.skippedCount}.',
+            syncTag,
+          );
+        } else if (!result.cancelled) {
+          logW(
+            'Queued AHMessage task failed: ${result.messageName}; failed: ${result.failedCount}; ${result.error ?? ''}',
+            syncTag,
+          );
+        }
+      } catch (error, stackTrace) {
+        logW('Failed to enqueue AHMessage task: $error', syncTag);
+        logD('AHMessage task enqueue stack: $stackTrace', syncTag);
+      }
+    }());
   }
 
   void _requestContentSync() {
@@ -393,24 +420,21 @@ class CmsWebSocketService {
     if (generation != _generation) {
       return;
     }
+    ++_generation;
+    _connectFuture = null;
     _heartbeatTimer?.cancel();
     _heartbeatTimer = null;
     _heartbeatTimeoutTimer?.cancel();
     _heartbeatTimeoutTimer = null;
     final subscription = _subscription;
     _subscription = null;
-    await subscription?.cancel();
     final channel = _channel;
     _channel = null;
-    if (channel != null) {
-      try {
-        await channel.sink.close();
-      } catch (_) {}
-    }
     _publishState(CmsConnectionState.disconnected);
     if (!_stopped && !_disposed) {
       _scheduleReconnect();
     }
+    unawaited(_cleanupConnection(subscription, channel));
   }
 
   void _scheduleReconnect() {
@@ -448,21 +472,37 @@ class CmsWebSocketService {
     _reconnectTimer?.cancel();
     _reconnectTimer = null;
     _generation++;
+    _connectFuture = null;
     _heartbeatTimer?.cancel();
     _heartbeatTimer = null;
+    _heartbeatTimeoutTimer?.cancel();
+    _heartbeatTimeoutTimer = null;
     final subscription = _subscription;
     _subscription = null;
-    await subscription?.cancel();
     final channel = _channel;
     _channel = null;
-    if (channel != null) {
-      try {
-        await channel.sink.close();
-      } catch (_) {}
-    }
     _publishState(CmsConnectionState.disconnected);
-    if (reconnect && !_disposed) {
+    if (reconnect && !_disposed && !_stopped) {
       _scheduleReconnect();
+    }
+    await _cleanupConnection(subscription, channel);
+  }
+
+  Future<void> _cleanupConnection(
+    StreamSubscription<dynamic>? subscription,
+    WebSocketChannel? channel,
+  ) async {
+    try {
+      await subscription?.cancel().timeout(connectionTimeout);
+    } on Object catch (error) {
+      logW('CMS WebSocket subscription cleanup failed: ${error.runtimeType}',
+          syncTag);
+    }
+    try {
+      await channel?.sink.close().timeout(connectionTimeout);
+    } on Object catch (error) {
+      logW('CMS WebSocket channel cleanup failed: ${error.runtimeType}',
+          syncTag);
     }
   }
 
@@ -471,6 +511,7 @@ class CmsWebSocketService {
       return;
     }
     _disposed = true;
+    PlayerTaskFile.clearMessageSyncEnqueuer(_taskMessageEnqueuer);
     await disconnect();
     await _messageSyncService.dispose();
     await _messages.close();

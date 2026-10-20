@@ -442,7 +442,7 @@ class FloatingPlayerImpl {
           pImpl0.setPlayingDuration(rtPos);
           pImpl0.setStartPlayTime(DateTime.now());
           logI(
-              '''CPlayerScreen2Dlg::OnTimer; GetPlayingLine:'${pImpl0.getPlayingLine()}'; Zone:'$i'; GetPlayingDuration:'${pImpl0.getPlayingDuration()}'; _rtCurrPos1:'$_rtCurrPos1'; rtPos:'$rtPos'.''');
+              '''FloatingPlayerImpl - OnTimer; GetPlayingLine:'${pImpl0.getPlayingLine()}'; Zone:'$i'; GetPlayingDuration:'${pImpl0.getPlayingDuration()}'; _rtCurrPos1:'$_rtCurrPos1'; rtPos:'$rtPos'.''');
 
           _rtCurrPos1 = 0;
           pImpl0.setZoneFinish(true);
@@ -841,7 +841,7 @@ class FloatingPlayerImpl {
       pZoneImpl.setPlayingLine(_rtDuration, !pData.bChkZone);
 
       logI(
-          '''CPlayerScreen2Dlg::PlayProduct; ZoneFile: '${pData.strZoneFile}'; Zone size: '${_pProductData!.lstZone.length}'; _players size: '${_players.length}', _rtDuration:'$_rtDuration'.''');
+          '''FloatingPlayerImpl - PlayProduct; ZoneFile: '${pData.strZoneFile}'; Zone size: '${_pProductData!.lstZone.length}'; _players size: '${_players.length}', _rtDuration:'$_rtDuration'.''');
     }
     _needNotifyListeners = true;
   }
@@ -941,7 +941,7 @@ class FloatingPlayerImpl {
       rcVW = _playFileData!.getZoneRect(nZone, rcVW)!;
     } else if (pLayoutData != null) {
       logI(
-          '''CPlayerScreen2Dlg::ScaleToVW LayoutData:'${pLayoutData.iNoOfParition}'; Output: '$_nOutput'.''');
+          '''FloatingPlayerImpl - ScaleToVW LayoutData:'${pLayoutData.iNoOfParition}'; Output: '$_nOutput'.''');
       rcVW = DCMFileImpl.getZoneRect(pLayoutData, nZone, rcVW)!;
     } else {
       rcVW = _defaultZoneRect(nZone, nTotalZone);
@@ -1097,7 +1097,7 @@ class FloatingPlayerImpl {
       _players.add(arrZoneImpl[i]);
     }
     for (i = 0; i < _players.length; i++) {
-      /*WriteMessage(MSG_INFO, _T("CPlayerScreen2Dlg::MatchZoneImpl; Zone ID: '%d'; Zone Contnet: '%s'; Rect left: '%d'; top: '%d'; width: '%d', height: '%d'"), 
+      /*WriteMessage(MSG_INFO, _T("FloatingPlayerImpl - MatchZoneImpl; Zone ID: '%d'; Zone Contnet: '%s'; Rect left: '%d'; top: '%d'; width: '%d', height: '%d'"), 
         pImpl.getZone(), pImpl.getZoneData().strZoneFile, pImpl.getPlayerRect().left, pImpl.getPlayerRect().top, pImpl.getPlayerRect().Width(), pImpl.getPlayerRect().Height());*/
       _players[i].setPlayingLine(_rtDuration, true);
     }

@@ -592,15 +592,18 @@ class PlayerScreenProvider extends ChangeNotifier {
       _msgNeedRefresh = cINTMIN;
       deleteMessageThreadByOutput(cINTMIN);
       resumePlaylist();
+      _needNotifyListeners = true;
     } else if (_msgNeedRefresh >= cWORDMAX) {
       int nLayer = fHIWORD(_msgNeedRefresh);
       _msgNeedRefresh = cINTMIN;
       deleteMessageThreadByLayer(nLayer);
       resumePlaylist();
+      _needNotifyListeners = true;
     } else if (_msgNeedRefresh != cINTMIN) {
       int nOutput = _msgNeedRefresh;
       _msgNeedRefresh = cINTMIN;
       await loadMessageThread(nOutput);
+      _needNotifyListeners = true;
     }
 
     int nOutput = cINTMIN;
@@ -608,17 +611,20 @@ class PlayerScreenProvider extends ChangeNotifier {
     if (nRet == 0) {
       deleteMessageThreadByOutput(nOutput);
       resumePlaylist();
+      _needNotifyListeners = true;
 
       return;
     } else if (nRet == 2) {
       await loadMessageThread(nOutput);
       tryStopPlaylist(nOutput);
+      _needNotifyListeners = true;
     }
 
     nOutput = cINTMIN;
     if ((nOutput = await ScheduleList().isTimeForMessage(dtCurr)) != cINTMIN) {
       await createMessageThread(nOutput);
       tryStopPlaylist(nOutput);
+      _needNotifyListeners = true;
     }
 
     nOutput = cINTMIN;
@@ -626,6 +632,7 @@ class PlayerScreenProvider extends ChangeNotifier {
         cINTMIN) {
       await loadMessageThread(nOutput);
       tryStopPlaylist(nOutput);
+      _needNotifyListeners = true;
     }
   }
 

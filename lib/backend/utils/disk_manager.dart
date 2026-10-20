@@ -93,44 +93,27 @@ class DiskManager {
 
   // --- Windows 平台实现 ---
   static Future<List<String>> _getWindowsRemovablePaths() async {
-    List<String> drives = [];
     try {
-      final result = await Process.run(
-          'wmic', ['logicaldisk', 'where', 'DriveType=2', 'get', 'DeviceID']);
+      final result = await Process.run('powershell.exe', [
+        '-NoProfile',
+        '-NonInteractive',
+        '-Command',
+        "Get-CimInstance Win32_LogicalDisk -Filter 'DriveType=2' | "
+            'Select-Object -ExpandProperty DeviceID',
+      ]);
       if (result.exitCode == 0) {
-        List<String> lines = result.stdout.toString().trim().split('\n');
-        for (var line in lines) {
-          String drive = line.trim();
-          if (drive.isNotEmpty && drive.endsWith(':')) drives.add(drive);
-        }
+        return result.stdout
+            .toString()
+            .split(RegExp(r'\r?\n'))
+            .map((line) => line.trim())
+            .where((drive) => drive.endsWith(':'))
+            .toList();
       }
-    } catch (e) {
-      logW('WMIC removable drive scan failed, trying PowerShell: $e');
+      logE('PowerShell removable drive scan failed: ${result.stderr}');
+    } on Object catch (error, stackTrace) {
+      logE('Windows removable drive scan failed: $error', error, stackTrace);
     }
-
-    if (drives.isEmpty) {
-      try {
-        final result = await Process.run('powershell', [
-          '-NoProfile',
-          '-Command',
-          "Get-CimInstance Win32_LogicalDisk -Filter 'DriveType=2' | "
-              'Select-Object -ExpandProperty DeviceID',
-        ]);
-        if (result.exitCode == 0) {
-          drives = result.stdout
-              .toString()
-              .split(RegExp(r'\r?\n'))
-              .map((line) => line.trim())
-              .where((drive) => drive.endsWith(':'))
-              .toList();
-        } else {
-          logE('PowerShell removable drive scan failed: ${result.stderr}');
-        }
-      } on Object catch (error, stackTrace) {
-        logE('Windows removable drive scan failed: $error', error, stackTrace);
-      }
-    }
-    return drives;
+    return [];
   }
 
   // --- macOS / Linux 平台实现 ---

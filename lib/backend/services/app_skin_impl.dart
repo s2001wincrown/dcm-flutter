@@ -8,6 +8,7 @@ import 'package:dcm/backend/models/dcmfile_data.dart';
 import 'package:dcm/backend/models/product_data.dart';
 import 'package:dcm/backend/models/zone_rect_data.dart';
 import 'package:dcm/backend/utils/log_utils.dart';
+import 'package:dcm/backend/utils/platform_utils.dart';
 import 'package:dcm/backend/utils/string_utils.dart';
 import 'package:dcm/backend/xmlfile/inifile.dart';
 import 'package:dcm/main.dart';
@@ -597,18 +598,20 @@ class AppSkinSetting {
 
   Future<Rect> getMonitorRect([int output = -1]) async {
     Rect rect = monitorRect;
-    if (output > -1) {
-      //final monitors = await screenRetriever.getAllDisplays();
-      const displayManager = DisplayManager.instance;
-      final monitors = displayManager.getAll();
-      if (output < monitors.length) {
-        for (int i = 0; i < monitors.length; i++) {
-          if (output == i) {
-            rect = _displayRect(monitors[i]);
-            break;
+    if (PlatformUtils.isDesktop) {
+      if (output > -1) {
+        //final monitors = await screenRetriever.getAllDisplays();
+        const displayManager = DisplayManager.instance;
+        final monitors = displayManager.getAll();
+        if (output < monitors.length) {
+          for (int i = 0; i < monitors.length; i++) {
+            if (output == i) {
+              rect = _displayRect(monitors[i]);
+              break;
+            }
           }
+          rect = _normalizeRect(rect);
         }
-        rect = _normalizeRect(rect);
       }
     }
 

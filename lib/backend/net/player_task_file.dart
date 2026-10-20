@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:dcm/backend/constants.dart';
 import 'package:dcm/backend/models/app_global.dart';
 import 'package:dcm/backend/models/player_global.dart';
+import 'package:dcm/backend/net/content_sync_service.dart';
 import 'package:dcm/backend/net/player_log_file.dart';
 import 'package:dcm/backend/net/player_log_impl.dart';
 import 'package:dcm/backend/net/play_log_post.dart';
@@ -365,6 +366,14 @@ class PlayerTaskFile {
   static PlayerJobItem? pCurrJob;
   static List<PlayerJobItem> vTaskQueue = [];
   static String strPlayerTaskFile = '';
+  static void Function(MessageInfo message)? messageSyncEnqueuer;
+
+  static void clearMessageSyncEnqueuer(
+      void Function(MessageInfo message) enqueuer) {
+    if (identical(messageSyncEnqueuer, enqueuer)) {
+      messageSyncEnqueuer = null;
+    }
+  }
 
   static bool bSyncTime = false;
   static DateTime dtSyncTime = fromOleDateTime();
@@ -669,18 +678,32 @@ class PlayerTaskFile {
       }
 
       if (it.dwSyncContent == cSyncAHMESSAGE) {
-        MessageInfo pMessage = MessageInfo();
-        var strAHMessages = it.strSyncContent.split(';');
-        String strAHMessageName = strAHMessages[0];
-        pMessage.messageId = int.tryParse(strAHMessages[1]) ?? -1;
-        pMessage.messageName = strAHMessageName;
-        pMessage.status = it.nTaskAction;
-        pMessage.task = it.strJobItem;
-        /*if (pMessage.messageID == 97) {
-          CMainFrame::AHMessageNotify(CFormat('%s;%d') % strAHMessageName % pMessage->status, AHDIRECT_NOTICE);
+        final strAHMessages = it.strSyncContent.split(';');
+        if (strAHMessages.length < 2 || strAHMessages[0].trim().isEmpty) {
+          logE('Invalid AHMessage task content for ${it.strJobItem}', syncTag);
+          taskQueues.remove(it);
+          continue;
+        }
+        final strAHMessageName = strAHMessages[0];
+        final messageId = int.tryParse(strAHMessages[1]) ?? -1;
+        if (messageId == 97) {
+          notifyMainIsolatePlaylistRefresh(PlayerNotice.eAHDIRECTNOTICE.index,
+              0, '$strAHMessageName;${it.nTaskAction}');
+          //CMainFrame::AHMessageNotify(CFormat('%s;%d') % strAHMessageName % pMessage->status, AHDIRECT_NOTICE);
         } else {
-          CMessageThread::AddAHMessage(pMessage);
-        }*/
+          final enqueuer = messageSyncEnqueuer;
+          if (enqueuer == null) {
+            logE('Cannot queue AHMessage task without an active sync service',
+                syncTag);
+          } else {
+            final pMessage = MessageInfo()
+              ..messageId = messageId
+              ..messageName = strAHMessageName
+              ..status = it.nTaskAction
+              ..task = it.strJobItem;
+            enqueuer(pMessage);
+          }
+        }
       } else {
         bSave = true;
         updateTask(it);

@@ -157,7 +157,7 @@ class _DigitalSignageScreenState extends State<DigitalSignageScreen> {
       _knownRemovableStoragePaths =
           storagePaths.map(_normalizeStoragePath).toSet();
       _removableStorageTimer = Timer.periodic(
-        const Duration(seconds: 2),
+        const Duration(seconds: 5),
         (_) => _checkForNewRemovableStorage(),
       );
     } on Object catch (error, stackTrace) {
