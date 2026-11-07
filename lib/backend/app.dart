@@ -45,8 +45,13 @@ class App {
 
   Map<String, Function> actions = {};
 
-  late final Player player;
-  late final VideoController controller;
+  Player? _player;
+  VideoController? _controller;
+
+  /// 首次真正需要播放时才创建播放器并初始化相关状态。
+  Player get player => _player ??= _createPlayer();
+
+  VideoController get controller => _controller ??= VideoController(player);
 
   bool playlistLoaded = false;
   bool mediaLibraryLoaded = false;
@@ -97,7 +102,11 @@ class App {
     if (needsUpdate) {
       await saveSettings();
     }
-    player = Player(
+    settings.tempPath = (await getTemporaryDirectory()).path;
+  }
+
+  Player _createPlayer() {
+    final p = Player(
       configuration: const PlayerConfiguration(
         title: 'dcm',
         osc: false,
@@ -107,7 +116,7 @@ class App {
         logLevel: MPVLogLevel.error,
       ),
     );
-    player.stream.playlist.listen(
+    p.stream.playlist.listen(
       (event) {
         if (event.medias.isNotEmpty) {
           var src = event.medias[event.index].uri;
@@ -119,9 +128,8 @@ class App {
         }
       },
     );
-    controller = VideoController(player);
-    player.setVolume(settings.volume);
-    settings.tempPath = (await getTemporaryDirectory()).path;
+    p.setVolume(settings.volume);
+    return p;
   }
 
   Future<void> loadSettings() async {

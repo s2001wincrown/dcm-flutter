@@ -8,6 +8,7 @@ import 'package:dcm/backend/models/dcmfile_data.dart';
 import 'package:dcm/backend/models/product_data.dart';
 import 'package:dcm/backend/models/zone_rect_data.dart';
 import 'package:dcm/backend/utils/log_utils.dart';
+import 'package:dcm/backend/utils/multi_screen_service.dart';
 import 'package:dcm/backend/utils/platform_utils.dart';
 import 'package:dcm/backend/utils/string_utils.dart';
 import 'package:dcm/backend/xmlfile/inifile.dart';
@@ -116,6 +117,9 @@ class AppSkinSetting {
   Rect touchScreenRect = Rect.zero;
   Map<int, Rect> ahMessageRects = {};
   List<ZoneRectData> zoneRects = [];
+
+  /// 画布坐标系相对物理像素的缩放基准（取自窗口左上角所在显示器）。
+  double _canvasScale = 1.0;
 
   // Constructors
   void release() {
@@ -591,7 +595,8 @@ class AppSkinSetting {
 
   List<int> getOutputs() {
     if (outputs.isEmpty) {
-      return [0];
+      // 皮肤尚未加载时按当前输出计数，保证次要引擎能收到全网插播消息。
+      return [AppGlobal.output];
     }
     return List.from(outputs);
   }
@@ -606,12 +611,17 @@ class AppSkinSetting {
         if (output < monitors.length) {
           for (int i = 0; i < monitors.length; i++) {
             if (output == i) {
-              rect = _displayRect(monitors[i]);
+              rect = _canvasDisplayRect(monitors[i]);
               break;
             }
           }
           rect = _normalizeRect(rect);
         }
+      }
+    } else if (PlatformUtils.isAndroid && output > -1) {
+      final display = MultiScreenService.instance.displayAt(output);
+      if (display != null) {
+        rect = display.rect;
       }
     }
 
@@ -702,7 +712,26 @@ class AppSkinSetting {
       nMonitor = AppGlobal.output;
     }
 
-    if (Platform.isAndroid || Platform.isIOS) {
+    if (PlatformUtils.isAndroid) {
+      final displays = MultiScreenService.instance.displays;
+      if (displays.isEmpty) {
+        // 原生通道不可用（或仅枚举到主屏失败）时回退到当前视图尺寸
+        monitorRect = Rect.fromLTWH(
+            0, 0, ScreenUtil().screenWidth, ScreenUtil().screenHeight);
+      } else if (nMonitor < 0) {
+        // Android 各 Display 坐标空间互相独立，跨屏拼接需由多个渲染实例完成，
+        // 这里以主屏尺寸作为虚拟画布，outputs 记录全部输出。
+        monitorRect = displays.first.rect;
+        for (final display in displays) {
+          outputs.add(display.output);
+        }
+      } else {
+        final display =
+            MultiScreenService.instance.displayAt(nMonitor) ?? displays.first;
+        monitorRect = display.rect;
+        outputs.add(display.output);
+      }
+    } else if (Platform.isIOS) {
       monitorRect = Rect.fromLTWH(
           0, 0, ScreenUtil().screenWidth, ScreenUtil().screenHeight);
     } else {
@@ -714,35 +743,36 @@ class AppSkinSetting {
         var displayMonitors = strRect.split(',');
         monitorRect = Rect.zero;
         if (displayMonitors.length > 1) {
+          final selected = <Display>[];
           for (int i = 0; i < allDisplays.length; i++) {
             if (displayMonitors.contains(i.toString())) {
-              monitorRect =
-                  monitorRect.expandToInclude(_displayRect(allDisplays[i]));
+              selected.add(allDisplays[i]);
               outputs.add(i);
             }
           }
-
-          if (!monitorRect.isEmpty) {
-            monitorRect = _normalizeRect(monitorRect);
-            return;
+          if (selected.isNotEmpty) {
+            monitorRect = _normalizeRect(_unionMonitorRect(selected));
+            if (!monitorRect.isEmpty) {
+              return;
+            }
           }
+          outputs.clear();
         }
 
         nMonitor = int.tryParse(strRect) ?? 0;
       }
 
       if (nMonitor == -1) {
-        monitorRect = Rect.zero;
         for (int i = 0; i < allDisplays.length; i++) {
-          monitorRect =
-              monitorRect.expandToInclude(_displayRect(allDisplays[i]));
           outputs.add(i);
         }
+        monitorRect = _unionMonitorRect(allDisplays);
       } else {
         if (nMonitor < allDisplays.length) {
           for (int i = 0; i < allDisplays.length; i++) {
             if (nMonitor == i) {
-              monitorRect = _displayRect(allDisplays[i]);
+              _canvasScale = _scaleOf(allDisplays[i]);
+              monitorRect = _canvasDisplayRect(allDisplays[i]);
               outputs.add(i);
               break;
             }
@@ -753,7 +783,8 @@ class AppSkinSetting {
       if (monitorRect.isEmpty &&
           allDisplays.isNotEmpty &&
           AppGlobal.multiMonitor != 99) {
-        monitorRect = _displayRect(allDisplays[0]);
+        _canvasScale = _scaleOf(allDisplays[0]);
+        monitorRect = _canvasDisplayRect(allDisplays[0]);
       }
       monitorRect = _normalizeRect(monitorRect);
     }
@@ -765,22 +796,80 @@ class AppSkinSetting {
         '''GetMonitorInfo Output:'${AppGlobal.output}'; rect:'$monitorRect'; Skin: '$skinCode'.'''); //, allDisplays: '${allDisplays.length}'
   }
 
-  Rect _displayRect(Display display) {
-    /*double left = 0,
-        top = 0,
-        width = display.size.width,
-        height = display.size.height;
-    if (display.visiblePosition != null) {
-      left = display.visiblePosition!.dx;
-      top = display.visiblePosition!.dy;
+  /// 显示器热插拔、分辨率或缩放变化后重新计算画布。
+  ///
+  /// 与 [loadSkinFile] 不同，这里不清空分区与 AH 消息矩形，避免打断播放中的内容。
+  void refreshMonitorRect() {
+    if (!PlatformUtils.isDesktop && !PlatformUtils.isAndroid) return;
+    final iniFile = IniFile(AppGlobal.skinFile);
+    _getMonitorInfo(iniFile, skinCode);
+    screenRect = Rect.fromLTWH(0, 0, monitorRect.width, monitorRect.height);
+    if (hasFlag(AppGlobal.playMode, 2)) {
+      if (layout != null && layout!.width > 0 && layout!.height > 0) {
+        screenRect = _fitToSize(layout!, screenRect);
+      }
     }
-    if (display.visibleSize != null) {
-      width = display.visibleSize!.width;
-      height = display.visibleSize!.height;
-    }*/
+    logI('AppSkinSetting - monitor changed, rect: $monitorRect');
+  }
 
-    return Rect.fromLTWH(display.position.dx, display.position.dy,
-        display.size.width, display.size.height);
+  /// 将显示器绝对坐标换算为播放窗口内的相对坐标。
+  ///
+  /// 多屏拼接时窗口原点位于 [monitorRect] 左上角（可能是负坐标，例如副屏
+  /// 位于主屏左侧），而窗口内的分区、AH 消息等元素都以窗口左上角为原点。
+  Rect toCanvasRect(Rect rect) {
+    if (rect.isEmpty) return rect;
+    final origin = monitorRect.topLeft;
+    if (origin == Offset.zero) return rect;
+    return rect.shift(-origin);
+  }
+
+  double _scaleOf(Display display) {
+    final scale = display.scaleFactor;
+    return scale > 0 ? scale : 1.0;
+  }
+
+  /// 显示器在物理像素下的矩形。
+  Rect _physicalRect(Display display) {
+    final scale = _scaleOf(display);
+    return Rect.fromLTWH(display.position.dx * scale,
+        display.position.dy * scale, display.size.width * scale,
+        display.size.height * scale);
+  }
+
+  /// 把显示器矩形换算到当前画布坐标系（以 [_canvasScale] 为基准）。
+  Rect _canvasDisplayRect(Display display) {
+    final rect = _physicalRect(display);
+    final scale = _canvasScale > 0 ? _canvasScale : 1.0;
+    if (scale == 1.0) return rect;
+    return Rect.fromLTWH(rect.left / scale, rect.top / scale,
+        rect.width / scale, rect.height / scale);
+  }
+
+  /// 计算多显示器拼接画布（逻辑坐标）。
+  ///
+  /// 先按物理像素求并集，再除以并集左上角所在显示器的缩放比例。窗口的 DPI
+  /// 正是其左上角所在显示器的 DPI，这样窗口铺满后与物理桌面严格对齐；
+  /// 混合 DPI 时若直接对逻辑坐标求并集，窗口会短一截。
+  Rect _unionMonitorRect(List<Display> displays) {
+    if (displays.isEmpty) return Rect.zero;
+
+    Rect physical = _physicalRect(displays.first);
+    for (var i = 1; i < displays.length; i++) {
+      physical = physical.expandToInclude(_physicalRect(displays[i]));
+    }
+
+    var scale = displays.first.scaleFactor;
+    for (final display in displays) {
+      if (_physicalRect(display).contains(physical.topLeft)) {
+        scale = display.scaleFactor;
+        break;
+      }
+    }
+    _canvasScale = scale > 0 ? scale : 1.0;
+
+    return Rect.fromLTWH(physical.left / _canvasScale,
+        physical.top / _canvasScale, physical.width / _canvasScale,
+        physical.height / _canvasScale);
   }
 
   Rect _fitToSize(Size source, Rect target, [bool bOffset = false]) {

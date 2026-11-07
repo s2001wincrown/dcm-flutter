@@ -21,6 +21,7 @@ import 'package:dcm/backend/services/schedulelist_impl.dart';
 import 'package:dcm/backend/utils/extensions.dart';
 import 'package:dcm/backend/utils/file_utils.dart';
 import 'package:dcm/backend/utils/log_utils.dart';
+import 'package:dcm/backend/utils/multi_screen_service.dart';
 import 'package:dcm/backend/utils/platform_utils.dart';
 import 'package:dcm/backend/utils/string_utils.dart';
 import 'package:dcm/backend/utils/time_utils.dart';
@@ -43,6 +44,7 @@ class PlayerScreenProvider extends ChangeNotifier {
 
   PlayerScreenProvider() {
     _instance = this;
+    _watchDisplayChanges();
   }
 
   int currentShowIndex = 0;
@@ -61,6 +63,14 @@ class PlayerScreenProvider extends ChangeNotifier {
   bool _bIsSound = false;
   //Render rect
   Rect _rectPlayer = const Rect.fromLTWH(0, 0, 1920, 1080);
+  //最近一次应用到窗口的矩形，避免重复设置导致窗口抖动
+  Rect _appliedWindowRect = Rect.zero;
+
+  //显示器热插拔监听
+  int? _displayListenerId;
+  StreamSubscription<MultiScreenEvent>? _displayEventSub;
+  Timer? _displayChangeDebounce;
+  String _displaySignature = '';
 
   int _nSerialControl = 0;
 
@@ -2195,6 +2205,12 @@ class PlayerScreenProvider extends ChangeNotifier {
       if (!_bIsSameSkin) {
         loadSkinSetting();
         reCalcPlayerRect();
+      } else {
+        // 皮肤未变，但窗口可能被其它界面（设置/悬浮窗）改过尺寸，
+        // 这里重新贴合一次多屏拼接矩形。
+        _changeWindowSize(playSkin.monitorRect);
+        _getClientRect();
+        reCalcPlayerRect();
       }
       String strCompany = ScheduleList().getCurrCompany();
       playMusic(strCompany);
@@ -2268,35 +2284,110 @@ class PlayerScreenProvider extends ChangeNotifier {
     return true;
   }
 
+  /// 监听显示器配置变化：桌面用 nativeapi 事件，Android 用原生通道事件。
+  void _watchDisplayChanges() {
+    _displaySignature = _currentDisplaySignature();
+    if (PlatformUtils.isDesktop) {
+      try {
+        _displayListenerId = DisplayManager.instance.addListener((event) {
+          _onDisplayConfigChanged();
+        });
+        logI('PlayerScreenProvider - display listener registered');
+      } catch (error) {
+        logW('PlayerScreenProvider - watch displays failed: $error');
+      }
+    } else if (PlatformUtils.isAndroid) {
+      _displayEventSub ??=
+          MultiScreenService.instance.onDisplaysChanged.listen((event) {
+        _onDisplayConfigChanged();
+      });
+    }
+  }
+
+  /// 当前显示器拓扑签名，用于过滤“事件已到达但配置未变”的重复通知。
+  String _currentDisplaySignature() {
+    try {
+      if (PlatformUtils.isAndroid) {
+        // 每个引擎只关心自己那块屏，避免其它屏插拔时打断本屏播放。
+        final service = MultiScreenService.instance;
+        final display =
+            service.displayAt(AppGlobal.output) ?? service.primary;
+        if (display == null) return '';
+        return '${display.displayId}:'
+            '${display.size.width.toInt()}x'
+            '${display.size.height.toInt()}@${display.rotation}';
+      }
+      if (PlatformUtils.isDesktop) {
+        final parts = DisplayManager.instance
+            .getAll()
+            .map((display) => '${display.id}:'
+                '${display.position.dx},${display.position.dy}:'
+                '${display.size.width.toInt()}x'
+                '${display.size.height.toInt()}@${display.scaleFactor}')
+            .toList()
+          ..sort();
+        return parts.join('|');
+      }
+    } catch (error) {
+      logW('PlayerScreenProvider - read display info failed: $error');
+    }
+    return '';
+  }
+
+  /// Windows 在热插拔/DPI 切换时会连续抛出多个事件，这里做一次防抖。
+  void _onDisplayConfigChanged() {
+    _displayChangeDebounce?.cancel();
+    _displayChangeDebounce =
+        Timer(const Duration(milliseconds: 800), _applyDisplayChange);
+  }
+
+  void _applyDisplayChange() {
+    final signature = _currentDisplaySignature();
+    if (signature.isEmpty || signature == _displaySignature) return;
+    _displaySignature = signature;
+    _bDisplayChanged = true;
+    _bIsSameSkin = false;
+    logI('PlayerScreenProvider - display configuration changed: $signature');
+    try {
+      playSkin.refreshMonitorRect();
+      _changeWindowSize(playSkin.monitorRect);
+      _getClientRect();
+      reCalcPlayerRect();
+    } catch (error, stackTrace) {
+      logE('PlayerScreenProvider - apply display change failed', error,
+          stackTrace);
+    }
+    // 窗口尺寸已即时生效，分区布局交给播放循环重新加载皮肤后刷新。
+    _bNeedRefresh = true;
+    notifyListeners();
+  }
+
   void loadSkinSetting() {
     //SetWindowRgn(null, true);
 
     playSkin.loadFromCatalogue(ScheduleList().getCatalogue());
 
     //ShowScreenFrame(true);
-    if (!_bIsSameSkin) {
-      _changeWindowSize(playSkin.monitorRect);
-    }
+    _changeWindowSize(playSkin.monitorRect);
     _getClientRect();
   }
 
   void _changeWindowSize(Rect rectMonitor) {
+    if (!PlatformUtils.isDesktop) return;
     if (rectMonitor.isEmpty) return;
-    /* MoveWindow(rectMonitor);
-      SetWindowPos(
-          null,
-          rectMonitor.left,
-          rectMonitor.top,
-          rectMonitor.Width(),
-          rectMonitor.Height(),
-          SWP_NOACTIVATE | SWP_NOREPOSITION); //SWP_NOMOVE |*/
+    if (rectMonitor == _appliedWindowRect) return;
 
     final window = WindowManager.instance.getCurrent();
-    if (window != null) {
-      logD('PlayerScreenProvider - _changeWindowSize: $rectMonitor');
-      //window.setPosition(rectMonitor.left, rectMonitor.top);
-      //window.setSize(rectMonitor.width, rectMonitor.height);
+    if (window == null) {
+      logE('PlayerScreenProvider - _changeWindowSize: current window not found');
+      return;
     }
+
+    // 多屏拼接时 monitorRect 是多个显示器的并集，可能包含负坐标
+    // （副屏位于主屏左侧/上方），必须位置与尺寸一起应用，否则窗口只会停留在主屏。
+    logD('PlayerScreenProvider - _changeWindowSize: $rectMonitor');
+    window.bounds = rectMonitor;
+    _appliedWindowRect = rectMonitor;
   }
 
   void _getClientRect() async {
@@ -2417,6 +2508,18 @@ class PlayerScreenProvider extends ChangeNotifier {
     _playingTimer?.cancel();
     _timer = null;
     _playingTimer = null;
+    _displayChangeDebounce?.cancel();
+    _displayChangeDebounce = null;
+    _displayEventSub?.cancel();
+    _displayEventSub = null;
+    if (_displayListenerId != null) {
+      try {
+        DisplayManager.instance.removeListener(_displayListenerId!);
+      } catch (error) {
+        logW('PlayerScreenProvider - remove display listener failed: $error');
+      }
+      _displayListenerId = null;
+    }
     deleteZoneThread(0);
 
     super.dispose();

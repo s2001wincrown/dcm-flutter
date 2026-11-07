@@ -90,6 +90,22 @@ class TransferActionService {
       for (var iter in _fileListImpl.fileList) {
         FileInfoData pData = iter;
         if (pData.fileStatus == FileItemStatus.download) {
+          if (pData.nContentType != cDCMPREDATATYPE) {
+            String? strLocalExisted = await FileUtils.resolveExistingPath(
+                await PlayerPathService.getLocalPath(pData.nContentType),
+                pData.strDestFile);
+            if (strLocalExisted != null) {
+              BigInt nLocalSize = await FileUtils.getFileSize(strLocalExisted);
+              if (pData.ignoreFileSize() || pData.dwFileSize == nLocalSize) {
+                PlayerLogFile.nTotalBytesDownloaded += nLocalSize;
+                logI(
+                    '''File '$strLocalExisted' already exists; skip download.''',
+                    syncTag);
+                continue;
+              }
+            }
+          }
+
           String strRemotePath = '/';
           String strDestFile = pData.strDestFile;
           strDestFile = FileUtils.fixPathSeparators(strDestFile);

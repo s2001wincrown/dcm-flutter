@@ -430,6 +430,24 @@ class PlayerPathService {
             }
 
             if (pData.nContentType == _tempFiles[i].nContentType) {
+              if (!await File(pData.strTempPath!).exists()) {
+                String? strDestExisted = await FileUtils.resolveExistingPath(
+                    p.dirname(pData.strDestPath!),
+                    p.basename(pData.strDestPath!));
+                if (strDestExisted != null) {
+                  BigInt nDestSize =
+                      await FileUtils.getFileSize(strDestExisted);
+                  if (pData.ignoreFileSize() ||
+                      pData.dwFileSize == nDestSize) {
+                    logI(
+                        '''File '$strDestExisted' already exists; skip copy.''',
+                        syncTag);
+                    _lstFileInfo.removeAt(j);
+                    continue;
+                  }
+                }
+              }
+
               if (!await copyTempFile(pData.strTempPath!, pData.strDestPath!)) {
                 logI(
                     '''Copy '${pData.strTempPath}' to '${pData.strDestPath}' failure''',

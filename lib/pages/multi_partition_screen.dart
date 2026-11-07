@@ -44,7 +44,11 @@ void _notifyContentSyncIsolateCommand(int nCmd, int ntype, [String? content]) {
 }
 
 class DigitalSignageApp extends StatelessWidget {
-  const DigitalSignageApp({Key? key}) : super(key: key);
+  const DigitalSignageApp({Key? key, this.playerOnly = false}) : super(key: key);
+
+  /// 次要显示器引擎直接进入播放界面，不显示初始设置页
+  /// （初始设置只由主引擎负责）。
+  final bool playerOnly;
 
   @override
   Widget build(BuildContext context) {
@@ -67,17 +71,19 @@ class DigitalSignageApp extends StatelessWidget {
       theme: ThemeData(
         primarySwatch: Colors.blue,
       ),
-      home: App().needsInitialSetup
-          ? InitialSetupPage(
-              onCompleted: (context) {
-                Navigator.of(context).pushReplacement(
-                  MaterialPageRoute(
-                    builder: (_) => const DigitalSignageScreen(),
-                  ),
-                );
-              },
-            )
-          : const DigitalSignageScreen(),
+      home: playerOnly
+          ? const DigitalSignageScreen()
+          : (App().needsInitialSetup
+              ? InitialSetupPage(
+                  onCompleted: (context) {
+                    Navigator.of(context).pushReplacement(
+                      MaterialPageRoute(
+                        builder: (_) => const DigitalSignageScreen(),
+                      ),
+                    );
+                  },
+                )
+              : const DigitalSignageScreen()),
     );
   }
 }
@@ -119,12 +125,17 @@ class _DigitalSignageScreenState extends State<DigitalSignageScreen> {
   bool _isCheckingRemovableStorage = false;
   Set<String> _knownRemovableStoragePaths = {};
 
+  /// 只有主输出（主引擎）负责系统级操作：沉浸模式、U 盘导入、菜单与退出。
+  bool get _isPrimaryOutput => AppGlobal.output == 0;
+
   @override
   void initState() {
     super.initState();
-    _hideSystemUI();
+    if (_isPrimaryOutput) {
+      _hideSystemUI();
+      _startRemovableStorageMonitoring();
+    }
     DigitalSignageScreen.refresh = () => setState(() => _forceRebuild = true);
-    _startRemovableStorageMonitoring();
     // Preload uses `context` (e.g. `precacheImage`), so run it after
     // the first frame to avoid accessing InheritedWidgets during initState.
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -399,6 +410,11 @@ class _DigitalSignageScreenState extends State<DigitalSignageScreen> {
       return;
     }
 
+    // 次要输出不提供设置/退出菜单，避免多个引擎同时操作配置。
+    if (!_isPrimaryOutput) {
+      return;
+    }
+
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
 
     final now = DateTime.now();
@@ -417,6 +433,9 @@ class _DigitalSignageScreenState extends State<DigitalSignageScreen> {
   }
 
   void _handleKeyEvent(KeyEvent event) {
+    if (!_isPrimaryOutput) {
+      return;
+    }
     if (event is KeyDownEvent &&
         event.logicalKey == LogicalKeyboardKey.escape) {
       _exitApplication();
@@ -436,7 +455,9 @@ class _DigitalSignageScreenState extends State<DigitalSignageScreen> {
     _menuTimer?.cancel();
     _removableStorageTimer?.cancel();
     _focusNode.dispose();
-    workerManager.dispose();
+    if (_isPrimaryOutput) {
+      workerManager.dispose();
+    }
     super.dispose();
   }
 

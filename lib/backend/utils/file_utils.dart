@@ -389,6 +389,54 @@ class FileUtils {
     return BigInt.zero;
   }
 
+  static final Map<String, Map<String, String>> _dirEntryCache = {};
+
+  /// 清空目录缓存。每次同步检查开始前调用，避免下载/拷贝后缓存过期。
+  static void clearPathCache() {
+    _dirEntryCache.clear();
+  }
+
+  static Future<Map<String, String>> _listDir(String dirPath) async {
+    final cached = _dirEntryCache[dirPath];
+    if (cached != null) return cached;
+
+    final entries = <String, String>{};
+    final dir = Directory(dirPath);
+    if (await dir.exists()) {
+      await for (final entity in dir.list(followLinks: false)) {
+        final name = path.basename(entity.path);
+        entries.putIfAbsent(name.toLowerCase(), () => name);
+      }
+    }
+    _dirEntryCache[dirPath] = entries;
+    return entries;
+  }
+
+  /// 在 [baseDir] 下按相对路径查找已存在的文件。
+  /// 兼容 CMS 下发的 Windows 分隔符以及 Android 大小写敏感文件系统。
+  static Future<String?> resolveExistingPath(
+      String baseDir, String relativePath) async {
+    if (baseDir.isEmpty || relativePath.isEmpty) return null;
+
+    final normalized = fixPathSeparators(relativePath);
+    final direct = path.join(baseDir, normalized);
+    if (await File(direct).exists()) return direct;
+
+    final segments = normalized
+        .split('/')
+        .where((s) => s.isNotEmpty && s != '.')
+        .toList(growable: false);
+    String current = baseDir;
+    for (final segment in segments) {
+      final entries = await _listDir(current);
+      final matched = entries[segment.toLowerCase()];
+      if (matched == null) return null;
+      current = path.join(current, matched);
+    }
+
+    return await File(current).exists() ? current : null;
+  }
+
   /// Creates the directory if it doesn't exist.
   static Future<bool> fileExists(String? path) async {
     if (path == null || path.isEmpty) return false;

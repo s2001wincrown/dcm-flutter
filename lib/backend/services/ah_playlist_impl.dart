@@ -501,6 +501,10 @@ class AHMessageList {
   Future<bool> loadMessage(String message) async {
     int nOutput = (fLOBYTE(output) == cBYTEMAX) ? -1 : fLOBYTE(output);
     Rect rectMonitor = await playSkin.getMonitorRect(nOutput);
+    if (nOutput > -1) {
+      // 拼接模式下窗口原点在显示器并集左上角，需换算成窗口内坐标
+      rectMonitor = playSkin.toCanvasRect(rectMonitor);
+    }
     logI(
         '''CAHMessageList::LoadMessage:'$message' Output:'$output'; rect:'${rectMonitor.toString()}'.''');
     try {

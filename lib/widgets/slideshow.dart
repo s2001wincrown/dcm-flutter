@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:math';
 
 import 'package:dcm/backend/constants.dart';
 import 'package:dcm/backend/models/slideshow_data.dart';
@@ -7,9 +8,9 @@ import 'package:dcm/backend/utils/extensions.dart';
 import 'package:dcm/backend/utils/log_utils.dart';
 import 'package:dcm/backend/utils/utils.dart';
 import 'package:dcm/backend/xml_settings/xml_multi_image_setting.dart';
+import 'package:dcm/widgets/slideshow_transition.dart';
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as path;
-import 'package:transparent_image/transparent_image.dart';
 
 class Slideshow extends StatefulWidget {
   final String imageFile;
@@ -26,8 +27,12 @@ class Slideshow extends StatefulWidget {
   State<Slideshow> createState() => _SlideshowState();
 }
 
-class _SlideshowState extends State<Slideshow> {
+class _SlideshowState extends State<Slideshow> with SingleTickerProviderStateMixin {
   int _currentIndex = 0;
+  int? _previousIndex;
+  SlideshowEffect _effect = SlideshowEffect.none;
+  final Random _random = Random();
+  late final AnimationController _transitionController;
   bool shouldExit = false;
   Timer? _timer;
   SlideShowData? _slideShowData;
@@ -36,6 +41,17 @@ class _SlideshowState extends State<Slideshow> {
   @override
   void initState() {
     super.initState();
+    _transitionController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 500),
+    );
+    _transitionController.addStatusListener((status) {
+      if (status == AnimationStatus.completed && mounted) {
+        setState(() {
+          _previousIndex = null;
+        });
+      }
+    });
     if (widget.imageFile.isNotEmpty) {
       _startSlideshow();
     }
@@ -72,11 +88,18 @@ class _SlideshowState extends State<Slideshow> {
           await Future.delayed(
               Duration(milliseconds: getImageDuration(_currentIndex)));
           if (shouldExit) break;
+          final nextIndex = (_currentIndex + 1) % imageUrls.length;
+          final effect = _resolveEffect(nextIndex);
           setState(() {
-            _currentIndex = (_currentIndex + 1) % imageUrls.length;
+            _previousIndex = _currentIndex;
+            _currentIndex = nextIndex;
+            _effect = effect;
             logD(
                 '''Slideshow - _currentIndex: $_currentIndex, images: "${imageUrls[_currentIndex]}".''');
           });
+          if (effect != SlideshowEffect.none) {
+            _transitionController.forward(from: 0);
+          }
         }
       });
     } /*else {
@@ -95,6 +118,28 @@ class _SlideshowState extends State<Slideshow> {
     }
 
     return 8000;
+  }
+
+  /// 根据 arrTransition 解析当前切换要使用的过渡效果。
+  SlideshowEffect _resolveEffect(int nIndex) {
+    final transitions = _slideShowData?.arrTransition;
+    if (transitions == null || transitions.isEmpty) {
+      return SlideshowEffect.none;
+    }
+
+    String value;
+    if (_slideShowData!.bRandomTransition) {
+      value = transitions[_random.nextInt(transitions.length)];
+    } else if (nIndex < transitions.length) {
+      value = transitions[nIndex];
+    } else {
+      value = transitions.last;
+    }
+
+    if (value.trim().isEmpty) {
+      return SlideshowEffect.fade;
+    }
+    return slideshowEffectFromString(value);
   }
 
   void parser(String filePath) {
@@ -148,6 +193,7 @@ class _SlideshowState extends State<Slideshow> {
   void dispose() {
     shouldExit = true;
     _timer?.cancel();
+    _transitionController.dispose();
     super.dispose();
   }
 
@@ -181,25 +227,42 @@ class _SlideshowState extends State<Slideshow> {
       }
     }
 
+    final fit = (_slideShowData != null && _slideShowData!.bAspectRatio)
+        ? BoxFit.contain
+        : BoxFit.fill;
+    final bool showTransition = _previousIndex != null &&
+        _previousIndex! < imageUrls.length &&
+        _effect != SlideshowEffect.none;
+
     return ClipRRect(
       borderRadius: BorderRadius.zero,
-      child: FadeInImage(
-        placeholder: Image.memory(kTransparentImage).image,
-        image: FileImage(File(imageUrls[_currentIndex])),
-        fit: (_slideShowData != null && _slideShowData!.bAspectRatio)
-            ? BoxFit.contain
-            : BoxFit.fill,
+      child: SizedBox(
         width: widget.rect.width,
         height: widget.rect.height,
-        imageErrorBuilder: (context, error, stackTrace) {
-          logE(
-              '''Slideshow - show image file: "${imageUrls[_currentIndex]}" failed, error: $error, stackTrace: $stackTrace.''');
-          return Container(
-            color: _slideShowData != null
-                ? Utils.fromRGB(_slideShowData!.crBGColor)
-                : Colors.black,
-          );
-        },
+        child: showTransition
+            ? SlideshowTransition(
+                oldImagePath: imageUrls[_previousIndex!],
+                newImagePath: imageUrls[_currentIndex],
+                effect: _effect,
+                animation: _transitionController,
+                fit: fit,
+              )
+            : Image.file(
+                File(imageUrls[_currentIndex]),
+                fit: fit,
+                width: widget.rect.width,
+                height: widget.rect.height,
+                gaplessPlayback: true,
+                errorBuilder: (context, error, stackTrace) {
+                  logE(
+                      '''Slideshow - show image file: "${imageUrls[_currentIndex]}" failed, error: $error, stackTrace: $stackTrace.''');
+                  return Container(
+                    color: _slideShowData != null
+                        ? Utils.fromRGB(_slideShowData!.crBGColor)
+                        : Colors.black,
+                  );
+                },
+              ),
       ),
     );
   }

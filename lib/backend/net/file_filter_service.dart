@@ -215,29 +215,37 @@ class FileFilterService {
   }
 
   /// 过滤已下载的文件 (对应 FilterDownloadedFile)
-  /// 注意：在 Flutter 中，检查文件是否存在需要异步 IO
+  /// 先检查正式目录，再检查临时目录；兼容路径分隔符与大小写差异
   Future<void> filterDownloadedFile() async {
+    FileUtils.clearPathCache();
     for (int i = _lstFileInfo.length - 1; i >= 0; i--) {
       FileInfoData pFileInfo = _lstFileInfo[i];
-      String strShortPath = pFileInfo.strDestFile;
-      strShortPath = FileUtils.fixPathSeparators(strShortPath);
-      String strDest = path.join(
-          await PlayerPathService.getLocalPath(pFileInfo.nContentType, true),
-          strShortPath); //pData.strShortPath
-      if (isBlank(pFileInfo.strMD5)) {
-        var nFileSize = await FileUtils.getFileSize(strDest);
-        if (!pFileInfo.ignoreFileSize() && pFileInfo.dwFileSize == nFileSize) {
-          PlayerLogFile.nTotalBytesDownloaded += nFileSize;
-          _lstFileInfo.removeAt(i);
-        }
-      } else {
-        var md5Result =
-            await PlayerPathService.validHashData(strDest, pFileInfo);
-        if (md5Result.status) {
-          PlayerLogFile.nTotalBytesDownloaded += pFileInfo.getFileSize();
 
-          _lstFileInfo.removeAt(i);
-        }
+      String? strDest;
+      for (bool isTemp in [false, true]) {
+        strDest = await FileUtils.resolveExistingPath(
+            await PlayerPathService.getLocalPath(pFileInfo.nContentType, isTemp),
+            pFileInfo.strDestFile);
+        if (strDest != null) break;
+      }
+
+      if (strDest == null) continue;
+
+      bool downloaded;
+      if (isNotBlank(pFileInfo.strMD5) &&
+          (AppGlobal.globalSetting & settingCHECKSUM) > 0) {
+        downloaded =
+            (await PlayerPathService.validHashData(strDest, pFileInfo)).status;
+      } else {
+        BigInt nFileSize = await FileUtils.getFileSize(strDest);
+        downloaded = pFileInfo.ignoreFileSize() ||
+            pFileInfo.dwFileSize == nFileSize;
+      }
+
+      if (downloaded) {
+        PlayerLogFile.nTotalBytesDownloaded +=
+            await FileUtils.getFileSize(strDest);
+        _lstFileInfo.removeAt(i);
       }
     }
   }

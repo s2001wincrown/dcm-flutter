@@ -14,6 +14,7 @@ import 'package:dcm/backend/services/http_management_server.dart';
 import 'package:dcm/backend/services/schedulelist_impl.dart';
 import 'package:dcm/backend/utils/l10n_utils.dart';
 import 'package:dcm/backend/utils/log_utils.dart';
+import 'package:dcm/backend/utils/multi_screen_service.dart';
 import 'package:dcm/backend/utils/platform_utils.dart';
 import 'package:dcm/backend/utils/string_utils.dart';
 import 'package:dcm/backend/utils/utils.dart';
@@ -100,6 +101,7 @@ void main(List<String> arguments) async {
 
   if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
     await InAppWebViewController.setWebContentsDebuggingEnabled(kDebugMode);
+    await MultiScreenService.instance.init();
   }
 
   // On desktop, initialize window_manager and force fullscreen on primary display
@@ -108,8 +110,14 @@ void main(List<String> arguments) async {
     const displayManager = display_manager.DisplayManager.instance;
     final primaryDisplay = displayManager.getPrimary();
     //final primaryDisplay = await screenRetriever.getPrimaryDisplay();
+    var primaryRect = Rect.fromLTWH(
+        0, 0, primaryDisplaySize.width, primaryDisplaySize.height);
     if (primaryDisplay != null) {
       primaryDisplaySize = primaryDisplay.size;
+      // 起点取显示器实际坐标，避免主屏不在原点时窗口落错位置
+      primaryRect = Rect.fromLTWH(primaryDisplay.position.dx,
+          primaryDisplay.position.dy, primaryDisplay.size.width,
+          primaryDisplay.size.height);
     }
     logD(
         'main - uniqueKey: ${App().uniqueKey}, windowSize: ${primaryDisplaySize.width * windowManager.getDevicePixelRatio()}x${primaryDisplaySize.height * windowManager.getDevicePixelRatio()}, DevicePixelRatio: ${windowManager.getDevicePixelRatio()}');
@@ -127,8 +135,7 @@ void main(List<String> arguments) async {
       //await windowManager.setFullScreen(true);
       //await windowManager.setAlwaysOnTop(true);
       await windowManager.setAsFrameless();
-      await windowManager.setBounds(Rect.fromLTWH(
-          0, 0, primaryDisplaySize.width, primaryDisplaySize.height));
+      await windowManager.setBounds(primaryRect);
       await windowManager.show();
       await windowManager.focus();
       DigitalSignageScreen.refresh?.call();
@@ -182,4 +189,40 @@ void main(List<String> arguments) async {
     ),
   );
   AppWatchdog.startUiHeartbeat();
+}
+
+/// 次要显示器（Android Presentation）渲染入口。
+///
+/// 原生 [SecondaryDisplayController] 会为每块扩展屏创建独立的 Flutter 引擎，
+/// 并以该屏对应的输出序号作为参数调用本入口。这里只初始化播放所需的本地
+/// 状态，不再启动 HTTP 服务、内容同步、看门狗等与进程级资源相关的组件，
+/// 避免与主引擎重复。
+@pragma('vm:entry-point')
+void multiScreenMain(List<String> arguments) async {
+  WidgetsFlutterBinding.ensureInitialized();
+  MediaKit.ensureInitialized();
+
+  final output = arguments.isEmpty ? 1 : (int.tryParse(arguments.first) ?? 1);
+  AppGlobal.output = output;
+
+  await App().init();
+  logI('multiScreenMain - start secondary display, output: $output');
+
+  // 每个引擎都需要自己的显示器枚举通道，用于按输出序号确定画布尺寸。
+  if (PlatformUtils.isAndroid) {
+    await MultiScreenService.instance.init();
+  }
+  await L10n.init();
+  await ScheduleList().messageList.loadAHList();
+  ScheduleList().loadSchedule();
+  await ScreenUtil.ensureScreenSize();
+
+  runApp(
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => PlayerScreenProvider()),
+      ],
+      child: const DigitalSignageApp(playerOnly: true),
+    ),
+  );
 }

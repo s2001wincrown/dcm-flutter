@@ -191,6 +191,7 @@ class FileReplaceService {
   }
 
   Future<bool> loadFileInfo([String fileListName = 'FileList.xml']) async {
+    FileUtils.clearPathCache();
     return serialize(fileListName, false);
   }
 
@@ -204,17 +205,17 @@ class FileReplaceService {
 
   /// Corresponds to IsLocalFileExists
   Future<bool> _isLocalFileExists(FileInfoData pFileInfo) async {
-    String strDest = p.join(
+    String? strDest = await FileUtils.resolveExistingPath(
         await PlayerPathService.getLocalPath(pFileInfo.nContentType),
         pFileInfo.strDestFile);
-    if (await File(strDest).exists()) {
+    if (strDest != null) {
       pFileInfo.fileStatus = FileItemStatus.normal;
       return true;
     } else {
-      strDest = p.join(
+      strDest = await FileUtils.resolveExistingPath(
           await PlayerPathService.getLocalPath(pFileInfo.nContentType, true),
           pFileInfo.strDestFile);
-      if (await File(strDest).exists()) {
+      if (strDest != null) {
         pFileInfo.fileStatus = FileItemStatus.temporary;
         return true;
       }
@@ -395,15 +396,20 @@ class FileReplaceService {
       if (pServer.strMD5!.equalsIgnoreCase(pLocal.strMD5)) {
         return false;
       }
-    } else {
-      if (pLocal.tmFileModify == pServer.tmFileModify &&
-          (pLocal.dwFileSize == pServer.dwFileSize ||
-              pServer.ignoreFileSize())) {
-        return false;
-      }
+      return true;
     }
 
-    return true;
+    final sizeSame = pLocal.dwFileSize == pServer.dwFileSize ||
+        pServer.ignoreFileSize();
+    if (!sizeSame) return true;
+
+    final serverTime = pServer.tmFileModify;
+    final localTime = pLocal.tmFileModify;
+    // 时间缺失时以文件大小为准，避免每次同步都被判为已修改
+    if (serverTime == null || localTime == null) return false;
+
+    // 不同平台/服务器的时间精度不一致（秒级、2 秒 FAT 粒度等），允许 2 秒误差
+    return serverTime.difference(localTime).inSeconds.abs() > 2;
   }
 
   List<FileInfoData> get fileList => _lstFileInfo;
