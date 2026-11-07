@@ -377,10 +377,11 @@ packages:
   flutter_libserialport:
     dependency: "direct main"
     description:
-      path: local_flutter_libserialport
-      relative: true
-    source: path
-    version: "0.5.0"
+      name: flutter_libserialport
+      sha256: f24b5fe6f1821d1c1b3bf2be737ca53f6b0ae78657032a790aa00abb810c8759
+      url: "https://pub.flutter-io.cn"
+    source: hosted
+    version: "0.6.0"
   flutter_lints:
     dependency: "direct dev"
     description:

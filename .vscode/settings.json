@@ -1,4 +1,5 @@
 {
     "editor.formatOnSave": true,
-    "cmake.sourceDirectory": "D:/DCM/dcm-flutter/dcm-main/linux",
+    "cmake.sourceDirectory": "${workspaceFolder}/windows",
+    "cmake.buildDirectory": "${workspaceFolder}/build/windows",
 }
