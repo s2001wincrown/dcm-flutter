@@ -15,7 +15,23 @@ class HttpManagementSettingsPage extends StatefulWidget {
 class _HttpManagementSettingsPageState
     extends State<HttpManagementSettingsPage> {
   bool _obscureToken = true;
+  bool _obscurePassword = true;
   bool _saving = false;
+  late final TextEditingController _passwordController;
+
+  @override
+  void initState() {
+    super.initState();
+    _passwordController = TextEditingController(
+      text: App().settings.httpManagementPassword,
+    );
+  }
+
+  @override
+  void dispose() {
+    _passwordController.dispose();
+    super.dispose();
+  }
 
   Future<void> _rotateToken() async {
     setState(() => _saving = true);
@@ -32,6 +48,36 @@ class _HttpManagementSettingsPageState
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('保存管理令牌失败：$error')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  Future<void> _savePassword() async {
+    if (_passwordController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('管理密码不能为空')),
+      );
+      return;
+    }
+
+    setState(() => _saving = true);
+    final previousPassword = App().settings.httpManagementPassword;
+    try {
+      App().settings.httpManagementPassword = _passwordController.text;
+      await App().saveSettings();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('管理密码已更新')),
+        );
+      }
+    } catch (error) {
+      App().settings.httpManagementPassword = previousPassword;
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('保存管理密码失败：$error')),
         );
       }
     } finally {
@@ -63,7 +109,7 @@ class _HttpManagementSettingsPageState
         ),
         const SizedBox(height: 8),
         const Text(
-          '在同一网络的浏览器中打开以下地址。所有管理 API 均要求使用管理令牌认证；请勿将令牌分享给不受信任的用户。',
+          '在同一网络的浏览器中打开以下地址。管理 API 可使用管理令牌或管理密码认证；请勿将凭据分享给不受信任的用户。',
         ),
         const SizedBox(height: 20),
         FutureBuilder<List<String>>(
@@ -96,6 +142,30 @@ class _HttpManagementSettingsPageState
                 _obscureToken ? Icons.visibility : Icons.visibility_off,
               ),
             ),
+          ),
+        ),
+        const SizedBox(height: 12),
+        TextFormField(
+          controller: _passwordController,
+          obscureText: _obscurePassword,
+          decoration: InputDecoration(
+            labelText: '管理密码',
+            suffixIcon: IconButton(
+              tooltip: _obscurePassword ? '显示密码' : '隐藏密码',
+              onPressed: () =>
+                  setState(() => _obscurePassword = !_obscurePassword),
+              icon: Icon(
+                _obscurePassword ? Icons.visibility : Icons.visibility_off,
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+        Align(
+          alignment: Alignment.centerLeft,
+          child: OutlinedButton(
+            onPressed: _saving ? null : _savePassword,
+            child: const Text('保存管理密码'),
           ),
         ),
         const SizedBox(height: 12),

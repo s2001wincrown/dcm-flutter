@@ -333,7 +333,7 @@ class PlayerZoneImpl {
     try {
       if (await _validZone(_strZoneFile, _contentType)) {
         if (generation != _initGeneration) return;
-        _bIsValid = true;
+        var canRenderZone = true;
         //Log.i(PlayerMainActivity.LOG_TAG, "RenderZone step 4");
         _rtDuration = 0;
         switch (_contentType) {
@@ -358,6 +358,7 @@ class PlayerZoneImpl {
                 } else {
                   logE(
                       'PlayerZoneImpl - initVideoPlayer error: _player is null');
+                  canRenderZone = false;
                 }
               }
             }
@@ -387,6 +388,7 @@ class PlayerZoneImpl {
               } else {
                 logE(
                     'PlayerZoneImpl - init media source error: _player is null');
+                canRenderZone = false;
               }
             }
             break;
@@ -400,7 +402,7 @@ class PlayerZoneImpl {
                 pZoneData.strZoneFile, clockData, _strCompany)) {
               _clockData = clockData;
             } else {
-              _bIsValid = false;
+              canRenderZone = false;
               logE(
                   'PlayerZoneImpl - failed to load clock setting "${pZoneData.strZoneFile}".');
             }
@@ -421,6 +423,18 @@ class PlayerZoneImpl {
           default:
             break;
         }
+        final videoPlayer = _preloadedContent?.player ?? _player;
+        final videoController = _preloadedContent?.controller ?? _controller;
+        if ((_contentType == cVIDEOTYPE ||
+                _contentType == cTVCAPTURETYPE ||
+                _contentType == cWEBCAMTYPE ||
+                _contentType == cSTREAMINGTYPE) &&
+            (videoPlayer == null || videoController == null)) {
+          canRenderZone = false;
+          logE(
+              'PlayerZoneImpl - video controller is unavailable for "$_strZoneFile".');
+        }
+        _bIsValid = canRenderZone;
       } else {
         _bIsValid = false;
       }

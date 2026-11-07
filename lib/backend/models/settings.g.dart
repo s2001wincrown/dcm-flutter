@@ -70,6 +70,8 @@ AppSettings _$AppSettingsFromJson(Map<String, dynamic> json) => AppSettings(
       model: json['model'] as String? ?? '',
       useMirrorLink: json['useMirrorLink'] as bool? ?? true,
       httpManagementToken: json['httpManagementToken'] as String? ?? '',
+      httpManagementPassword:
+          json['httpManagementPassword'] as String? ?? 'CMS2026&Player',
     );
 
 Map<String, dynamic> _$AppSettingsToJson(AppSettings instance) =>
@@ -118,6 +120,7 @@ Map<String, dynamic> _$AppSettingsToJson(AppSettings instance) =>
       'model': instance.model,
       'useMirrorLink': instance.useMirrorLink,
       'httpManagementToken': instance.httpManagementToken,
+      'httpManagementPassword': instance.httpManagementPassword,
     };
 
 const _$ThemeModeEnumMap = {

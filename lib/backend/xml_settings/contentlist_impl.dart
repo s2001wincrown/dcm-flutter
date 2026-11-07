@@ -43,7 +43,13 @@ class ContentListImpl {
 
   // 加载内容列表
   MessageData? loadContentList(String strContentList) {
-    String fileName = path.join(strContentListPath, '$strContentList.xml');
+    String fileName = strContentList;
+    if (path.extension(fileName).toLowerCase() != '.xml') {
+      fileName = '$fileName.xml';
+    }
+    if (!path.isAbsolute(fileName)) {
+      fileName = path.join(strContentListPath, fileName);
+    }
     return serializeFrom(fileName);
   }
 

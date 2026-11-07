@@ -13,6 +13,7 @@ import 'package:dcm/backend/services/ah_message_impl.dart';
 import 'package:dcm/backend/services/ah_playlist_impl.dart';
 import 'package:dcm/backend/services/app_skin_impl.dart';
 import 'package:dcm/backend/services/channel_schedule_impl.dart';
+import 'package:dcm/backend/services/content_file_impl.dart';
 import 'package:dcm/backend/services/floating_player_impl.dart';
 import 'package:dcm/backend/services/player_publish.dart';
 import 'package:dcm/backend/services/player_zone_impl.dart';
@@ -34,6 +35,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:intl/intl.dart';
 import 'package:nativeapi/nativeapi.dart';
 import 'package:path/path.dart' as path;
+import 'package:worker_manager/worker_manager.dart';
 
 class PlayerScreenProvider extends ChangeNotifier {
   static PlayerScreenProvider? _instance;
@@ -82,6 +84,7 @@ class PlayerScreenProvider extends ChangeNotifier {
   DateTime? _dwLatestUDP;
 
   int _needBackToSchedule = 0;
+  int? _pausedPlaylistProduct;
 
   bool _bReloadSchedule = false;
   bool _bIsTimeForRefresh = false;
@@ -546,11 +549,6 @@ class PlayerScreenProvider extends ChangeNotifier {
             pThread0.setFirstFinished();
           }
         } else {
-          if (nFinish == PlayFinish.eCONTENTSTARTING) {
-            logD(
-                'PlayerScreenProvider - zoneThreadCheck, Zone: ${pThread0.getZone()}, rtPos: $rtPos, rtCurrPos1: $rtCurrPos1, pfResult: ${pfResult.status} - ${pfResult.nFinish}.');
-            _needNotifyListeners = true;
-          }
           if (nFinish == PlayFinish.eCONTENTFINISH) {
             logD(
                 'PlayerScreenProvider - zoneThreadCheck, Zone: ${pThread0.getZone()}, rtPos: $rtPos, rtCurrPos1: $rtCurrPos1, pfResult: ${pfResult.status} - ${pfResult.nFinish}.');
@@ -638,6 +636,12 @@ class PlayerScreenProvider extends ChangeNotifier {
 
   void resumePlaylist() {
     if (_bIsPause) {
+      final pausedProduct = _pausedPlaylistProduct;
+      if (pausedProduct != null) {
+        ScheduleList().setPlayProduct(pausedProduct);
+        _nCurrProduct = pausedProduct;
+        _pausedPlaylistProduct = null;
+      }
       _needBackToSchedule = 1;
       _bIsPause = false;
     }
@@ -645,6 +649,7 @@ class PlayerScreenProvider extends ChangeNotifier {
 
   void tryStopPlaylist([int nOutput = -1]) {
     if (ScheduleList().messageList.isStopPlaylist(nOutput)) {
+      _pausedPlaylistProduct ??= ScheduleList().getPlayProduct();
       _bIsPause = true;
     }
   }
@@ -2838,13 +2843,36 @@ class PlayerScreenProvider extends ChangeNotifier {
 
   void processContentTaskNotice([int nTask = 3]) {
     logI('Starting Content Clean or Log Thread!!!');
-    //todo content cleaner
-    /*try {
-      ContentCleaner.Stop();
-      ContentCleaner.SetNotifyWnd(this.GetSafeHwnd());
-      ContentCleaner.SetTask(nTask);
-      ContentCleaner.Start();
-    }catch(_){}*/
+    final workerConfig = AppGlobal.snapshot();
+    unawaited(() async {
+      try {
+        await workerManager.executeGentle((_) async {
+          AppGlobal.applyWorkerConfig(
+            openPath: workerConfig['openPath']?.toString(),
+            imagePath: workerConfig['imagePath']?.toString(),
+            vcdPath: workerConfig['vcdPath']?.toString(),
+            ppPath: workerConfig['ppPath']?.toString(),
+            flashPath: workerConfig['flashPath']?.toString(),
+            webPath: workerConfig['webPath']?.toString(),
+            textPath: workerConfig['textPath']?.toString(),
+            imageSettingPath: workerConfig['imageSettingPath']?.toString(),
+            clockPath: workerConfig['clockPath']?.toString(),
+            weatherPath: workerConfig['weatherPath']?.toString(),
+            dayPath: workerConfig['dayPath']?.toString(),
+            contentListPath: workerConfig['contentListPath']?.toString(),
+            linkagePath: workerConfig['linkagePath']?.toString(),
+            ddeDataPath: workerConfig['ddeDataPath']?.toString(),
+            ddeXmlPath: workerConfig['ddeXmlPath']?.toString(),
+            siteContentPath: workerConfig['siteContentPath']?.toString(),
+            roomEventPath: workerConfig['roomEventPath']?.toString(),
+            lobbyPath: workerConfig['lobbyPath']?.toString(),
+          );
+          await ContentFileImpl.empty().contentClearByCalendar();
+        });
+      } catch (error, stackTrace) {
+        logE('Content cleanup failed: $error', error, stackTrace);
+      }
+    }());
   }
 
   void processFormatNotice() {

@@ -1,0 +1,123 @@
+syntax = "proto3";
+
+package com.digitalsignage.protocol;
+
+option java_package = "com.digitalsignage.protocol";
+option java_outer_classname = "PlayerProtocol";
+
+// 映射 C++ 中的 PROTOCOLID
+enum ProtocolId {
+  option allow_alias = true;
+  PROTOCOL_UNSPECIFIED = 0;
+  PROTOCOL_ANY  = -1;
+  PROTOCOL_NULL = 0;
+  PROTOCOL_AH   = 1; 
+  PROTOCOL_QC   = 2; 
+  PROTOCOL_LM   = 3; 
+  PROTOCOL_CS   = 4; 
+}
+
+// 映射 C++ 中的 Net_Command (网络命令 ID)
+enum CommandType {
+  CMD_UNKNOWN = 0;
+  CMD_REQUEST_SYNC_TIME = 1;
+  CMD_REGISTER_UPDATE = 2;
+  CMD_REQUEST_DCM_CONTENT = 3;
+  CMD_DCM_CONTENT = 4;
+  CMD_AH_SENDER = 5;
+  CMD_AH_MESSAGE = 6;
+  CMD_EVENT_MESSAGE = 7;
+  CMD_PLAYER_STATUS = 8;
+  CMD_TRANSFER_STATUS = 9;
+  CMD_REGISTER = 10;
+  CMD_RESET_TASKS = 11;
+  CMD_RESET_SETTINGS = 12;
+  CMD_RESET_TRANSFER = 13;
+  CMD_WEATHER = 14;
+  CMD_CONTENT_LIST = 15;
+  CMD_MONITOR = 16;
+  CMD_RESET_DCM_PLAYER = 17;
+  CMD_RESET_HOST = 18;
+  CMD_SMS_CONTROL = 19;
+  CMD_SHUTDOWN = 20;
+  CMD_UNIQUE_NAME = 21;
+  CMD_CONNECTION = 22;
+  CMD_LIGHT_BOX = 23;
+  CMD_REFRESH = 24;
+  CMD_DISK_CLEAN = 25;
+  CMD_HEARTBEAT = 26;
+}
+
+// 统一消息包装器 (替代 C++ 的 Header_Struct)
+// WebSocket 自带帧边界，无需再定义 packetlength
+message MessageWrapper {
+  CommandType command = 1;      // 对应 C++ Header_Struct.command
+  ProtocolId protocol_id = 2;   // 对应 C++ Header_Struct.eDCMID
+  bytes payload = 3;            // 具体业务结构体的序列化数据
+  int64 timestamp = 4;          // 时间戳 (可选，用于调试和排序)
+}
+
+// 心跳消息
+message Heartbeat {
+  string playerId = 1;
+  string status = 2;            // "online", "idle", "playing"
+}
+
+// 映射 C++ DCM_Content (去掉了 hton/ntoh 和 定长数组)
+message DcmContent {
+  string file_path = 1;         // 替代 char file_path[100]
+  int32 pid = 2;                // 替代 long pid (32位)
+  bool all_content = 3;         // 替代 bool bAllContent
+  bool include_today = 4;       // 替代 bool bInludeToday
+  bool immediate = 5;           // 替代 bool bImm
+  string ftp_time = 6;          // 替代 char ftptime[20]
+  string timeout = 7;           // 替代 char timeout[5]
+  string start_ftp_time = 8;    // 替代 char startftptime[20]
+  int32 ftp_content = 9;        // 替代 long ftpcontent
+  int32 period = 10;            // 替代 long period
+  string task = 11;             // 替代 char task[15]
+  string validity = 12;         // 替代 char validity[20]
+  int32 retries = 13;           // 替代 long retries
+}
+
+// 映射 C++ Transfer_Status
+message TransferStatus {
+  int32 err_id = 1;             // 替代 int errID
+  string tf_status = 2;         // 替代 char tfStatus[256]
+}
+
+// 映射 C++ Player_Status
+message PlayerStatus {
+  string site_id = 1;           // 替代 char siteID[50]
+  uint32 status = 2;            // 替代 DWORD dwStatus
+  string tf_status = 3;         // 替代 char tfStatus[MAX_STATUS_SIZE]
+  uint32 ip = 4;                // 替代 unsigned int ip
+}
+
+// 映射 C++ Message_Info
+message MessageInfo {
+  int32 message_id = 1;         // 替代 long messageID
+  string message_name = 2;      // 替代 char messageName[50]
+  int32 status = 3;             // 替代 long status
+  string task = 4;              // 替代 char task[15]
+}
+
+// 映射 C++ DCM_Event_Info
+message DcmEventInfo {
+  int32 message_id = 1;
+  string message_name = 2;
+  uint32 ip = 3;
+  uint32 port = 4;
+  int32 status = 5;
+}
+
+// 映射 C++ AH_Sender
+message AhSender {
+  int32 message_id = 1;
+  string message_name = 2;
+  string start_time = 3;
+  string end_time = 4;
+  string create_time = 5;
+  int32 status = 6;
+  bool end_manual = 7;
+}

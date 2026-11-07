@@ -642,3 +642,70 @@ Read , lines 302 to 330
 相关实现见 MessageSyncService、ContentDownloader、ContentSyncService 和 消息文件目录映射。
 
 稳妥的方向是让两条链路共用一个下载协调器，或至少加跨服务的目标路径锁/去重。当前代码能保证各自队列内部串行，但**不能保证与 ContentSyncService 并发时同目标文件安全**。
+
+
+当前多屏输出架构分析
+分层现状
+
+Plain Text
+
+┌─────────────────────────────────────────────────────┐
+│ UI 层    DigitalSignageScreen (单 MaterialApp)        │
+│          └─ Stack + Positioned(partition.getRect())  │
+│             尺寸来源: playSkin.monitorRect / mq.size   │
+├─────────────────────────────────────────────────────┤
+│ 播放层   PlayerScreenProvider (全局单例)               │
+│          └─ 全局 zone 线程 + 全局 App().player         │
+├─────────────────────────────────────────────────────┤
+│ 布局层   playSkin (app_skin_impl.dart)                │
+│          ├─ monitorRect + outputs[]                  │
+│          ├─ 桌面: DisplayManager 枚举                  │
+│          └─ Android: 硬编码回退 ScreenUtil 单屏        │
+├─────────────────────────────────────────────────────┤
+│ 窗口层   桌面: window_manager 单窗口                   │
+│          Android: MainActivity.kt —— 空类，无任何原生代码│
+├─────────────────────────────────────────────────────┤
+│ 模型层   AppGlobal.output / multiMonitor (RLD/DV)     │
+│          Player.addOutput() 向 CMS 注册输出            │
+│          AH 消息按 uiOutput 路由                       │
+└─────────────────────────────────────────────────────┘
+结论：模型层（输出注册、消息路由、多屏标志）已完整；布局/窗口/播放层全部假设"一个窗口、一块屏"。Android 侧尤其彻底——MainActivity.kt 是空类，没有 DisplayManager、没有 Platform Channel，_getMonitorInfo 在 Android 上直接取 ScreenUtil 主屏尺寸后 return。
+
+Android 上要补的是整条链路：枚举 → 窗口 → 渲染 → 状态。
+
+Android 改进方案
+Android 一个 Window 只能存在于一个 Display 上，所以"跨屏拼接"和"独立双屏"都必须每个物理屏一个渲染载体。两种可行载体：
+
+方案	载体	改动量	适用
+C（推荐）	每屏一个 FlutterActivity（setLaunchDisplayId）	小	拼接 + 独立双屏
+A	Presentation + FlutterEngineGroup 第二引擎	中	需要副屏无状态栏、更像"外接显示器"的场景
+方案 C 复用现有全部播放流程（每个实例是独立 engine、独立 App() 单例、独立 App().player），只需让每个实例知道自己负责哪个 output。
+
+分阶段实施
+阶段 1：显示器枚举（打通数据层）
+
+新建 dcm/multiscreen MethodChannel（参考已有 disk_manager.dart 的 channel 模式）：
+getDisplays() → 返回 [{displayId, uniqueId, name, width, height, rotation, isPrimary}]
+EventChannel 推送热插拔（DisplayManager.registerDisplayListener）
+Dart 侧新建 MultiScreenService 封装，替换 app_skin_impl.dart L705-L707 的 Android 硬编码分支，使 _getMonitorInfo() / getMonitorRect(output) 在 Android 与桌面走同一条路径。
+阶段 2：多 Activity 渲染（打通窗口/渲染层）
+
+Kotlin：MultiDisplayManager，遍历副屏 startActivity（ActivityOptions.setLaunchDisplayId(id)），intent 带 output_id 与布局模式（span 时用 extra 传"本屏在并集中的偏移"）。
+Dart：启动时读 output id（channel 或 --dart-entrypoint-args）→ 写入 AppGlobal.output；playSkin.monitorRect 改从本 Activity 所在 display 的 metrics 取（MediaQuery 已天然正确），替换三处 ScreenUtil().screenWidth 直接取值（app_skin_impl.dart L620/L707、player_screen_provider.dart L2300）。
+拼接模式：每个实例按 monitorRect 并集布局，渲染时用负偏移裁掉不属于自己的部分（现有 Positioned + rect 体系天然支持）。
+独立双屏：每个实例加载同一排程，按 uiOutput 过滤（AH 消息已有该字段，主排程需加 output 维度）。
+阶段 3：稳定映射与热插拔
+
+持久化 Display.uniqueId（含 EDID 信息）→ output 序号的映射，避免重启/换线下标漂移（对应之前指出的桌面端同一问题）。
+热插拔：display detach 时系统会自动销毁其上 Activity；attach 时主实例收事件 → 重新注册 outputs（addMultiMonitor 的 Android 等价物）→ 拉起新实例。
+阶段 4：细节修正
+
+解除方向硬锁（multi_partition_screen.dart L142-L145 锁死 landscape，竖屏广告机场景会错），改为按 display rotation 配置。
+主/副实例职责划分：只有主实例跑内容同步、CMS 注册、看门狗；副实例纯播放（避免双实例重复下载——正好沿用之前修的文件去重逻辑）。
+几何函数（并集、归一化、下标映射）抽纯函数补单测。
+风险点（需在真机验证）
+硬件解码器数量：广告机 SoC（RK3568/Amlogic）通常只支持 1–2 路硬解，双屏同时播视频可能第二路掉到软解卡顿——需要实测，必要时副屏降级为图片/网页内容。
+厂商差异：部分盒子的第二路 HDMI 不经过标准 DisplayManager，需要瑞芯微/晶晨私有 SDK，方案 C 对此类设备无效，采购设备时需确认。
+API 级别：setLaunchDisplayId 需 API 26+；Display.uniqueId 对 HDMI 热插拔后的稳定性各厂商不一。
+
+建议先做阶段 1（纯枚举，改动小、可独立验证），在目标盒子上确认 DisplayManager 能看到第二块屏后再投入阶段 2。需要我开始实现阶段 1 吗？

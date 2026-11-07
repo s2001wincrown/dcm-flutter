@@ -204,7 +204,12 @@ class HttpManagementServer {
     final header = request.headers.value(HttpHeaders.authorizationHeader);
     if (header == null || !header.startsWith('Bearer ')) return false;
     final provided = utf8.encode(header.substring(7));
-    final expected = utf8.encode(App().settings.httpManagementToken);
+    return _matchesCredential(provided, App().settings.httpManagementToken) |
+        _matchesCredential(provided, App().settings.httpManagementPassword);
+  }
+
+  bool _matchesCredential(List<int> provided, String credential) {
+    final expected = utf8.encode(credential);
     if (provided.length != expected.length || expected.isEmpty) return false;
     var difference = 0;
     for (var index = 0; index < expected.length; index++) {

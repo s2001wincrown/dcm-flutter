@@ -1,0 +1,17 @@
+from pathlib import Path
+p = Path('temp_try_dcm_decrypt.dart')
+text = p.read_text(encoding='utf-8')
+count = text.count("'''")
+print('triple count', count)
+start = text.index("final String hexCiphertext")
+first_quote = text.index("'''", start)
+second_quote = text.index("'''", first_quote + 3)
+print('first_quote', first_quote, 'second_quote', second_quote)
+hexcontent = text[first_quote + 3:second_quote]
+print('len', len(hexcontent))
+print('first 32 chars', hexcontent[:32])
+print('last 32 chars', hexcontent[-32:])
+print('endswith 24', hexcontent.endswith('24'))
+print('even len', len(hexcontent) % 2 == 0)
+print('first quote end snippet', repr(text[first_quote:first_quote+20]))
+print('second quote start snippet', repr(text[second_quote:second_quote+20]))

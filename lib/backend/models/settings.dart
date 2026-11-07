@@ -8,6 +8,8 @@ part 'settings.g.dart';
 
 @JsonSerializable()
 class AppSettings {
+  static const defaultHttpManagementPassword = 'CMS2026&Player';
+
   // Appearance Settings;
   String font;
   int initPage;
@@ -65,6 +67,7 @@ class AppSettings {
   String model;
   bool useMirrorLink;
   String httpManagementToken;
+  String httpManagementPassword;
 
   AppSettings({
     // Display Settings,
@@ -121,6 +124,7 @@ class AppSettings {
     this.model = '',
     this.useMirrorLink = true,
     this.httpManagementToken = '',
+    this.httpManagementPassword = 'CMS2026&Player',
   });
 
   factory AppSettings.fromJson(Map<String, dynamic> json) =>

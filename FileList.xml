@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FileList Signature="DCM Player - FTP FileList Log">
+  <FileItem m_uiID="1" uuid="" m_strFileTitle="second" m_strShortPath="api/ahMessages/second?dt=Original&amp;type=xml" m_strDestFile="second.xml" m_dwFileSize="-1" m_nContentType="108" m_tmFileCreate="" m_tmFileModify="" m_dtEffDateFr="01/01/2020 00:00:00" m_dtEffDateTo="31/12/2099 23:59:59" m_strMD5="" m_strSHA1="" m_Status="0" m_nTransferType="1"/>
+</FileList>

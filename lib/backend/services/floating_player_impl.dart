@@ -18,6 +18,7 @@ import 'package:flutter/material.dart';
 
 typedef BackToScheduleCallback = void Function(int wParam, int lParam);
 
+//Emergency message play implementation
 class FloatingPlayerImpl {
   FloatingPlayerImpl();
 

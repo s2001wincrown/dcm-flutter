@@ -4,6 +4,7 @@ import 'package:dcm/backend/utils/utils.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+//Emergency message widget
 class FloatingPlayer extends StatefulWidget {
   final int output;
 

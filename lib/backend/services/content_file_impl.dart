@@ -373,10 +373,10 @@ class ContentFileImpl {
     }
   }
 
-  void contentClearByCalendar() {
+  Future<void> contentClearByCalendar() async {
     final contentPaths = _getContentPaths();
     for (final source in contentPaths) {
-      deleteContentNotInFileList(source, lstFileInfo);
+      await deleteContentNotInFileList(source, lstFileInfo);
     }
   }
 
