@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:dcm/backend/app.dart';
@@ -51,6 +52,7 @@ class PlayerScreenProvider extends ChangeNotifier {
   int nextShowIndex = 0;
   Timer? _timer;
   Timer? _playingTimer;
+  Timer? _syncPlayTimer;
   final List<PlayerZoneImpl> _playerZones = [];
   List<FloatingPlayerImpl>? _floatingPlayers;
 
@@ -2508,6 +2510,8 @@ class PlayerScreenProvider extends ChangeNotifier {
     _playingTimer?.cancel();
     _timer = null;
     _playingTimer = null;
+    _syncPlayTimer?.cancel();
+    _syncPlayTimer = null;
     _displayChangeDebounce?.cancel();
     _displayChangeDebounce = null;
     _displayEventSub?.cancel();
@@ -2523,6 +2527,49 @@ class PlayerScreenProvider extends ChangeNotifier {
     deleteZoneThread(0);
 
     super.dispose();
+  }
+
+  /// CMS 统一下发的同步开播：按服务器时刻计算好的延时到点执行。
+  /// content 为空表示重载当前排期；非空则播放指定的 DCM 文件。
+  void processSyncPlayNotice(String? content) {
+    if (content == null || content.isEmpty) {
+      logW('PlayerScreenProvider - sync play notice without payload');
+      return;
+    }
+    int delayMs;
+    String dcmFile;
+    try {
+      final map = jsonDecode(content) as Map<String, dynamic>;
+      delayMs = (map['delayMs'] as num?)?.toInt() ?? 0;
+      dcmFile = map['content'] as String? ?? '';
+    } catch (error) {
+      logE('PlayerScreenProvider - invalid sync play payload: $content');
+      return;
+    }
+
+    _syncPlayTimer?.cancel();
+    logI(
+        'PlayerScreenProvider - sync play scheduled: content="$dcmFile", '
+        'start in ${delayMs}ms');
+    _syncPlayTimer = Timer(Duration(milliseconds: delayMs), () {
+      _syncPlayTimer = null;
+      _executeSyncPlay(dcmFile);
+    });
+  }
+
+  void _executeSyncPlay(String dcmFile) {
+    logI('PlayerScreenProvider - execute sync play: "$dcmFile"');
+    try {
+      if (dcmFile.isEmpty) {
+        // 重载当前排期，所有播放器在同一时刻回到排期起点。
+        reloadSchedule();
+      } else {
+        setPlayFile(dcmFile);
+        playImm();
+      }
+    } catch (error, stackTrace) {
+      logE('PlayerScreenProvider - sync play failed', error, stackTrace);
+    }
   }
 
   void onMessageAH(int nType, int lParam, [String? content]) {
@@ -2547,6 +2594,10 @@ class PlayerScreenProvider extends ChangeNotifier {
 
       case PlayerNotice.eREFRESHNOTICE:
         processRefreshNotice(lParam);
+        break;
+
+      case PlayerNotice.eSYNCPLAYNOTICE:
+        processSyncPlayNotice(content);
         break;
 
       case PlayerNotice.eAHDIRECTNOTICE:

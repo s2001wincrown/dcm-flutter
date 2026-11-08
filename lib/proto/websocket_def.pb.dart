@@ -112,6 +112,87 @@ class MessageWrapper extends $pb.GeneratedMessage {
   void clearTimestamp() => clearField(4);
 }
 
+/// CMS 统一下发的同步开播命令（schedule-ahead）。
+/// 播放器在 [startTime]（服务器毫秒时间戳）时刻开始播放 [content] 指定的内容；
+/// [content] 为空表示重载当前排期。收到时若已过期且超过 [tolerance]，则忽略。
+class SyncPlayCommand extends $pb.GeneratedMessage {
+  factory SyncPlayCommand({
+    $core.String? content,
+    $fixnum.Int64? startTime,
+    $core.int? tolerance,
+  }) {
+    final result = create();
+    if (content != null) {
+      result.content = content;
+    }
+    if (startTime != null) {
+      result.startTime = startTime;
+    }
+    if (tolerance != null) {
+      result.tolerance = tolerance;
+    }
+    return result;
+  }
+  SyncPlayCommand._() : super();
+  factory SyncPlayCommand.fromBuffer($core.List<$core.int> i, [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) => create()..mergeFromBuffer(i, r);
+  factory SyncPlayCommand.fromJson($core.String i, [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) => create()..mergeFromJson(i, r);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(_omitMessageNames ? '' : 'SyncPlayCommand', package: const $pb.PackageName(_omitMessageNames ? '' : 'com.digitalsignage.protocol'), createEmptyInstance: create)
+    ..aOS(1, _omitFieldNames ? '' : 'content')
+    ..aInt64(2, _omitFieldNames ? '' : 'startTime')
+    ..a<$core.int>(3, _omitFieldNames ? '' : 'tolerance', $pb.PbFieldType.O3)
+    ..hasRequiredFields = false
+  ;
+
+  @$core.Deprecated(
+  'Using this can add significant overhead to your binary. '
+  'Use [GeneratedMessageGenericExtensions.deepCopy] instead. '
+  'Will be removed in next major version')
+  SyncPlayCommand clone() => SyncPlayCommand()..mergeFromMessage(this);
+  @$core.Deprecated(
+  'Using this can add significant overhead to your binary. '
+  'Use [GeneratedMessageGenericExtensions.rebuild] instead. '
+  'Will be removed in next major version')
+  SyncPlayCommand copyWith(void Function(SyncPlayCommand) updates) => super.copyWith((message) => updates(message as SyncPlayCommand)) as SyncPlayCommand;
+
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  static SyncPlayCommand create() => SyncPlayCommand._();
+  SyncPlayCommand createEmptyInstance() => create();
+  static $pb.PbList<SyncPlayCommand> createRepeated() => $pb.PbList<SyncPlayCommand>();
+  @$core.pragma('dart2js:noInline')
+  static SyncPlayCommand getDefault() => _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<SyncPlayCommand>(create);
+  static SyncPlayCommand? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.String get content => $_getSZ(0);
+  @$pb.TagNumber(1)
+  set content($core.String v) { $_setString(0, v); }
+  @$pb.TagNumber(1)
+  $core.bool hasContent() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearContent() => clearField(1);
+
+  @$pb.TagNumber(2)
+  $fixnum.Int64 get startTime => $_getI64(1);
+  @$pb.TagNumber(2)
+  set startTime($fixnum.Int64 v) { $_setInt64(1, v); }
+  @$pb.TagNumber(2)
+  $core.bool hasStartTime() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearStartTime() => clearField(2);
+
+  @$pb.TagNumber(3)
+  $core.int get tolerance => $_getIZ(2);
+  @$pb.TagNumber(3)
+  set tolerance($core.int v) { $_setSignedInt32(2, v); }
+  @$pb.TagNumber(3)
+  $core.bool hasTolerance() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearTolerance() => clearField(3);
+}
+
 /// 心跳消息
 class Heartbeat extends $pb.GeneratedMessage {
   factory Heartbeat({

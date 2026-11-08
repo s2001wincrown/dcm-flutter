@@ -58,6 +58,7 @@ void _registerContentSyncPlayerRefreshPort() {
     if (messageInfo != null) {
       if (messageInfo.messageID == PlayerNotice.eSyncFINISHEDNOTICE.index ||
           messageInfo.messageID == PlayerNotice.eAHMESSAGENOTICE.index ||
+          messageInfo.messageID == PlayerNotice.eSYNCPLAYNOTICE.index ||
           messageInfo.messageID == PlayerNotice.eAHDIRECTNOTICE.index) {
         final playerScreenProvider = PlayerScreenProvider.instance;
         if (playerScreenProvider != null) {
