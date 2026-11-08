@@ -10,6 +10,7 @@ import android.os.Handler
 import android.os.Looper
 import android.util.Log
 import android.view.Display
+import android.view.ViewGroup
 import androidx.lifecycle.LifecycleOwner
 import io.flutter.embedding.android.ExclusiveAppComponent
 import io.flutter.embedding.android.FlutterView
@@ -125,16 +126,21 @@ class SecondaryDisplayController(private val activity: Activity) :
             (activity as LifecycleOwner).lifecycle
         )
 
-        val view = FlutterView(activity)
-        view.attachToFlutterEngine(engine)
-
         val presentation = Presentation(
             activity,
             display,
             android.R.style.Theme_DeviceDefault_NoActionBar_Fullscreen
         )
         presentation.window?.setBackgroundDrawable(ColorDrawable(Color.BLACK))
-        presentation.setContentView(view)
+        val view = FlutterView(presentation.context)
+        view.attachToFlutterEngine(engine)
+        presentation.setContentView(
+            view,
+            ViewGroup.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT
+            )
+        )
         presentation.setOnDismissListener {
             val session = sessions.remove(display.displayId)
             if (session != null) {

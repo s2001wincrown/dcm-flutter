@@ -27,7 +27,8 @@ class Slideshow extends StatefulWidget {
   State<Slideshow> createState() => _SlideshowState();
 }
 
-class _SlideshowState extends State<Slideshow> with SingleTickerProviderStateMixin {
+class _SlideshowState extends State<Slideshow>
+    with SingleTickerProviderStateMixin {
   int _currentIndex = 0;
   int? _previousIndex;
   SlideshowEffect _effect = SlideshowEffect.none;
@@ -88,6 +89,8 @@ class _SlideshowState extends State<Slideshow> with SingleTickerProviderStateMix
           await Future.delayed(
               Duration(milliseconds: getImageDuration(_currentIndex)));
           if (shouldExit) break;
+          await _finishTransition();
+          if (shouldExit) break;
           final nextIndex = (_currentIndex + 1) % imageUrls.length;
           final effect = _resolveEffect(nextIndex);
           setState(() {
@@ -120,17 +123,28 @@ class _SlideshowState extends State<Slideshow> with SingleTickerProviderStateMix
     return 8000;
   }
 
-  /// 根据 arrTransition 解析当前切换要使用的过渡效果。
+  Future<void> _finishTransition() async {
+    if (!_transitionController.isAnimating) return;
+    try {
+      await _transitionController.forward().orCancel;
+    } on TickerCanceled {
+      // The slideshow was disposed while an animation was running.
+    }
+  }
+
+  /// Resolve the transition configured for the next image.
   SlideshowEffect _resolveEffect(int nIndex) {
+    if (_slideShowData?.bRandomTransition == true) {
+      return randomSlideshowEffect(_random);
+    }
+
     final transitions = _slideShowData?.arrTransition;
     if (transitions == null || transitions.isEmpty) {
       return SlideshowEffect.none;
     }
 
     String value;
-    if (_slideShowData!.bRandomTransition) {
-      value = transitions[_random.nextInt(transitions.length)];
-    } else if (nIndex < transitions.length) {
+    if (nIndex < transitions.length) {
       value = transitions[nIndex];
     } else {
       value = transitions.last;

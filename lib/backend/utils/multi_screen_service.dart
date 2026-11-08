@@ -7,7 +7,8 @@ import 'package:flutter/services.dart';
 /// 一块物理/逻辑显示器。
 ///
 /// Android 上由 [DisplayManager] 枚举得到；每个 Display 拥有独立的坐标空间，
-/// 所以 [rect] 始终从 (0, 0) 起算，尺寸即该 Display 自身的分辨率。
+/// 原生返回的物理像素会按该屏密度换算为 Flutter 逻辑像素，所以 [rect]
+/// 始终从 (0, 0) 起算，尺寸可直接用于 Flutter 布局。
 class MultiScreenDisplay {
   final int displayId;
 
@@ -36,15 +37,17 @@ class MultiScreenDisplay {
 
   factory MultiScreenDisplay.fromMap(Map<Object?, Object?> map,
       {int fallbackOutput = 0}) {
-    final width = (map['width'] as num?)?.toDouble() ?? 0;
-    final height = (map['height'] as num?)?.toDouble() ?? 0;
     final densityDpi = (map['densityDpi'] as num?)?.toDouble() ?? 160;
+    final devicePixelRatio = densityDpi > 0 ? densityDpi / 160.0 : 1.0;
+    final width = ((map['width'] as num?)?.toDouble() ?? 0) / devicePixelRatio;
+    final height =
+        ((map['height'] as num?)?.toDouble() ?? 0) / devicePixelRatio;
     return MultiScreenDisplay(
       displayId: (map['displayId'] as num?)?.toInt() ?? 0,
       output: (map['output'] as num?)?.toInt() ?? fallbackOutput,
       name: map['name'] as String? ?? '',
       size: Size(width, height),
-      devicePixelRatio: densityDpi / 160.0,
+      devicePixelRatio: devicePixelRatio,
       rotation: (map['rotation'] as num?)?.toInt() ?? 0,
       isPrimary: map['isPrimary'] as bool? ?? false,
       isPresentationSupported:

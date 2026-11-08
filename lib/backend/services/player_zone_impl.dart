@@ -198,6 +198,8 @@ class PlayerZoneImpl {
   Rect? _rectPlayerOrg;
 
   PreloadedContent? _preloadedContent;
+  int _activePlayerContentType = -1;
+  Size? _playerControllerSize;
 
   ContentListPlayerImpl? _contentListPlayer;
   VideoController? _controller;
@@ -238,6 +240,8 @@ class PlayerZoneImpl {
     _controller = null;
     _preloadedContent = null;
     _contentListPlayer = null;
+    _activePlayerContentType = -1;
+    _playerControllerSize = null;
     _bIsPlaying = false;
 
     try {
@@ -282,14 +286,29 @@ class PlayerZoneImpl {
     _bIsPlaying = false;
     await _stopFuture;
     if (generation != _initGeneration) return;
+
+    final pZoneData = getZoneData();
+    if (pZoneData == null) {
+      logE('PlayerZoneImpl - no zone data.');
+      _bIsValid = false;
+      _bIsRendering = false;
+      return;
+    }
+
+    final canReuseVideoPlayer = _player != null &&
+        _controller != null &&
+        _preloadedContent == null &&
+        _playerControllerSize == _rect?.size &&
+        _isVideoContentType(_activePlayerContentType) &&
+        _isVideoContentType(pZoneData.nZoneType);
     //Preloaded Content not need release
     if (_playCached) {
       await _stopPlayers();
     } else {
       //not preload content and need reset
-      if (_bNeedReset) {
+      if (_bNeedReset && !canReuseVideoPlayer) {
         await _disposePlayers();
-      } else {
+      } else if (!_bNeedReset) {
         await _stopPlayers();
       }
     }
@@ -307,13 +326,6 @@ class PlayerZoneImpl {
     _bContentFinished = false;
     //Log.i(PlayerMainActivity.LOG_TAG, "RenderZone step 1");
     _dtStartPlay = DateTime.now();
-    ZoneData? pZoneData = getZoneData();
-    if (pZoneData == null) {
-      logE('PlayerZoneImpl - no zone data.');
-      _bIsValid = false;
-      _bIsRendering = false;
-      return;
-    }
 
     if (_zoneId < 0) _zoneId = pZoneData.nZoneID;
     if (_rect == null && _zoneId > -1) _rect = playSkin.getZoneRect(_zoneId);
@@ -347,9 +359,7 @@ class PlayerZoneImpl {
               _rtAct = _preloadedContent!.getActualDuration();
             } else {
               if (_player != null) {
-                unawaited(_player!.open(
-                    Media(LibraryHelper.normalizeMediaSource(_strZoneFile)),
-                    play: false));
+                await _openVideoSource(_player!, _strZoneFile, pZoneData);
                 _rtAct = _player!.state.duration.inMilliseconds / 1000.0;
               } else {
                 await _initVideoPlayer(pZoneData, null);
@@ -377,9 +387,7 @@ class PlayerZoneImpl {
           case cWEBCAMTYPE:
           case cSTREAMINGTYPE:
             if (_player != null) {
-              unawaited(_player!.open(
-                  Media(LibraryHelper.normalizeMediaSource(_strZoneFile)),
-                  play: false));
+              await _openVideoSource(_player!, _strZoneFile, pZoneData);
               _rtAct = _player!.state.duration.inMilliseconds / 1000.0;
             } else {
               await _initVideoPlayer(pZoneData, null);
@@ -435,6 +443,9 @@ class PlayerZoneImpl {
               'PlayerZoneImpl - video controller is unavailable for "$_strZoneFile".');
         }
         _bIsValid = canRenderZone;
+        if (canRenderZone && videoPlayer != null && videoController != null) {
+          _activePlayerContentType = pZoneData.nZoneType;
+        }
       } else {
         _bIsValid = false;
       }
@@ -475,7 +486,31 @@ class PlayerZoneImpl {
       //preloaded.ready();
       _player = preloaded.player;
       _controller = preloaded.controller;
+      _playerControllerSize = _rect?.size;
     }
+  }
+
+  bool _isVideoContentType(int type) =>
+      type == cVIDEOTYPE ||
+      type == cSTREAMINGTYPE ||
+      type == cTVCAPTURETYPE ||
+      type == cWEBCAMTYPE;
+
+  Future<void> _openVideoSource(
+    Player player,
+    String filePath,
+    ZoneData zoneData,
+  ) async {
+    final stopwatch = Stopwatch()..start();
+    logD('PlayerZoneImpl - video source open requested for "$filePath".');
+    await player.open(
+      Media(LibraryHelper.normalizeMediaSource(filePath)),
+      play: false,
+    );
+    await player
+        .setVolume(AppGlobal.videoVolume(zoneData.bZoneMute, zoneData.dVolume));
+    logI('PlayerZoneImpl - video source opened for "$filePath" '
+        'in ${stopwatch.elapsedMilliseconds} ms.');
   }
 
   void setWindowRect(Rect rcWin) {
@@ -1348,13 +1383,11 @@ class PlayerZoneImpl {
     if (player == null) return false;
 
     try {
-      await player.stop();
+      await player.seek(Duration.zero);
       if (generation != _initGeneration) return false;
-      final source = _preloadedContent?.filePath ?? _strZoneFile;
-      await player.open(
-        Media(LibraryHelper.normalizeMediaSource(source)),
-        play: _nVideoStatus != 1,
-      );
+      if (_nVideoStatus != 1) {
+        await player.play();
+      }
       if (generation != _initGeneration) return false;
       _rtAct = player.state.duration.inMilliseconds / 1000.0;
       return true;

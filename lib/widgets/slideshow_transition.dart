@@ -26,6 +26,10 @@ enum SlideshowEffect {
   transfer,
 }
 
+SlideshowEffect randomSlideshowEffect(math.Random random) {
+  return SlideshowEffect.values[random.nextInt(SlideshowEffect.values.length)];
+}
+
 /// 将 XML 中的过渡名称（兼容大小写、空格、连字符和中文别名）解析为效果。
 SlideshowEffect slideshowEffectFromString(String value) {
   final normalized = value
