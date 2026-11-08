@@ -65,6 +65,7 @@ const CommandType$json = {
     {'1': 'CMD_REFRESH', '2': 24},
     {'1': 'CMD_DISK_CLEAN', '2': 25},
     {'1': 'CMD_HEARTBEAT', '2': 26},
+    {'1': 'CMD_SYNC_PLAY', '2': 27},
   ],
 };
 

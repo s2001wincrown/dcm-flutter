@@ -558,7 +558,9 @@ enum PlayerNotice {
   eFORMATDNOTICE,
   eBLACKSCRNNOTICE,
   eONEKEYNOTICE,
-  eREFRESHNOTICE;
+  eREFRESHNOTICE,
+  // 追加在末尾，避免改变已有枚举的 index
+  eSYNCPLAYNOTICE;
 
   static PlayerNotice? fromInt(int index) {
     for (var notice in PlayerNotice.values) {

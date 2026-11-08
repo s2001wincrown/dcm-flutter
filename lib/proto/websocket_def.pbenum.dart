@@ -68,6 +68,7 @@ class CommandType extends $pb.ProtobufEnum {
   static const CommandType CMD_REFRESH = CommandType._(24, _omitEnumNames ? '' : 'CMD_REFRESH');
   static const CommandType CMD_DISK_CLEAN = CommandType._(25, _omitEnumNames ? '' : 'CMD_DISK_CLEAN');
   static const CommandType CMD_HEARTBEAT = CommandType._(26, _omitEnumNames ? '' : 'CMD_HEARTBEAT');
+  static const CommandType CMD_SYNC_PLAY = CommandType._(27, _omitEnumNames ? '' : 'CMD_SYNC_PLAY');
 
   static const $core.List<CommandType> values = <CommandType> [
     CMD_UNKNOWN,
@@ -97,6 +98,7 @@ class CommandType extends $pb.ProtobufEnum {
     CMD_REFRESH,
     CMD_DISK_CLEAN,
     CMD_HEARTBEAT,
+    CMD_SYNC_PLAY,
   ];
 
   static final $core.Map<$core.int, CommandType> _byValue = $pb.ProtobufEnum.initByValue(values);

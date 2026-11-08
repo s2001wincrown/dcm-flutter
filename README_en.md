@@ -4,7 +4,41 @@
 
 DMC Digital Signage Player
 
-A cross-platform fullscreen digital signage and media playback solution built with Flutter and Dart. It is designed for multi-zone display scenarios where the screen can be divided into multiple independent playback areas, each with customizable size, layout, and content source.
+A cross-platform fullscreen digital signage and media playback solution built with Flutter and Dart. It is designed for multi-zone display layouts: the screen can be divided into multiple independent playback areas, each with customizable size, layout, and content source.
+
+## What's New (v1.1.1+49)
+
+### Android Multi-Screen Independent Output
+
+The player detects additional displays on Android devices (e.g. HDMI secondary screens) and creates a dedicated Flutter engine per screen (via `Presentation`), so each screen plays its own output independently.
+
+- Display enumeration & hot-plug: the native `dcm/multiscreen` channel (`MultiScreenPlugin`) lists all displays; engines are created/destroyed automatically as screens are attached or removed.
+- Stable output mapping: `DisplayOutputRegistry` persists output indices by "display name + physical resolution" (primary screen is always output 0, secondary screens start at 1), so the same screen keeps its output after re-plugging — no content swapping.
+- Usage: set `DisplayMonitor` in the skin INI to the output index (0 = primary, 1, 2… = secondary). Multi-value entries like `DisplayMonitor=0,1` are for desktop spanning only; Android screens are physically independent and render individually.
+
+### Desktop Multi-Screen Spanning & Mixed DPI
+
+- Fixed the desktop spanning issue where the player window did not fit the selected monitors: the window now exactly covers the union of the selected displays.
+- Mixed-DPI support: the union is computed in physical pixels and converted back to canvas coordinates, so monitors with different scale factors (e.g. 100% + 150%) no longer misalign the window.
+- The canvas and zone layout are recalculated automatically on display hot-plug, resolution, or DPI changes.
+
+### Multi-Player Synchronized Playback (CMD_SYNC_PLAY)
+
+The CMS can broadcast a "start playing at the same moment" command over WebSocket to synchronize playback across multiple players.
+
+- Clock: `ServerClock` keeps an in-memory server-time offset (no system clock changes, no root required). It self-calibrates from WebSocket message timestamps and can be refined via an NTP time server.
+- Command: the CMS sends `MessageWrapper{ command: CMD_SYNC_PLAY(27), timestamp: <server now in ms>, payload: SyncPlayCommand }`. `SyncPlayCommand` fields: `content` (DCM file name, empty = reload current schedule), `startTime` (server start timestamp in ms; recommended: now + 2–5 s), `tolerance` (expiry tolerance in ms, default 5000).
+- Player behavior: at the scheduled moment all players act together — reloading the current schedule when `content` is empty, or playing the specified DCM file otherwise. Commands expired beyond the tolerance are ignored; a newer command replaces a pending one.
+
+### Slideshow Transition Effects
+
+When `arrTransition` is present in the program data, image slideshows play transition animations with jQuery UI-style effects: fade, slide, blind, clip, drop, fold, puff, scale, size, bounce, pulsate, shake, explode (3×3 tiles), highlight, and transfer. Names are parsed case-insensitively and accept spaces, hyphens, Chinese aliases, and numeric codes 0–15; `none` disables transitions.
+
+### Other Improvements
+
+- Fixed repeated downloads of already-existing files on Android: normalized path separators and casing, a 2-second timestamp tolerance, and lookup in both the final and temporary directories.
+- The media player core (media_kit) is now lazily created on first use, reducing startup cost.
+- The app build version is kept in sync with the GitHub release version (1.1.1+49).
 
 ## Product Overview
 

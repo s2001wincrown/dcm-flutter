@@ -1,15 +1,17 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:dcm/backend/constants.dart' hide PlayerStatus;
 import 'package:dcm/backend/models/app_global.dart';
 import 'package:dcm/backend/models/player_global.dart';
-import 'package:dcm/backend/net/message_sync_service.dart';
 import 'package:dcm/backend/net/content_sync_service.dart';
+import 'package:dcm/backend/net/message_sync_service.dart';
 import 'package:dcm/backend/net/player_log_impl.dart';
 import 'package:dcm/backend/net/player_task_file.dart';
 import 'package:dcm/backend/utils/log_utils.dart';
+import 'package:dcm/backend/utils/server_clock.dart';
 import 'package:dcm/proto/websocket_def.pb.dart';
 import 'package:fixnum/fixnum.dart';
 import 'package:intl/intl.dart';
@@ -189,10 +191,52 @@ class CmsWebSocketService {
             'CMS WebSocket frame must be non-empty binary data');
       }
       final message = MessageWrapper.fromBuffer(event);
+      // 每条带时间戳的消息都可用来校准服务器时钟（心跳每 30s 一次）。
+      if (message.hasTimestamp()) {
+        ServerClock.instance
+            .updateFromServerTimestamp(message.timestamp.toInt());
+      }
       _dispatch(message);
     } catch (error) {
       logW('Invalid CMS WebSocket message: $error', syncTag);
     }
+  }
+
+  /// 处理 CMS 统一下发的同步开播命令：计算到点延时后通知主 isolate。
+  ///
+  /// 主 isolate 只拿到相对延时与内容标识，无需关心服务器时区与偏移。
+  Future<void> _handleSyncPlay(
+      SyncPlayCommand command, MessageWrapper wrapper) async {
+    if (!ServerClock.instance.hasEstimate) {
+      await ServerClock.instance.refineFromNtp();
+    }
+    final startTime = command.startTime.toInt();
+    if (startTime <= 0) {
+      logW('CMD_SYNC_PLAY without valid startTime, ignored', syncTag);
+      return;
+    }
+    final delay = ServerClock.instance.delayUntil(startTime);
+    final tolerance =
+        command.tolerance > 0 ? command.tolerance : 5000;
+    if (delay.inMilliseconds < -tolerance) {
+      logW(
+          'CMD_SYNC_PLAY expired by ${-delay.inMilliseconds}ms '
+          '(tolerance ${tolerance}ms), ignored',
+          syncTag);
+      return;
+    }
+    final payload = jsonEncode({
+      'startTime': startTime,
+      'delayMs': delay.isNegative ? 0 : delay.inMilliseconds,
+      'content': command.content,
+      'tolerance': tolerance,
+    });
+    logI(
+        'CMD_SYNC_PLAY received: content="${command.content}", '
+        'start in ${delay.inMilliseconds}ms',
+        syncTag);
+    notifyMainIsolatePlaylistRefresh(
+        PlayerNotice.eSYNCPLAYNOTICE.index, 0, payload);
   }
 
   void _dispatch(MessageWrapper message) {
@@ -223,6 +267,11 @@ class CmsWebSocketService {
         break;
       case CommandType.CMD_TRANSFER_STATUS:
         _notify(message, TransferStatus.fromBuffer(message.payload));
+        break;
+      case CommandType.CMD_SYNC_PLAY:
+        final syncPlay = SyncPlayCommand.fromBuffer(message.payload);
+        unawaited(_handleSyncPlay(syncPlay, message));
+        _notify(message, syncPlay);
         break;
       case CommandType.CMD_REQUEST_SYNC_TIME:
       case CommandType.CMD_REGISTER_UPDATE:
