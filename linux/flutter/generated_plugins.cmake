@@ -6,6 +6,7 @@ list(APPEND FLUTTER_PLUGIN_LIST
   disk_space_2
   flutter_libserialport
   flutter_udid
+  flutter_webrtc
   media_kit_libs_linux
   media_kit_video
   open_file_linux

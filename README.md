@@ -40,6 +40,75 @@ DMC Digital Signage Player
 - 播放器内核（media_kit）改为懒加载，按需创建，降低启动开销。
 - 应用构建版本号与 GitHub 发布版本同步（1.1.1+49）。
 
+## 实时监控推流（WebRTC）
+
+播放器可将当前播放画面实时推送给 CMS，用于远程监看。信令复用已有的 CMS WebSocket 通道，**不额外建立 WebSocket 连接**；媒体流走标准 WebRTC（SRTP），播放器作为 SDP **answerer**。
+
+### 命令定义
+
+`websocket_def.protobuf` 中新增：
+
+| 命令 | 值 | 方向 | 载荷 |
+| --- | --- | --- | --- |
+| `CMD_WEBRTC_START` | 28 | CMS → 播放器 | `StartWebRtcCommand` |
+| `CMD_WEBRTC_OFFER` | 29 | CMS → 播放器 | `RtcSdpCommand`（`type="offer"`） |
+| `CMD_WEBRTC_ANSWER` | 30 | 播放器 → CMS | `RtcSdpCommand`（`type="answer"`） |
+| `CMD_WEBRTC_ICE` | 31 | 双向 | `RtcIceCommand` |
+| `CMD_WEBRTC_STOP` | 32 | CMS → 播放器 | 空 |
+
+```protobuf
+message StartWebRtcCommand {
+  string targetId  = 1;  // CMS 会话 ID，原样回传
+  int32  displayId = 2;  // 显示器索引，-1 = 主屏（仅桌面生效）
+  int32  width     = 3;
+  int32  height    = 4;
+  int32  frameRate = 5;  // 默认 30
+  int32  bitrate   = 6;
+  bool   withAudio = 7;  // 系统音频（桌面平台）
+}
+
+message RtcSdpCommand {
+  string targetId = 1;
+  string sdp      = 2;
+  string type     = 3;  // "offer" / "answer"
+  string fromId   = 4;  // 发送方标识，播放器当前回传空串
+}
+
+message RtcIceCommand {
+  string targetId      = 1;
+  string fromId        = 2;
+  string candidate     = 3;
+  string sdpMid        = 4;
+  int32  sdpMLineIndex = 5;
+}
+```
+
+### 时序
+
+```text
+CMS ──CMD_WEBRTC_START(28)──▶ 播放器    启动采集、创建 PeerConnection
+CMS ──CMD_WEBRTC_OFFER(29)──▶ 播放器    setRemoteDescription
+播放器 ──CMD_WEBRTC_ANSWER(30)──▶ CMS   createAnswer + setLocalDescription
+CMS ⇄ 播放器  CMD_WEBRTC_ICE(31)         双向 ICE candidate
+CMS ──CMD_WEBRTC_STOP(32)──▶ 播放器      停止推流并释放资源
+```
+
+`offer` 若早于 PeerConnection 就绪（Android 授权弹窗耗时）会被缓存，连接建立后自动补处理；远端 ICE candidate 在 PeerConnection 创建前也会排队。
+
+### 采集实现
+
+- **桌面（Windows / macOS / Linux）**：`desktopCapturer.getSources()` 枚举显示器，按 `displayId` 选中后用 `getDisplayMedia` 采集，零配置。
+- **Android**：`getDisplayMedia` 内部使用 `MediaProjection` + `ScreenCapturerAndroid`，首次会弹出系统屏幕录制授权框。由于 Android 14+ 强制要求调用 MediaProjection 前已有 `mediaProjection` 类型前台服务，播放器会先启动 `WebRtcProjectionService`（常驻通知「正在通过 WebRTC 推流屏幕画面」），停止推流时自动关闭。受系统限制，首次授权需应用处于前台。
+- **STUN**：默认使用 `stun:stun.l.google.com:19302` 与 `stun:stun1.l.google.com:19302`；跨 NAT 场景建议自行部署 TURN 并替换 `_stunServers`。
+
+### 涉及文件
+
+- `lib/proto/websocket_def.*`、`websocket_def.protobuf`：命令与消息定义
+- `lib/backend/services/webrtc_publishing_service.dart`：采集 + PeerConnection + 信令收发
+- `lib/backend/net/cms_websocket_service.dart`：WebSocket 命令分发与发送桥接
+- `android/app/src/main/kotlin/com/platform/player/WebRtcProjectionService.kt`：mediaProjection 前台服务
+- `android/app/src/main/AndroidManifest.xml`：`FOREGROUND_SERVICE_MEDIA_PROJECTION` 权限与服务声明
+
 ## 产品概览
 
 本项目是一款面向数字标牌、智能零售展示、信息墙与媒体展示场景的专业多屏播放系统。它支持在单屏或多屏环境下，按区域组合播放多种内容，并实现统一管理与灵活轮播。

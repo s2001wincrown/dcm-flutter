@@ -71,6 +71,7 @@ dependencies:
   fixnum: ^1.1.1
   disk_space_2: ^1.0.13
   flutter_screenutil: ^5.9.3
+  flutter_webrtc: ^1.6.3
 
 dev_dependencies:
   flutter_test:

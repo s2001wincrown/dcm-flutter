@@ -69,6 +69,11 @@ class CommandType extends $pb.ProtobufEnum {
   static const CommandType CMD_DISK_CLEAN = CommandType._(25, _omitEnumNames ? '' : 'CMD_DISK_CLEAN');
   static const CommandType CMD_HEARTBEAT = CommandType._(26, _omitEnumNames ? '' : 'CMD_HEARTBEAT');
   static const CommandType CMD_SYNC_PLAY = CommandType._(27, _omitEnumNames ? '' : 'CMD_SYNC_PLAY');
+  static const CommandType CMD_WEBRTC_START = CommandType._(28, _omitEnumNames ? '' : 'CMD_WEBRTC_START');
+  static const CommandType CMD_WEBRTC_OFFER = CommandType._(29, _omitEnumNames ? '' : 'CMD_WEBRTC_OFFER');
+  static const CommandType CMD_WEBRTC_ANSWER = CommandType._(30, _omitEnumNames ? '' : 'CMD_WEBRTC_ANSWER');
+  static const CommandType CMD_WEBRTC_ICE = CommandType._(31, _omitEnumNames ? '' : 'CMD_WEBRTC_ICE');
+  static const CommandType CMD_WEBRTC_STOP = CommandType._(32, _omitEnumNames ? '' : 'CMD_WEBRTC_STOP');
 
   static const $core.List<CommandType> values = <CommandType> [
     CMD_UNKNOWN,
@@ -99,6 +104,11 @@ class CommandType extends $pb.ProtobufEnum {
     CMD_DISK_CLEAN,
     CMD_HEARTBEAT,
     CMD_SYNC_PLAY,
+    CMD_WEBRTC_START,
+    CMD_WEBRTC_OFFER,
+    CMD_WEBRTC_ANSWER,
+    CMD_WEBRTC_ICE,
+    CMD_WEBRTC_STOP,
   ];
 
   static final $core.Map<$core.int, CommandType> _byValue = $pb.ProtobufEnum.initByValue(values);

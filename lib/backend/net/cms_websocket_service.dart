@@ -12,7 +12,9 @@ import 'package:dcm/backend/net/player_log_impl.dart';
 import 'package:dcm/backend/net/player_task_file.dart';
 import 'package:dcm/backend/utils/log_utils.dart';
 import 'package:dcm/backend/utils/server_clock.dart';
+import 'package:dcm/backend/services/webrtc_publishing_service.dart';
 import 'package:dcm/proto/websocket_def.pb.dart';
+import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:fixnum/fixnum.dart';
 import 'package:intl/intl.dart';
 import 'package:protobuf/protobuf.dart';
@@ -92,6 +94,35 @@ class CmsWebSocketService {
     }
     _reconnectTimer?.cancel();
     _reconnectTimer = null;
+    // 确保 WebRTC 信令发送回调已注册
+    registerWebRtcSignalingEmitters(
+      onSdp: ({required String targetId, required String type, required String sdp}) {
+        sendCommand(type == 'answer'
+            ? CommandType.CMD_WEBRTC_ANSWER
+            : CommandType.CMD_WEBRTC_OFFER,
+            RtcSdpCommand()
+              ..targetId = targetId
+              ..fromId = ''
+              ..type = type
+              ..sdp = sdp);
+      },
+      onIce: ({
+        required String targetId,
+        required String candidate,
+        required String sdpMid,
+        required int? sdpMLineIndex,
+      }) {
+        sendCommand(
+          CommandType.CMD_WEBRTC_ICE,
+          RtcIceCommand()
+            ..targetId = targetId
+            ..fromId = ''
+            ..candidate = candidate
+            ..sdpMid = sdpMid
+            ..sdpMLineIndex = sdpMLineIndex ?? 0,
+        );
+      },
+    );
     _publishState(CmsConnectionState.connecting);
     final future = _connect();
     _connectFuture = future;
@@ -239,6 +270,44 @@ class CmsWebSocketService {
         PlayerNotice.eSYNCPLAYNOTICE.index, 0, payload);
   }
 
+  Future<void> _handleWebRtcStart(StartWebRtcCommand cmd) async {
+    final service = WebRtcPublishingService.instance;
+    final targetId = cmd.targetId.isEmpty ? 'local' : cmd.targetId;
+    unawaited(service.startCapture(
+      targetId: targetId,
+      displayId: cmd.hasDisplayId() ? cmd.displayId : null,
+      width: cmd.hasWidth() ? cmd.width : null,
+      height: cmd.hasHeight() ? cmd.height : null,
+      frameRate: cmd.hasFrameRate() ? cmd.frameRate : 30,
+      withAudio: cmd.withAudio,
+    ));
+  }
+
+  Future<void> _handleWebRtcSdp(RtcSdpCommand cmd,
+      {required bool isOffer}) async {
+    final service = WebRtcPublishingService.instance;
+    final sdp = cmd.sdp.trim();
+    if (sdp.isEmpty) {
+      logW('WebRTC SDP empty, target=${cmd.targetId}', syncTag);
+      return;
+    }
+    final desc = RTCSessionDescription(sdp, cmd.type);
+    if (isOffer) {
+      await service.handleRemoteOffer(desc);
+    } else {
+      await service.handleRemoteAnswer(desc);
+    }
+  }
+
+  Future<void> _handleWebRtcIce(RtcIceCommand cmd) async {
+    final service = WebRtcPublishingService.instance;
+    await service.addRemoteIceCandidate(RTCIceCandidate(
+      cmd.candidate,
+      cmd.sdpMid,
+      cmd.hasSdpMLineIndex() ? cmd.sdpMLineIndex : 0,
+    ));
+  }
+
   void _dispatch(MessageWrapper message) {
     switch (message.command) {
       case CommandType.CMD_HEARTBEAT:
@@ -272,6 +341,27 @@ class CmsWebSocketService {
         final syncPlay = SyncPlayCommand.fromBuffer(message.payload);
         unawaited(_handleSyncPlay(syncPlay, message));
         _notify(message, syncPlay);
+        break;
+      case CommandType.CMD_WEBRTC_START:
+        final startCmd = StartWebRtcCommand.fromBuffer(message.payload);
+        unawaited(_handleWebRtcStart(startCmd));
+        _notify(message, startCmd);
+        break;
+      case CommandType.CMD_WEBRTC_STOP:
+        unawaited(WebRtcPublishingService.instance.close());
+        logI('CMD_WEBRTC_STOP received', syncTag);
+        break;
+      case CommandType.CMD_WEBRTC_OFFER:
+        final sdp = RtcSdpCommand.fromBuffer(message.payload);
+        unawaited(_handleWebRtcSdp(sdp, isOffer: true));
+        break;
+      case CommandType.CMD_WEBRTC_ANSWER:
+        final sdp = RtcSdpCommand.fromBuffer(message.payload);
+        unawaited(_handleWebRtcSdp(sdp, isOffer: false));
+        break;
+      case CommandType.CMD_WEBRTC_ICE:
+        final ice = RtcIceCommand.fromBuffer(message.payload);
+        unawaited(_handleWebRtcIce(ice));
         break;
       case CommandType.CMD_REQUEST_SYNC_TIME:
       case CommandType.CMD_REGISTER_UPDATE:

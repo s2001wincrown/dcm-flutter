@@ -7,6 +7,7 @@ class MainActivity : FlutterActivity() {
 
     private var multiScreenPlugin: MultiScreenPlugin? = null
     private var secondaryDisplays: SecondaryDisplayController? = null
+    private var webRtcProjectionPlugin: WebRtcProjectionPlugin? = null
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
@@ -16,9 +17,13 @@ class MainActivity : FlutterActivity() {
         secondaryDisplays = SecondaryDisplayController(this).also {
             it.start()
         }
+        webRtcProjectionPlugin = WebRtcProjectionPlugin().also {
+            flutterEngine.plugins.add(it)
+        }
     }
 
     override fun cleanUpFlutterEngine(flutterEngine: FlutterEngine) {
+        webRtcProjectionPlugin = null
         secondaryDisplays?.stop()
         secondaryDisplays = null
         multiScreenPlugin?.unregister()

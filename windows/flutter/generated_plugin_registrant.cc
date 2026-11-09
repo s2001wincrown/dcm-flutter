@@ -10,6 +10,7 @@
 #include <flutter_inappwebview_windows/flutter_inappwebview_windows_plugin_c_api.h>
 #include <flutter_libserialport/flutter_libserialport_plugin.h>
 #include <flutter_udid/flutter_udid_plugin_c_api.h>
+#include <flutter_webrtc/flutter_web_r_t_c_plugin.h>
 #include <libmpv_dart/libmpv_dart_plugin.h>
 #include <media_kit_libs_windows_video/media_kit_libs_windows_video_plugin_c_api.h>
 #include <media_kit_video/media_kit_video_plugin_c_api.h>
@@ -29,6 +30,8 @@ void RegisterPlugins(flutter::PluginRegistry* registry) {
       registry->GetRegistrarForPlugin("FlutterLibserialportPlugin"));
   FlutterUdidPluginCApiRegisterWithRegistrar(
       registry->GetRegistrarForPlugin("FlutterUdidPluginCApi"));
+  FlutterWebRTCPluginRegisterWithRegistrar(
+      registry->GetRegistrarForPlugin("FlutterWebRTCPlugin"));
   LibmpvDartPluginRegisterWithRegistrar(
       registry->GetRegistrarForPlugin("LibmpvDartPlugin"));
   MediaKitLibsWindowsVideoPluginCApiRegisterWithRegistrar(

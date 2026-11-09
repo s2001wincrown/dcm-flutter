@@ -40,6 +40,75 @@ When `arrTransition` is present in the program data, image slideshows play trans
 - The media player core (media_kit) is now lazily created on first use, reducing startup cost.
 - The app build version is kept in sync with the GitHub release version (1.1.1+49).
 
+## Real-time Monitoring via WebRTC
+
+The player can push its live playback screen to the CMS for remote monitoring. Signaling reuses the existing CMS WebSocket channel — **no extra WebSocket connection** — while media flows over standard WebRTC (SRTP). The player acts as the SDP **answerer**.
+
+### Commands
+
+Added to `websocket_def.protobuf`:
+
+| Command | Value | Direction | Payload |
+| --- | --- | --- | --- |
+| `CMD_WEBRTC_START` | 28 | CMS → player | `StartWebRtcCommand` |
+| `CMD_WEBRTC_OFFER` | 29 | CMS → player | `RtcSdpCommand` (`type="offer"`) |
+| `CMD_WEBRTC_ANSWER` | 30 | player → CMS | `RtcSdpCommand` (`type="answer"`) |
+| `CMD_WEBRTC_ICE` | 31 | both ways | `RtcIceCommand` |
+| `CMD_WEBRTC_STOP` | 32 | CMS → player | empty |
+
+```protobuf
+message StartWebRtcCommand {
+  string targetId  = 1;  // CMS session id, echoed back
+  int32  displayId = 2;  // display index, -1 = primary (desktop only)
+  int32  width     = 3;
+  int32  height    = 4;
+  int32  frameRate = 5;  // default 30
+  int32  bitrate   = 6;
+  bool   withAudio = 7;  // system audio (desktop)
+}
+
+message RtcSdpCommand {
+  string targetId = 1;
+  string sdp      = 2;
+  string type     = 3;  // "offer" / "answer"
+  string fromId   = 4;  // sender id; player currently sends ""
+}
+
+message RtcIceCommand {
+  string targetId      = 1;
+  string fromId        = 2;
+  string candidate     = 3;
+  string sdpMid        = 4;
+  int32  sdpMLineIndex = 5;
+}
+```
+
+### Sequence
+
+```text
+CMS ──CMD_WEBRTC_START(28)──▶ player    start capture, create PeerConnection
+CMS ──CMD_WEBRTC_OFFER(29)──▶ player    setRemoteDescription
+player ──CMD_WEBRTC_ANSWER(30)──▶ CMS   createAnswer + setLocalDescription
+CMS ⇄ player  CMD_WEBRTC_ICE(31)        bidirectional ICE candidates
+CMS ──CMD_WEBRTC_STOP(32)──▶ player     stop and release resources
+```
+
+If the offer arrives before the PeerConnection is ready (the Android consent dialog can take a while), it is queued and applied once ready. Remote ICE candidates are queued the same way.
+
+### Capture
+
+- **Desktop (Windows / macOS / Linux)**: enumerate displays with `desktopCapturer.getSources()`, pick one via `displayId`, then capture with `getDisplayMedia`. Zero configuration.
+- **Android**: `getDisplayMedia` uses `MediaProjection` + `ScreenCapturerAndroid` internally and shows the system screen-capture consent dialog on first use. Android 14+ requires a foreground service with `mediaProjection` type to exist before MediaProjection is created, so the player starts `WebRtcProjectionService` (persistent notification) first and stops it when streaming ends. The first consent requires the app to be in the foreground.
+- **STUN**: defaults to `stun:stun.l.google.com:19302` and `stun:stun1.l.google.com:19302`. For NAT-restricted networks, deploy your own TURN server and replace `_stunServers`.
+
+### Files involved
+
+- `lib/proto/websocket_def.*`, `websocket_def.protobuf`: command and message definitions
+- `lib/backend/services/webrtc_publishing_service.dart`: capture + PeerConnection + signaling
+- `lib/backend/net/cms_websocket_service.dart`: WebSocket dispatch and signaling bridge
+- `android/app/src/main/kotlin/com/platform/player/WebRtcProjectionService.kt`: mediaProjection foreground service
+- `android/app/src/main/AndroidManifest.xml`: `FOREGROUND_SERVICE_MEDIA_PROJECTION` permission and service declaration
+
 ## Product Overview
 
 This project is a professional multi-screen playback system for digital signage, smart retail displays, information walls, and media presentation environments. It enables centralized or standalone playback of diverse content across multiple regions on one screen or across a group of connected displays.

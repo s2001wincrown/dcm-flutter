@@ -66,6 +66,11 @@ const CommandType$json = {
     {'1': 'CMD_DISK_CLEAN', '2': 25},
     {'1': 'CMD_HEARTBEAT', '2': 26},
     {'1': 'CMD_SYNC_PLAY', '2': 27},
+    {'1': 'CMD_WEBRTC_START', '2': 28},
+    {'1': 'CMD_WEBRTC_OFFER', '2': 29},
+    {'1': 'CMD_WEBRTC_ANSWER', '2': 30},
+    {'1': 'CMD_WEBRTC_ICE', '2': 31},
+    {'1': 'CMD_WEBRTC_STOP', '2': 32},
   ],
 };
 

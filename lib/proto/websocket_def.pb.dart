@@ -193,6 +193,295 @@ class SyncPlayCommand extends $pb.GeneratedMessage {
   void clearTolerance() => clearField(3);
 }
 
+/// WebRTC 推流启动命令。
+/// CMS 告诉播放器：把屏幕（或指定显示器）推到监控服务器 [targetId]。
+/// [displayId] 空或为 -1 表示默认主屏；[width]/[height]/[frameRate]/[bitrate] 可选参数。
+class StartWebRtcCommand extends $pb.GeneratedMessage {
+  factory StartWebRtcCommand({
+    $core.String? targetId,
+    $core.int? displayId,
+    $core.int? width,
+    $core.int? height,
+    $core.int? frameRate,
+    $core.int? bitrate,
+    $core.bool? withAudio,
+  }) {
+    final result = create();
+    if (targetId != null) result.targetId = targetId;
+    if (displayId != null) result.displayId = displayId;
+    if (width != null) result.width = width;
+    if (height != null) result.height = height;
+    if (frameRate != null) result.frameRate = frameRate;
+    if (bitrate != null) result.bitrate = bitrate;
+    if (withAudio != null) result.withAudio = withAudio;
+    return result;
+  }
+  StartWebRtcCommand._() : super();
+  factory StartWebRtcCommand.fromBuffer($core.List<$core.int> i, [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) => create()..mergeFromBuffer(i, r);
+  factory StartWebRtcCommand.fromJson($core.String i, [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) => create()..mergeFromJson(i, r);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(_omitMessageNames ? '' : 'StartWebRtcCommand', package: const $pb.PackageName(_omitMessageNames ? '' : 'com.digitalsignage.protocol'), createEmptyInstance: create)
+    ..aOS(1, _omitFieldNames ? '' : 'targetId')
+    ..a<$core.int>(2, _omitFieldNames ? '' : 'displayId', $pb.PbFieldType.O3)
+    ..a<$core.int>(3, _omitFieldNames ? '' : 'width', $pb.PbFieldType.O3)
+    ..a<$core.int>(4, _omitFieldNames ? '' : 'height', $pb.PbFieldType.O3)
+    ..a<$core.int>(5, _omitFieldNames ? '' : 'frameRate', $pb.PbFieldType.O3)
+    ..a<$core.int>(6, _omitFieldNames ? '' : 'bitrate', $pb.PbFieldType.O3)
+    ..aOB(7, _omitFieldNames ? '' : 'withAudio')
+    ..hasRequiredFields = false
+  ;
+
+  @$core.Deprecated('Use [GeneratedMessageGenericExtensions.deepCopy] instead. Will be removed in next major version')
+  StartWebRtcCommand clone() => StartWebRtcCommand()..mergeFromMessage(this);
+  @$core.Deprecated('Use [GeneratedMessageGenericExtensions.rebuild] instead. Will be removed in next major version')
+  StartWebRtcCommand copyWith(void Function(StartWebRtcCommand) updates) => super.copyWith((message) => updates(message as StartWebRtcCommand)) as StartWebRtcCommand;
+
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  static StartWebRtcCommand create() => StartWebRtcCommand._();
+  StartWebRtcCommand createEmptyInstance() => create();
+  static $pb.PbList<StartWebRtcCommand> createRepeated() => $pb.PbList<StartWebRtcCommand>();
+  @$core.pragma('dart2js:noInline')
+  static StartWebRtcCommand getDefault() => _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<StartWebRtcCommand>(create);
+  static StartWebRtcCommand? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.String get targetId => $_getSZ(0);
+  @$pb.TagNumber(1)
+  set targetId($core.String v) { $_setString(0, v); }
+  @$pb.TagNumber(1)
+  $core.bool hasTargetId() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearTargetId() => clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.int get displayId => $_getIZ(1);
+  @$pb.TagNumber(2)
+  set displayId($core.int v) { $_setSignedInt32(1, v); }
+  @$pb.TagNumber(2)
+  $core.bool hasDisplayId() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearDisplayId() => clearField(2);
+
+  @$pb.TagNumber(3)
+  $core.int get width => $_getIZ(2);
+  @$pb.TagNumber(3)
+  set width($core.int v) { $_setSignedInt32(2, v); }
+  @$pb.TagNumber(3)
+  $core.bool hasWidth() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearWidth() => clearField(3);
+
+  @$pb.TagNumber(4)
+  $core.int get height => $_getIZ(3);
+  @$pb.TagNumber(4)
+  set height($core.int v) { $_setSignedInt32(3, v); }
+  @$pb.TagNumber(4)
+  $core.bool hasHeight() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearHeight() => clearField(4);
+
+  @$pb.TagNumber(5)
+  $core.int get frameRate => $_getIZ(4);
+  @$pb.TagNumber(5)
+  set frameRate($core.int v) { $_setSignedInt32(4, v); }
+  @$pb.TagNumber(5)
+  $core.bool hasFrameRate() => $_has(4);
+  @$pb.TagNumber(5)
+  void clearFrameRate() => clearField(5);
+
+  @$pb.TagNumber(6)
+  $core.int get bitrate => $_getIZ(5);
+  @$pb.TagNumber(6)
+  set bitrate($core.int v) { $_setSignedInt32(5, v); }
+  @$pb.TagNumber(6)
+  $core.bool hasBitrate() => $_has(5);
+  @$pb.TagNumber(6)
+  void clearBitrate() => clearField(6);
+
+  @$pb.TagNumber(7)
+  $core.bool get withAudio => $_getBF(6);
+  @$pb.TagNumber(7)
+  set withAudio($core.bool v) { $_setBool(6, v); }
+  @$pb.TagNumber(7)
+  $core.bool hasWithAudio() => $_has(6);
+  @$pb.TagNumber(7)
+  void clearWithAudio() => clearField(7);
+}
+
+/// WebRTC SDP 交换（offer 或 answer）。
+/// CMS 与播放器之间通过 CMS WebSocket 作为信令通道，交换 SDP。
+/// SDP 字符串放到 [sdp]，[type] 是 "offer" / "answer"。
+class RtcSdpCommand extends $pb.GeneratedMessage {
+  factory RtcSdpCommand({
+    $core.String? targetId,
+    $core.String? sdp,
+    $core.String? type,
+    $core.String? fromId,
+  }) {
+    final result = create();
+    if (targetId != null) result.targetId = targetId;
+    if (sdp != null) result.sdp = sdp;
+    if (type != null) result.type = type;
+    if (fromId != null) result.fromId = fromId;
+    return result;
+  }
+  RtcSdpCommand._() : super();
+  factory RtcSdpCommand.fromBuffer($core.List<$core.int> i, [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) => create()..mergeFromBuffer(i, r);
+  factory RtcSdpCommand.fromJson($core.String i, [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) => create()..mergeFromJson(i, r);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(_omitMessageNames ? '' : 'RtcSdpCommand', package: const $pb.PackageName(_omitMessageNames ? '' : 'com.digitalsignage.protocol'), createEmptyInstance: create)
+    ..aOS(1, _omitFieldNames ? '' : 'targetId')
+    ..aOS(2, _omitFieldNames ? '' : 'sdp')
+    ..aOS(3, _omitFieldNames ? '' : 'type')
+    ..aOS(4, _omitFieldNames ? '' : 'fromId')
+    ..hasRequiredFields = false
+  ;
+
+  @$core.Deprecated('Use [GeneratedMessageGenericExtensions.deepCopy] instead. Will be removed in next major version')
+  RtcSdpCommand clone() => RtcSdpCommand()..mergeFromMessage(this);
+  @$core.Deprecated('Use [GeneratedMessageGenericExtensions.rebuild] instead. Will be removed in next major version')
+  RtcSdpCommand copyWith(void Function(RtcSdpCommand) updates) => super.copyWith((message) => updates(message as RtcSdpCommand)) as RtcSdpCommand;
+
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  static RtcSdpCommand create() => RtcSdpCommand._();
+  RtcSdpCommand createEmptyInstance() => create();
+  static $pb.PbList<RtcSdpCommand> createRepeated() => $pb.PbList<RtcSdpCommand>();
+  @$core.pragma('dart2js:noInline')
+  static RtcSdpCommand getDefault() => _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<RtcSdpCommand>(create);
+  static RtcSdpCommand? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.String get targetId => $_getSZ(0);
+  @$pb.TagNumber(1)
+  set targetId($core.String v) { $_setString(0, v); }
+  @$pb.TagNumber(1)
+  $core.bool hasTargetId() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearTargetId() => clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.String get sdp => $_getSZ(1);
+  @$pb.TagNumber(2)
+  set sdp($core.String v) { $_setString(1, v); }
+  @$pb.TagNumber(2)
+  $core.bool hasSdp() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearSdp() => clearField(2);
+
+  @$pb.TagNumber(3)
+  $core.String get type => $_getSZ(2);
+  @$pb.TagNumber(3)
+  set type($core.String v) { $_setString(2, v); }
+  @$pb.TagNumber(3)
+  $core.bool hasType() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearType() => clearField(3);
+
+  @$pb.TagNumber(4)
+  $core.String get fromId => $_getSZ(3);
+  @$pb.TagNumber(4)
+  set fromId($core.String v) { $_setString(3, v); }
+  @$pb.TagNumber(4)
+  $core.bool hasFromId() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearFromId() => clearField(4);
+}
+
+/// WebRTC ICE candidate 交换。
+class RtcIceCommand extends $pb.GeneratedMessage {
+  factory RtcIceCommand({
+    $core.String? targetId,
+    $core.String? fromId,
+    $core.String? candidate,
+    $core.String? sdpMid,
+    $core.int? sdpMLineIndex,
+  }) {
+    final result = create();
+    if (targetId != null) result.targetId = targetId;
+    if (fromId != null) result.fromId = fromId;
+    if (candidate != null) result.candidate = candidate;
+    if (sdpMid != null) result.sdpMid = sdpMid;
+    if (sdpMLineIndex != null) result.sdpMLineIndex = sdpMLineIndex;
+    return result;
+  }
+  RtcIceCommand._() : super();
+  factory RtcIceCommand.fromBuffer($core.List<$core.int> i, [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) => create()..mergeFromBuffer(i, r);
+  factory RtcIceCommand.fromJson($core.String i, [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) => create()..mergeFromJson(i, r);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(_omitMessageNames ? '' : 'RtcIceCommand', package: const $pb.PackageName(_omitMessageNames ? '' : 'com.digitalsignage.protocol'), createEmptyInstance: create)
+    ..aOS(1, _omitFieldNames ? '' : 'targetId')
+    ..aOS(2, _omitFieldNames ? '' : 'fromId')
+    ..aOS(3, _omitFieldNames ? '' : 'candidate')
+    ..aOS(4, _omitFieldNames ? '' : 'sdpMid')
+    ..a<$core.int>(5, _omitFieldNames ? '' : 'sdpMLineIndex', $pb.PbFieldType.O3)
+    ..hasRequiredFields = false
+  ;
+
+  @$core.Deprecated('Use [GeneratedMessageGenericExtensions.deepCopy] instead. Will be removed in next major version')
+  RtcIceCommand clone() => RtcIceCommand()..mergeFromMessage(this);
+  @$core.Deprecated('Use [GeneratedMessageGenericExtensions.rebuild] instead. Will be removed in next major version')
+  RtcIceCommand copyWith(void Function(RtcIceCommand) updates) => super.copyWith((message) => updates(message as RtcIceCommand)) as RtcIceCommand;
+
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  static RtcIceCommand create() => RtcIceCommand._();
+  RtcIceCommand createEmptyInstance() => create();
+  static $pb.PbList<RtcIceCommand> createRepeated() => $pb.PbList<RtcIceCommand>();
+  @$core.pragma('dart2js:noInline')
+  static RtcIceCommand getDefault() => _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<RtcIceCommand>(create);
+  static RtcIceCommand? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.String get targetId => $_getSZ(0);
+  @$pb.TagNumber(1)
+  set targetId($core.String v) { $_setString(0, v); }
+  @$pb.TagNumber(1)
+  $core.bool hasTargetId() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearTargetId() => clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.String get fromId => $_getSZ(1);
+  @$pb.TagNumber(2)
+  set fromId($core.String v) { $_setString(1, v); }
+  @$pb.TagNumber(2)
+  $core.bool hasFromId() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearFromId() => clearField(2);
+
+  @$pb.TagNumber(3)
+  $core.String get candidate => $_getSZ(2);
+  @$pb.TagNumber(3)
+  set candidate($core.String v) { $_setString(2, v); }
+  @$pb.TagNumber(3)
+  $core.bool hasCandidate() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearCandidate() => clearField(3);
+
+  @$pb.TagNumber(4)
+  $core.String get sdpMid => $_getSZ(3);
+  @$pb.TagNumber(4)
+  set sdpMid($core.String v) { $_setString(3, v); }
+  @$pb.TagNumber(4)
+  $core.bool hasSdpMid() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearSdpMid() => clearField(4);
+
+  @$pb.TagNumber(5)
+  $core.int get sdpMLineIndex => $_getIZ(4);
+  @$pb.TagNumber(5)
+  set sdpMLineIndex($core.int v) { $_setSignedInt32(4, v); }
+  @$pb.TagNumber(5)
+  $core.bool hasSdpMLineIndex() => $_has(4);
+  @$pb.TagNumber(5)
+  void clearSdpMLineIndex() => clearField(5);
+}
+
 /// 心跳消息
 class Heartbeat extends $pb.GeneratedMessage {
   factory Heartbeat({

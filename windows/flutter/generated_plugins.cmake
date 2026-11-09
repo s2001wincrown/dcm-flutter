@@ -7,6 +7,7 @@ list(APPEND FLUTTER_PLUGIN_LIST
   flutter_inappwebview_windows
   flutter_libserialport
   flutter_udid
+  flutter_webrtc
   libmpv_dart
   media_kit_libs_windows_video
   media_kit_video

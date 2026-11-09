@@ -46,6 +46,13 @@ enum CommandType {
   CMD_REFRESH = 24;
   CMD_DISK_CLEAN = 25;
   CMD_HEARTBEAT = 26;
+
+  // ---- WebRTC 实时监控 ----
+  CMD_WEBRTC_START  = 28;  // CMS → Player 启动屏幕采集
+  CMD_WEBRTC_OFFER  = 29;  // CMS → Player SDP offer
+  CMD_WEBRTC_ANSWER = 30;  // Player → CMS SDP answer
+  CMD_WEBRTC_ICE    = 31;  // 双向 ICE candidate
+  CMD_WEBRTC_STOP   = 32;  // 停止推流
 }
 
 // 统一消息包装器 (替代 C++ 的 Header_Struct)
@@ -120,4 +127,36 @@ message AhSender {
   string create_time = 5;
   int32 status = 6;
   bool end_manual = 7;
+}
+
+// ============================================================================
+// WebRTC 实时监控 (屏幕推流)
+// ============================================================================
+
+// CMS → Player：启动屏幕采集 + 创建 PeerConnection
+message StartWebRtcCommand {
+  string targetId  = 1;  // CMS 端目标会话 ID
+  int32  displayId = 2;  // 目标显示器索引（-1 = 主屏）
+  int32  width     = 3;  // 采集宽度
+  int32  height    = 4;  // 采集高度
+  int32  frameRate = 5;  // 帧率（默认 30）
+  int32  bitrate   = 6;  // 码率（kbps）
+  bool   withAudio = 7;  // 是否采集系统音频
+}
+
+// SDP offer / answer 双向消息
+message RtcSdpCommand {
+  string targetId   = 1;  // 目标会话 ID
+  string sdp        = 2;  // SDP 字符串
+  string type       = 3;  // "offer" / "answer"
+  string fromId     = 4;  // 发送方 playerId（接收方用来路由）
+}
+
+// ICE candidate 双向消息
+message RtcIceCommand {
+  string targetId       = 1;
+  string fromId         = 2;
+  string candidate      = 3;
+  string sdpMid         = 4;
+  int32  sdpMLineIndex = 5;
 }
